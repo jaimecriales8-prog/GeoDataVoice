@@ -57,16 +57,32 @@ class LoginRequest(BaseModel):
 
 @router.post("/login")
 async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(User).where(User.email == data.email))
-    user = result.scalar_one_or_none()
+    import traceback as _tb
+    try:
+        result = await db.execute(select(User).where(User.email == data.email))
+        user = result.scalar_one_or_none()
+    except Exception as e:
+        return {"step": "db_query", "error": str(e)[:400]}
 
-    if not user or not verify_password(data.password, user.hashed_password):
+    if not user:
+        raise HTTPException(status_code=401, detail="Email o contraseña incorrectos")
+
+    try:
+        pwd_ok = verify_password(data.password, user.hashed_password)
+    except Exception as e:
+        return {"step": "verify_password", "error": str(e)[:400]}
+
+    if not pwd_ok:
         raise HTTPException(status_code=401, detail="Email o contraseña incorrectos")
 
     if not user.is_active:
         raise HTTPException(status_code=403, detail="Usuario inactivo")
 
-    token = create_access_token({"sub": str(user.id), "role": user.role, "email": user.email})
+    try:
+        token = create_access_token({"sub": str(user.id), "role": user.role, "email": user.email})
+    except Exception as e:
+        return {"step": "create_token", "error": str(e)[:400]}
+
     return {"access_token": token, "token_type": "bearer", "role": user.role, "full_name": user.full_name}
 
 
