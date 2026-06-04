@@ -4,9 +4,12 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchProjects, fetchClients } from "@/lib/api";
 import type { Project } from "@/lib/api";
 import Link from "next/link";
-import { BarChart3, Users, MapPin, Mic, ArrowRight, TrendingUp } from "lucide-react";
+import { BarChart3, Users, MapPin, Mic, ArrowRight, TrendingUp, LogOut } from "lucide-react";
+import { useAuth } from "@/app/providers";
 
 export default function HomePage() {
+  const { user, logout } = useAuth();
+
   const { data: projects = [], isLoading: loadingProjects } = useQuery({
     queryKey: ["projects"],
     queryFn: fetchProjects,
@@ -28,11 +31,28 @@ export default function HomePage() {
             </div>
             <span className="text-xl font-bold text-white tracking-tight">GeoDataVoice</span>
           </div>
-          <nav className="flex items-center gap-6 text-sm text-blue-200">
-            <span className="text-white font-medium">Dashboard</span>
-            <span className="hover:text-white cursor-pointer">Panel</span>
-            <span className="hover:text-white cursor-pointer">AGORA</span>
-          </nav>
+          <div className="flex items-center gap-4">
+            <nav className="hidden sm:flex items-center gap-6 text-sm text-blue-200">
+              <span className="text-white font-medium">Dashboard</span>
+              <span className="hover:text-white cursor-pointer">Panel</span>
+              <span className="hover:text-white cursor-pointer">AGORA</span>
+            </nav>
+            {user && (
+              <div className="flex items-center gap-3 border-l border-white/10 pl-4">
+                <div className="text-right hidden sm:block">
+                  <p className="text-xs font-medium text-white">{user.full_name}</p>
+                  <p className="text-xs text-blue-400 capitalize">{user.role}</p>
+                </div>
+                <button
+                  onClick={logout}
+                  title="Cerrar sesión"
+                  className="h-8 w-8 rounded-lg bg-white/5 hover:bg-red-500/20 flex items-center justify-center text-blue-300 hover:text-red-400 transition-colors"
+                >
+                  <LogOut className="h-4 w-4" />
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </header>
 
