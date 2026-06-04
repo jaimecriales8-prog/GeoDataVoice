@@ -3,12 +3,22 @@ from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.pool import NullPool
 from app.core.config import settings
 
-engine = create_async_engine(
-    settings.DATABASE_URL,
-    echo=False,
-    poolclass=NullPool,                        # Serverless: no connection reuse
-    connect_args={"statement_cache_size": 0},  # Supabase Transaction Pooler requirement
-)
+
+def _make_engine():
+    url = settings.DATABASE_URL
+    # Embed statement_cache_size=0 in the URL for asyncpg to pick it up reliably
+    if "?" not in url:
+        url += "?statement_cache_size=0"
+    else:
+        url += "&statement_cache_size=0"
+    return create_async_engine(
+        url,
+        echo=False,
+        poolclass=NullPool,
+    )
+
+
+engine = _make_engine()
 AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 
 
