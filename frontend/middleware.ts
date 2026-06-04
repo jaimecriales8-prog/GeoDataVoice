@@ -31,10 +31,8 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  // Redirect logged-in users away from /login
-  if (user && pathname.startsWith("/login")) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
-  }
+  // /login always renders — no redirect even if logged in
+  // The page itself handles the "already logged in" state
 
   return response;
 }
