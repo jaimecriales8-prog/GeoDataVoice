@@ -224,10 +224,16 @@ export default function LandingPage() {
                   </li>
                 ))}
               </ul>
-              <a href="https://wa.me/573000000000?text=Quiero%20ser%20panelista%20de%20GeoDataVoice"
-                className="mt-auto inline-flex items-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors w-fit">
-                Unirme al panel <ArrowRight className="h-3.5 w-3.5" />
-              </a>
+              <div className="mt-auto flex flex-col gap-2">
+                <a href="https://geodatavoice-campo.vercel.app/panelista"
+                  className="inline-flex items-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors w-fit">
+                  Ver mi panel web <ArrowRight className="h-3.5 w-3.5" />
+                </a>
+                <a href="https://wa.me/573000000000?text=Quiero%20ser%20panelista%20de%20GeoDataVoice"
+                  className="inline-flex items-center gap-2 rounded-xl border border-amber-300 text-amber-700 hover:bg-amber-50 px-5 py-2.5 text-sm font-semibold transition-colors w-fit">
+                  Unirme por WhatsApp
+                </a>
+              </div>
             </div>
 
           </div>
