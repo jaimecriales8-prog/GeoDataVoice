@@ -1,12 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
+from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, text
 from pydantic import BaseModel
 from app.core.database import get_db
 from app.core.security import verify_password, create_access_token, decode_token
 from app.models.user import User
-import traceback
 
 router = APIRouter()
 
@@ -51,36 +50,23 @@ class UserOut(BaseModel):
     class Config: from_attributes = True
 
 
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+
 @router.post("/login")
-async def login(
-    form: OAuth2PasswordRequestForm = Depends(),
-    db: AsyncSession = Depends(get_db),
-):
-    try:
-        result = await db.execute(select(User).where(User.email == form.username))
-        user = result.scalar_one_or_none()
-    except Exception as e:
-        return {"error": "db_query", "detail": str(e)[:300]}
+async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(User).where(User.email == data.email))
+    user = result.scalar_one_or_none()
 
-    if not user:
-        raise HTTPException(status_code=401, detail="Email o contraseña incorrectos")
-
-    try:
-        pwd_ok = verify_password(form.password, user.hashed_password)
-    except Exception as e:
-        return {"error": "bcrypt", "detail": str(e)[:300]}
-
-    if not pwd_ok:
+    if not user or not verify_password(data.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Email o contraseña incorrectos")
 
     if not user.is_active:
         raise HTTPException(status_code=403, detail="Usuario inactivo")
 
-    try:
-        token = create_access_token({"sub": str(user.id), "role": user.role, "email": user.email})
-    except Exception as e:
-        return {"error": "jwt", "detail": str(e)[:300]}
-
+    token = create_access_token({"sub": str(user.id), "role": user.role, "email": user.email})
     return {"access_token": token, "token_type": "bearer", "role": user.role, "full_name": user.full_name}
 
 

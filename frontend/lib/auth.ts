@@ -12,13 +12,7 @@ export type AuthUser = {
 };
 
 export async function login(email: string, password: string): Promise<AuthUser> {
-  const params = new URLSearchParams();
-  params.append("username", email);
-  params.append("password", password);
-
-  const res = await api.post("/auth/login", params, {
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-  });
+  const res = await api.post("/auth/login", { email, password });
 
   const { access_token } = res.data;
   setToken(access_token);
