@@ -19,14 +19,20 @@ export default function LandingPage() {
           </div>
           <div className="hidden md:flex items-center gap-8 text-sm text-slate-600">
             <a href="#como-funciona" className="hover:text-blue-600 transition-colors">Cómo funciona</a>
-            <a href="#clientes" className="hover:text-blue-600 transition-colors">Para quién es</a>
+            <a href="#perfiles" className="hover:text-blue-600 transition-colors">Perfiles</a>
             <a href="#metodologia" className="hover:text-blue-600 transition-colors">Metodología</a>
             <a href="#contacto" className="hover:text-blue-600 transition-colors">Contacto</a>
           </div>
-          <a href="#contacto"
-            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors">
-            Solicitar demo
-          </a>
+          <div className="flex items-center gap-3">
+            <Link href="/login"
+              className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors">
+              Ingresar
+            </Link>
+            <a href="#contacto"
+              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors">
+              Solicitar demo
+            </a>
+          </div>
         </div>
       </nav>
 
@@ -95,6 +101,135 @@ export default function LandingPage() {
                 <p className="text-sm text-slate-600 leading-relaxed">{desc}</p>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── 4 Perfiles ───────────────────────────────────────────────── */}
+      <section id="perfiles" className="py-24 px-6">
+        <div className="mx-auto max-w-5xl">
+          <div className="text-center mb-14">
+            <span className="text-sm font-semibold text-blue-600 uppercase tracking-wider">Plataforma</span>
+            <h2 className="text-3xl font-bold text-slate-900 mt-2 mb-4">Cuatro roles, un solo ecosistema</h2>
+            <p className="text-slate-600 max-w-xl mx-auto">
+              Cada persona que participa en GeoDataVoice tiene un rol claro y un acceso diseñado para lo que necesita.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-6">
+
+            {/* Administrador */}
+            <div className="rounded-2xl border-2 border-blue-100 bg-blue-50 p-7 flex flex-col gap-4">
+              <div className="flex items-center gap-3">
+                <div className="h-11 w-11 rounded-xl bg-blue-600 flex items-center justify-center shrink-0">
+                  <Shield className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-blue-600 uppercase tracking-wide">Rol</p>
+                  <h3 className="font-bold text-slate-900 text-lg">Administrador</h3>
+                </div>
+              </div>
+              <p className="text-sm text-slate-600 leading-relaxed">
+                Gestiona toda la plataforma: crea proyectos, configura territorios, administra operadores,
+                aprueba pagos y accede a los datos completos de todos los clientes.
+              </p>
+              <ul className="space-y-1.5">
+                {["Panel de control total", "Gestión de clientes y proyectos", "Aprobación de pagos", "Configuración de territorios y cohortes"].map(i => (
+                  <li key={i} className="flex items-center gap-2 text-sm text-slate-700">
+                    <CheckCircle className="h-3.5 w-3.5 text-blue-500 shrink-0" />{i}
+                  </li>
+                ))}
+              </ul>
+              <Link href="/login"
+                className="mt-auto inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 px-5 py-2.5 text-sm font-semibold text-white transition-colors w-fit">
+                Ingresar como admin <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            </div>
+
+            {/* Cliente */}
+            <div className="rounded-2xl border-2 border-violet-100 bg-violet-50 p-7 flex flex-col gap-4">
+              <div className="flex items-center gap-3">
+                <div className="h-11 w-11 rounded-xl bg-violet-600 flex items-center justify-center shrink-0">
+                  <BarChart3 className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-violet-600 uppercase tracking-wide">Rol</p>
+                  <h3 className="font-bold text-slate-900 text-lg">Cliente</h3>
+                </div>
+              </div>
+              <p className="text-sm text-slate-600 leading-relaxed">
+                Candidatos, alcaldes, gobernadores, gremios o empresas que contratan el servicio.
+                Acceden a su dashboard con los resultados de su proyecto en tiempo real.
+              </p>
+              <ul className="space-y-1.5">
+                {["Dashboard con favorabilidad y sentimiento", "Mapas por polígono territorial", "Narrativas y frases ciudadanas", "Informes ejecutivos descargables"].map(i => (
+                  <li key={i} className="flex items-center gap-2 text-sm text-slate-700">
+                    <CheckCircle className="h-3.5 w-3.5 text-violet-500 shrink-0" />{i}
+                  </li>
+                ))}
+              </ul>
+              <Link href="/login"
+                className="mt-auto inline-flex items-center gap-2 rounded-xl bg-violet-600 hover:bg-violet-700 px-5 py-2.5 text-sm font-semibold text-white transition-colors w-fit">
+                Ingresar como cliente <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            </div>
+
+            {/* Encuestador */}
+            <div className="rounded-2xl border-2 border-emerald-100 bg-emerald-50 p-7 flex flex-col gap-4">
+              <div className="flex items-center gap-3">
+                <div className="h-11 w-11 rounded-xl bg-emerald-600 flex items-center justify-center shrink-0">
+                  <MapPin className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wide">Rol</p>
+                  <h3 className="font-bold text-slate-900 text-lg">Encuestador</h3>
+                </div>
+              </div>
+              <p className="text-sm text-slate-600 leading-relaxed">
+                Operadores de campo que hacen el barrido territorial. Registran personas,
+                capturan GPS, toman evidencia fotográfica y obtienen consentimientos desde el celular.
+              </p>
+              <ul className="space-y-1.5">
+                {["App móvil offline-first", "Registro con GPS automático", "Captura de consentimientos", "Sync automático al recuperar señal"].map(i => (
+                  <li key={i} className="flex items-center gap-2 text-sm text-slate-700">
+                    <CheckCircle className="h-3.5 w-3.5 text-emerald-500 shrink-0" />{i}
+                  </li>
+                ))}
+              </ul>
+              <a href="https://geodatavoice-campo.vercel.app"
+                className="mt-auto inline-flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white transition-colors w-fit">
+                Abrir app de campo <ArrowRight className="h-3.5 w-3.5" />
+              </a>
+            </div>
+
+            {/* Encuestado */}
+            <div className="rounded-2xl border-2 border-amber-100 bg-amber-50 p-7 flex flex-col gap-4">
+              <div className="flex items-center gap-3">
+                <div className="h-11 w-11 rounded-xl bg-amber-500 flex items-center justify-center shrink-0">
+                  <Mic className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-amber-600 uppercase tracking-wide">Rol</p>
+                  <h3 className="font-bold text-slate-900 text-lg">Encuestado / Panelista</h3>
+                </div>
+              </div>
+              <p className="text-sm text-slate-600 leading-relaxed">
+                Ciudadanos verificados que participan en el panel. Reciben encuestas por WhatsApp,
+                responden preguntas y envían notas de voz. Reciben pagos por cada respuesta válida.
+              </p>
+              <ul className="space-y-1.5">
+                {["Participa 100% por WhatsApp", "Encuestas cortas cada 2 semanas", "Notas de voz de máx. 2 minutos", "Pagos por Nequi o Daviplata"].map(i => (
+                  <li key={i} className="flex items-center gap-2 text-sm text-slate-700">
+                    <CheckCircle className="h-3.5 w-3.5 text-amber-500 shrink-0" />{i}
+                  </li>
+                ))}
+              </ul>
+              <a href="https://wa.me/573000000000?text=Quiero%20ser%20panelista%20de%20GeoDataVoice"
+                className="mt-auto inline-flex items-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors w-fit">
+                Unirme al panel <ArrowRight className="h-3.5 w-3.5" />
+              </a>
+            </div>
+
           </div>
         </div>
       </section>
