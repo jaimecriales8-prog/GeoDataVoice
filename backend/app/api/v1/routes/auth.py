@@ -1,13 +1,37 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, text
 from pydantic import BaseModel
 from app.core.database import get_db
 from app.core.security import verify_password, create_access_token, decode_token
 from app.models.user import User
+import traceback
 
 router = APIRouter()
+
+
+@router.get("/debug")
+async def debug(db: AsyncSession = Depends(get_db)):
+    """Diagnóstico — remover en producción real."""
+    results = {}
+    try:
+        await db.execute(text("SELECT 1"))
+        results["db"] = "ok"
+    except Exception as e:
+        results["db"] = str(e)
+    try:
+        from app.core.security import hash_password
+        results["bcrypt"] = hash_password("test")[:20] + "..."
+    except Exception as e:
+        results["bcrypt"] = str(e)
+    try:
+        result = await db.execute(select(User))
+        users = result.scalars().all()
+        results["users_count"] = len(users)
+    except Exception as e:
+        results["users_query"] = str(e)
+    return results
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
 
