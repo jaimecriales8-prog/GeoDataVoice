@@ -168,10 +168,16 @@ export default function LandingPage() {
                   </li>
                 ))}
               </ul>
-              <Link href="/login"
-                className="mt-auto inline-flex items-center gap-2 rounded-xl bg-violet-600 hover:bg-violet-700 px-5 py-2.5 text-sm font-semibold text-white transition-colors w-fit">
-                Ingresar como cliente <ArrowRight className="h-3.5 w-3.5" />
-              </Link>
+              <div className="mt-auto flex flex-col gap-2">
+                <Link href="/registro/cliente"
+                  className="inline-flex items-center gap-2 rounded-xl bg-violet-600 hover:bg-violet-700 px-5 py-2.5 text-sm font-semibold text-white transition-colors w-fit">
+                  Registrarme como cliente <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
+                <Link href="/login"
+                  className="inline-flex items-center gap-2 rounded-xl border border-violet-300 text-violet-700 hover:bg-violet-100 px-5 py-2.5 text-sm font-semibold transition-colors w-fit">
+                  Ya tengo cuenta — Ingresar
+                </Link>
+              </div>
             </div>
 
             {/* Encuestador */}
@@ -196,10 +202,16 @@ export default function LandingPage() {
                   </li>
                 ))}
               </ul>
-              <a href="https://geodatavoice-campo.vercel.app"
-                className="mt-auto inline-flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white transition-colors w-fit">
-                Abrir app de campo <ArrowRight className="h-3.5 w-3.5" />
-              </a>
+              <div className="mt-auto flex flex-col gap-2">
+                <Link href="/registro/encuestador"
+                  className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white transition-colors w-fit">
+                  Aplicar como encuestador <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
+                <a href="https://geodatavoice-campo.vercel.app"
+                  className="inline-flex items-center gap-2 rounded-xl border border-emerald-300 text-emerald-700 hover:bg-emerald-100 px-5 py-2.5 text-sm font-semibold transition-colors w-fit">
+                  Ya tengo cuenta — App de campo
+                </a>
+              </div>
             </div>
 
             {/* Encuestado */}
@@ -225,13 +237,13 @@ export default function LandingPage() {
                 ))}
               </ul>
               <div className="mt-auto flex flex-col gap-2">
-                <a href="https://geodatavoice-campo.vercel.app/panelista"
+                <Link href="/registro/panelista"
                   className="inline-flex items-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors w-fit">
-                  Ver mi panel web <ArrowRight className="h-3.5 w-3.5" />
-                </a>
-                <a href="https://wa.me/573000000000?text=Quiero%20ser%20panelista%20de%20GeoDataVoice"
+                  Quiero ser panelista 🎤 <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
+                <a href="https://geodatavoice-campo.vercel.app/panelista"
                   className="inline-flex items-center gap-2 rounded-xl border border-amber-300 text-amber-700 hover:bg-amber-50 px-5 py-2.5 text-sm font-semibold transition-colors w-fit">
-                  Unirme por WhatsApp
+                  Ya soy panelista — Ver mis encuestas
                 </a>
               </div>
             </div>
