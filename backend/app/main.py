@@ -9,7 +9,15 @@ app = FastAPI(title="GeoDataVoice API", version="0.1.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:3001"],
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "http://localhost:3010",
+        "http://localhost:3011",
+        "https://geodatavoice-dashboard.vercel.app",
+        "https://geodatavoice-campo.vercel.app",
+        "https://geodatavoice.vercel.app",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
