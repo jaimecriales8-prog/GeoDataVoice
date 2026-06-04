@@ -22,12 +22,14 @@ export async function middleware(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
   const { pathname } = request.nextUrl;
 
-  if (!user && !pathname.startsWith("/login")) {
+  // Protect /dashboard routes only
+  if (!user && pathname.startsWith("/dashboard")) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
+  // Redirect logged-in users away from /login
   if (user && pathname.startsWith("/login")) {
-    return NextResponse.redirect(new URL("/", request.url));
+    return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
   return response;

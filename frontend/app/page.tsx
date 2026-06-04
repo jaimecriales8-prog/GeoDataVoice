@@ -1,141 +1,424 @@
-"use client";
-
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase";
 import Link from "next/link";
-import { BarChart3, Users, MapPin, Mic, ArrowRight, TrendingUp, LogOut } from "lucide-react";
+import {
+  MapPin, Mic, BarChart3, Users, Shield, TrendingUp,
+  CheckCircle, ArrowRight, ChevronRight, Star, Phone
+} from "lucide-react";
 
-type Project = { id: string; name: string; type: string; purpose: string; status: string };
-type UserMeta = { full_name?: string; role?: string; email?: string };
-
-export default function HomePage() {
-  const router = useRouter();
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [user, setUser] = useState<UserMeta | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const supabase = createClient();
-    supabase.auth.getUser().then(({ data }) => {
-      if (!data.user) { router.push("/login"); return; }
-      setUser({ ...data.user.user_metadata, email: data.user.email });
-    });
-    supabase.from("projects").select("*").eq("status", "active")
-      .then(({ data }) => { setProjects(data ?? []); setLoading(false); });
-  }, []);
-
-  async function logout() {
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    router.push("/login");
-  }
-
-  const purposeLabel: Record<string, string> = {
-    political: "Electoral", public_management: "Gestión pública", private: "Privado",
-  };
-  const typeLabel: Record<string, string> = {
-    favorability: "Favorabilidad", satisfaction: "Satisfacción",
-    pulse: "Pulso ciudadano", agora: "AGORA", custom: "Personalizado",
-  };
-
+export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900">
-      <header className="border-b border-white/10 bg-black/20 backdrop-blur">
-        <div className="mx-auto max-w-7xl px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-xl bg-blue-500 flex items-center justify-center">
-              <MapPin className="h-5 w-5 text-white" />
+    <div className="min-h-screen bg-white font-sans">
+
+      {/* ── Nav ──────────────────────────────────────────────────────── */}
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur border-b border-slate-100">
+        <div className="mx-auto max-w-6xl px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="h-8 w-8 rounded-lg bg-blue-600 flex items-center justify-center">
+              <MapPin className="h-4 w-4 text-white" />
             </div>
-            <span className="text-xl font-bold text-white tracking-tight">GeoDataVoice</span>
+            <span className="text-lg font-bold text-slate-900 tracking-tight">GeoDataVoice</span>
           </div>
-          <div className="flex items-center gap-4">
-            {user && (
-              <div className="flex items-center gap-3">
-                <div className="text-right hidden sm:block">
-                  <p className="text-xs font-medium text-white">{user.full_name}</p>
-                  <p className="text-xs text-blue-400 capitalize">{user.role ?? "admin"}</p>
+          <div className="hidden md:flex items-center gap-8 text-sm text-slate-600">
+            <a href="#como-funciona" className="hover:text-blue-600 transition-colors">Cómo funciona</a>
+            <a href="#clientes" className="hover:text-blue-600 transition-colors">Para quién es</a>
+            <a href="#metodologia" className="hover:text-blue-600 transition-colors">Metodología</a>
+            <a href="#contacto" className="hover:text-blue-600 transition-colors">Contacto</a>
+          </div>
+          <a href="#contacto"
+            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors">
+            Solicitar demo
+          </a>
+        </div>
+      </nav>
+
+      {/* ── Hero ─────────────────────────────────────────────────────── */}
+      <section className="pt-32 pb-24 px-6 bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 text-white relative overflow-hidden">
+        {/* decorative grid */}
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(59,130,246,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(59,130,246,0.05)_1px,transparent_1px)] bg-[size:64px_64px]" />
+
+        <div className="relative mx-auto max-w-5xl text-center">
+          <div className="inline-flex items-center gap-2 rounded-full bg-blue-500/20 border border-blue-500/30 px-4 py-1.5 text-sm text-blue-300 mb-8">
+            <span className="h-1.5 w-1.5 rounded-full bg-blue-400 animate-pulse" />
+            Panel territorial validado · Colombia
+          </div>
+
+          <h1 className="text-5xl md:text-6xl font-extrabold leading-tight tracking-tight mb-6">
+            Escucha personas reales.<br />
+            <span className="text-blue-400">Mide lo que importa.</span>
+          </h1>
+
+          <p className="text-xl text-slate-300 max-w-2xl mx-auto mb-10 leading-relaxed">
+            GeoDataVoice construye paneles de ciudadanos verificados y georreferenciados
+            para producir inteligencia territorial recurrente — con voz, datos y mapas.
+          </p>
+
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <a href="#contacto"
+              className="inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-500 px-7 py-4 text-base font-semibold transition-colors">
+              Solicitar demo gratuita <ArrowRight className="h-4 w-4" />
+            </a>
+            <a href="#como-funciona"
+              className="inline-flex items-center gap-2 rounded-xl border border-white/20 hover:bg-white/10 px-7 py-4 text-base font-semibold transition-colors">
+              Ver cómo funciona
+            </a>
+          </div>
+
+          {/* Social proof strip */}
+          <div className="mt-16 flex flex-wrap justify-center gap-8 text-sm text-slate-400">
+            {["Candidatos a alcaldías", "Gobernaciones", "Municipios medianos", "Gremios empresariales", "Entidades públicas"].map(s => (
+              <div key={s} className="flex items-center gap-2">
+                <CheckCircle className="h-4 w-4 text-blue-400" />
+                {s}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Problema ─────────────────────────────────────────────────── */}
+      <section className="py-20 px-6 bg-slate-50">
+        <div className="mx-auto max-w-5xl">
+          <div className="text-center mb-14">
+            <h2 className="text-3xl font-bold text-slate-900 mb-4">El problema con las encuestas tradicionales</h2>
+            <p className="text-slate-600 max-w-xl mx-auto">
+              Tomar decisiones sin datos confiables es costoso. Las encuestas episódicas no explican <em>por qué</em> cambia la opinión.
+            </p>
+          </div>
+          <div className="grid md:grid-cols-3 gap-6">
+            {[
+              { icon: "💸", title: "Costosas y episódicas", desc: "Una encuesta cada seis meses no detecta cambios a tiempo. El problema ya escaló cuando te enteraste." },
+              { icon: "❓", title: "No explican el porqué", desc: "Un número de favorabilidad no te dice qué lo mueve. Sin narrativa, no hay estrategia posible." },
+              { icon: "🎲", title: "Sin verificación real", desc: "Las encuestas digitales abiertas no comprueban quién responde ni dónde vive realmente." },
+            ].map(({ icon, title, desc }) => (
+              <div key={title} className="rounded-2xl bg-white border border-slate-200 p-6">
+                <div className="text-3xl mb-4">{icon}</div>
+                <h3 className="font-semibold text-slate-900 mb-2">{title}</h3>
+                <p className="text-sm text-slate-600 leading-relaxed">{desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Cómo funciona ────────────────────────────────────────────── */}
+      <section id="como-funciona" className="py-24 px-6">
+        <div className="mx-auto max-w-5xl">
+          <div className="text-center mb-16">
+            <span className="text-sm font-semibold text-blue-600 uppercase tracking-wider">Metodología</span>
+            <h2 className="text-3xl font-bold text-slate-900 mt-2 mb-4">Panel validado, medición recurrente</h2>
+            <p className="text-slate-600 max-w-xl mx-auto">
+              No encuestamos a cualquiera. Reclutamos, verificamos y mantenemos un panel de personas reales
+              con residencia comprobada en tu territorio.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-4 gap-4">
+            {[
+              { step: "01", icon: Users, title: "Reclutamiento presencial", desc: "Barrido puerta a puerta con operadores locales. Verificación de identidad tipo KYC y residencia comprobada." },
+              { step: "02", icon: Shield, title: "Panel verificado", desc: "Solo personas reales con celular validado, geolocalización y consentimiento explícito." },
+              { step: "03", icon: Mic, title: "Medición por WhatsApp y voz", desc: "Encuestas cada 2 semanas por WhatsApp. Notas de voz que capturan el porqué de la opinión." },
+              { step: "04", icon: BarChart3, title: "Dashboard de inteligencia", desc: "Favorabilidad, sentimiento, temas y narrativas por zona — actualizado después de cada ola." },
+            ].map(({ step, icon: Icon, title, desc }) => (
+              <div key={step} className="relative rounded-2xl border border-slate-200 bg-white p-6 hover:border-blue-200 hover:shadow-md transition-all">
+                <div className="text-xs font-bold text-blue-600 mb-4 tracking-widest">{step}</div>
+                <div className="h-10 w-10 rounded-xl bg-blue-50 flex items-center justify-center mb-4">
+                  <Icon className="h-5 w-5 text-blue-600" />
                 </div>
-                <button onClick={logout} title="Cerrar sesión"
-                  className="h-8 w-8 rounded-lg bg-white/5 hover:bg-red-500/20 flex items-center justify-center text-blue-300 hover:text-red-400 transition-colors">
-                  <LogOut className="h-4 w-4" />
-                </button>
+                <h3 className="font-semibold text-slate-900 mb-2 text-sm">{title}</h3>
+                <p className="text-xs text-slate-600 leading-relaxed">{desc}</p>
               </div>
-            )}
+            ))}
           </div>
         </div>
-      </header>
+      </section>
 
-      <main className="mx-auto max-w-7xl px-6 py-12">
-        <div className="mb-12 grid grid-cols-2 gap-4 sm:grid-cols-4">
-          {[
-            { label: "Proyectos activos", value: projects.length || "—", icon: BarChart3 },
-            { label: "Clientes", value: "—", icon: Users },
-            { label: "Panelistas", value: "—", icon: MapPin },
-            { label: "Audios procesados", value: "—", icon: Mic },
-          ].map(({ label, value, icon: Icon }) => (
-            <div key={label} className="rounded-2xl bg-white/5 border border-white/10 p-5 backdrop-blur">
-              <div className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500/20">
-                <Icon className="h-5 w-5 text-blue-400" />
-              </div>
-              <div className="text-2xl font-bold text-white">{value}</div>
-              <div className="text-sm text-blue-200 mt-1">{label}</div>
-            </div>
-          ))}
-        </div>
-
-        <section>
-          <div className="mb-6 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-white">Proyectos</h2>
-            <Link href="/projects/new"
-              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 transition-colors">
-              + Nuevo proyecto
-            </Link>
+      {/* ── AGORA ────────────────────────────────────────────────────── */}
+      <section className="py-20 px-6 bg-gradient-to-r from-blue-600 to-blue-800 text-white">
+        <div className="mx-auto max-w-5xl grid md:grid-cols-2 gap-12 items-center">
+          <div>
+            <span className="text-sm font-semibold text-blue-200 uppercase tracking-wider">Subproducto</span>
+            <h2 className="text-3xl font-bold mt-2 mb-4">AGORA by GeoDataVoice</h2>
+            <p className="text-blue-100 leading-relaxed mb-6">
+              El panel escucha y mide. AGORA convierte esa inteligencia en comunicación directa
+              con personas reales en tu territorio — pares verificados que comparten mensajes
+              aprobados y retroalimentan lo que funciona.
+            </p>
+            <ul className="space-y-3">
+              {[
+                "Red de pares verificados por zona y comunidad",
+                "Tareas de comunicación con evidencia medible",
+                "Mensajes que responden a lo que el panel encontró",
+                "Pagos por interacción verificable",
+              ].map(item => (
+                <li key={item} className="flex items-start gap-2 text-sm text-blue-100">
+                  <CheckCircle className="h-4 w-4 text-blue-300 shrink-0 mt-0.5" />
+                  {item}
+                </li>
+              ))}
+            </ul>
           </div>
-
-          {loading ? (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {[1, 2, 3].map(n => <div key={n} className="h-40 animate-pulse rounded-2xl bg-white/5" />)}
-            </div>
-          ) : projects.length === 0 ? (
-            <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-white/20 py-20 text-center">
-              <TrendingUp className="h-12 w-12 text-blue-400 mb-4 opacity-50" />
-              <p className="text-white font-medium mb-1">Sin proyectos aún</p>
-              <p className="text-sm text-blue-200 mb-6">Crea tu primer proyecto para empezar a medir</p>
-              <Link href="/projects/new"
-                className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-500 transition-colors">
-                Crear proyecto
-              </Link>
-            </div>
-          ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {projects.map(p => (
-                <Link key={p.id} href={`/projects/${p.id}`}>
-                  <div className="group rounded-2xl bg-white/5 border border-white/10 p-6 hover:bg-white/10 hover:border-blue-500/50 transition-all cursor-pointer h-full">
-                    <div className="flex items-start justify-between mb-4">
-                      <div>
-                        <span className="text-xs font-medium text-blue-400 uppercase tracking-wider">
-                          {purposeLabel[p.purpose] ?? p.purpose}
-                        </span>
-                        <h3 className="mt-1 text-base font-semibold text-white leading-tight">{p.name}</h3>
-                      </div>
-                      <ArrowRight className="h-4 w-4 text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity mt-1 shrink-0" />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="rounded-full bg-blue-500/20 px-3 py-1 text-xs text-blue-300">
-                        {typeLabel[p.type] ?? p.type}
-                      </span>
-                      <span className={`text-xs font-medium ${p.status === "active" ? "text-emerald-400" : "text-gray-400"}`}>
-                        {p.status === "active" ? "● Activo" : p.status}
-                      </span>
-                    </div>
+          <div className="rounded-2xl bg-white/10 border border-white/20 p-8">
+            <div className="space-y-4">
+              {[
+                { label: "Pares activos", value: "50–100", sub: "por proyecto piloto" },
+                { label: "Cobertura territorial", value: "100%", sub: "verificada con GPS" },
+                { label: "Retroalimentación", value: "48h", sub: "después de cada ola" },
+              ].map(({ label, value, sub }) => (
+                <div key={label} className="flex items-center justify-between border-b border-white/10 pb-4 last:border-0 last:pb-0">
+                  <span className="text-sm text-blue-200">{label}</span>
+                  <div className="text-right">
+                    <div className="text-xl font-bold text-white">{value}</div>
+                    <div className="text-xs text-blue-300">{sub}</div>
                   </div>
-                </Link>
+                </div>
               ))}
             </div>
-          )}
-        </section>
-      </main>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Para quién ───────────────────────────────────────────────── */}
+      <section id="clientes" className="py-24 px-6 bg-slate-50">
+        <div className="mx-auto max-w-5xl">
+          <div className="text-center mb-14">
+            <span className="text-sm font-semibold text-blue-600 uppercase tracking-wider">Clientes</span>
+            <h2 className="text-3xl font-bold text-slate-900 mt-2 mb-4">¿Para quién es GeoDataVoice?</h2>
+          </div>
+          <div className="grid md:grid-cols-2 gap-4">
+            {[
+              {
+                icon: "🗳️", title: "Candidatos a alcaldía y gobernación",
+                items: ["Favorabilidad por polígono y segmento", "Razones de cambio de percepción", "Mensajes creíbles por zona", "Tracking quincenal durante campaña"],
+              },
+              {
+                icon: "🏛️", title: "Alcaldías y gobernaciones",
+                items: ["Satisfacción con la gestión por sector", "Alertas tempranas por zona", "Percepción de programas y obras", "Tablero de gobernabilidad mensual"],
+              },
+              {
+                icon: "🏙️", title: "Municipios medianos",
+                items: ["Medición mensual sin encuesta presencial completa", "Suscripción de inteligencia territorial", "Comparación entre municipios del departamento"],
+              },
+              {
+                icon: "🏢", title: "Gremios y empresas",
+                items: ["Panel de afiliados y agenda sectorial", "Percepción frente a reformas", "AGORA para comunicación directa con miembros"],
+              },
+            ].map(({ icon, title, items }) => (
+              <div key={title} className="rounded-2xl bg-white border border-slate-200 p-6 hover:border-blue-200 hover:shadow-sm transition-all">
+                <div className="text-3xl mb-3">{icon}</div>
+                <h3 className="font-bold text-slate-900 mb-4">{title}</h3>
+                <ul className="space-y-2">
+                  {items.map(item => (
+                    <li key={item} className="flex items-center gap-2 text-sm text-slate-600">
+                      <ChevronRight className="h-3.5 w-3.5 text-blue-500 shrink-0" />
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Metodología ──────────────────────────────────────────────── */}
+      <section id="metodologia" className="py-24 px-6">
+        <div className="mx-auto max-w-5xl grid md:grid-cols-2 gap-12 items-center">
+          <div>
+            <span className="text-sm font-semibold text-blue-600 uppercase tracking-wider">Rigor metodológico</span>
+            <h2 className="text-3xl font-bold text-slate-900 mt-2 mb-6">
+              Un panel que resiste el escrutinio técnico
+            </h2>
+            <div className="space-y-5">
+              {[
+                { title: "Panel longitudinal rotativo", desc: "Medimos a las mismas personas en el tiempo para detectar cambios reales, no ruido." },
+                { title: "Reclutamiento presencial validado", desc: "Identidad tipo KYC, celular verificado con OTP, residencia comprobada con GPS." },
+                { title: "Post-estratificación estadística", desc: "Ponderamos para alinear la muestra con la distribución poblacional real del territorio." },
+                { title: "Voz como dato cualitativo", desc: "Las notas de voz transcritas y analizadas con IA revelan narrativas que los números no capturan." },
+              ].map(({ title, desc }) => (
+                <div key={title} className="flex gap-4">
+                  <div className="h-6 w-6 rounded-full bg-blue-100 flex items-center justify-center shrink-0 mt-0.5">
+                    <CheckCircle className="h-3.5 w-3.5 text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-slate-900 text-sm">{title}</p>
+                    <p className="text-sm text-slate-600 mt-0.5">{desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="rounded-2xl bg-slate-900 p-8 text-white">
+            <div className="text-sm font-semibold text-blue-400 mb-6 uppercase tracking-wider">Entregables del MVP</div>
+            <div className="space-y-4">
+              {[
+                { label: "Panel activo validado", value: "500–1.000 personas" },
+                { label: "Territorio inicial", value: "Barranquilla + 2 municipios" },
+                { label: "Cadencia de medición", value: "Quincenal" },
+                { label: "Dashboard actualizado", value: "Después de cada ola" },
+                { label: "Audios procesados con IA", value: "Cada respuesta" },
+                { label: "Red AGORA piloto", value: "50–100 pares" },
+              ].map(({ label, value }) => (
+                <div key={label} className="flex justify-between items-center text-sm border-b border-white/10 pb-3 last:border-0 last:pb-0">
+                  <span className="text-slate-400">{label}</span>
+                  <span className="font-semibold text-white">{value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Precios / CTA ────────────────────────────────────────────── */}
+      <section className="py-20 px-6 bg-slate-50">
+        <div className="mx-auto max-w-4xl">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold text-slate-900 mb-4">Inversión adaptada a tu territorio</h2>
+            <p className="text-slate-600">Cada proyecto se cotiza según tamaño del panel, frecuencia y nivel de análisis.</p>
+          </div>
+          <div className="grid md:grid-cols-3 gap-6">
+            {[
+              {
+                name: "Pulso Básico",
+                price: "Desde $5M",
+                period: "/ mes",
+                desc: "Municipio pequeño o mediano",
+                items: ["Panel de 200–400 personas", "Medición mensual", "Dashboard básico", "Reporte ejecutivo mensual"],
+                cta: "Consultar",
+                highlight: false,
+              },
+              {
+                name: "Inteligencia Territorial",
+                price: "Desde $10M",
+                period: "/ mes",
+                desc: "Ciudad intermedia o campaña",
+                items: ["Panel de 500–800 personas", "Medición quincenal", "Análisis de voz con IA", "Dashboard completo", "Informe de narrativas"],
+                cta: "Solicitar demo",
+                highlight: true,
+              },
+              {
+                name: "Gobernación / Gremio",
+                price: "A medida",
+                period: "",
+                desc: "Cobertura departamental",
+                items: ["Panel multi-municipio", "AGORA incluido", "Tracking de campaña", "Acompañamiento estratégico"],
+                cta: "Hablar con el equipo",
+                highlight: false,
+              },
+            ].map(({ name, price, period, desc, items, cta, highlight }) => (
+              <div key={name} className={`rounded-2xl p-6 border ${highlight ? "bg-blue-600 border-blue-600 text-white shadow-xl shadow-blue-200" : "bg-white border-slate-200"}`}>
+                <div className={`text-xs font-semibold uppercase tracking-wider mb-3 ${highlight ? "text-blue-200" : "text-blue-600"}`}>{name}</div>
+                <div className="flex items-baseline gap-1 mb-1">
+                  <span className={`text-3xl font-extrabold ${highlight ? "text-white" : "text-slate-900"}`}>{price}</span>
+                  <span className={`text-sm ${highlight ? "text-blue-200" : "text-slate-500"}`}>{period}</span>
+                </div>
+                <p className={`text-sm mb-5 ${highlight ? "text-blue-100" : "text-slate-500"}`}>{desc}</p>
+                <ul className="space-y-2 mb-6">
+                  {items.map(item => (
+                    <li key={item} className={`flex items-center gap-2 text-sm ${highlight ? "text-blue-100" : "text-slate-600"}`}>
+                      <CheckCircle className={`h-3.5 w-3.5 shrink-0 ${highlight ? "text-blue-300" : "text-blue-500"}`} />
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+                <a href="#contacto"
+                  className={`block text-center rounded-xl py-2.5 text-sm font-semibold transition-colors ${
+                    highlight ? "bg-white text-blue-600 hover:bg-blue-50" : "bg-slate-900 text-white hover:bg-slate-700"
+                  }`}>
+                  {cta}
+                </a>
+              </div>
+            ))}
+          </div>
+          <p className="text-center text-xs text-slate-500 mt-6">
+            * Precios en COP + IVA. Sujetos a validación con piloto.
+          </p>
+        </div>
+      </section>
+
+      {/* ── Contacto ─────────────────────────────────────────────────── */}
+      <section id="contacto" className="py-24 px-6">
+        <div className="mx-auto max-w-2xl text-center">
+          <span className="text-sm font-semibold text-blue-600 uppercase tracking-wider">Contacto</span>
+          <h2 className="text-3xl font-bold text-slate-900 mt-2 mb-4">¿Listo para medir tu territorio?</h2>
+          <p className="text-slate-600 mb-10">
+            Agenda una demo de 30 minutos. Te mostramos el dashboard en vivo y diseñamos un piloto para tu municipio o campaña.
+          </p>
+          <form
+            action="https://formsubmit.co/jaimecriales8@icloud.com"
+            method="POST"
+            className="bg-white rounded-2xl border border-slate-200 p-8 text-left shadow-sm space-y-4"
+          >
+            <input type="hidden" name="_subject" value="Demo GeoDataVoice" />
+            <input type="hidden" name="_captcha" value="false" />
+            <input type="hidden" name="_template" value="table" />
+
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5 uppercase tracking-wide">Nombre *</label>
+                <input name="nombre" required placeholder="Tu nombre"
+                  className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5 uppercase tracking-wide">Organización *</label>
+                <input name="organizacion" required placeholder="Campaña, alcaldía, gremio..."
+                  className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+              </div>
+            </div>
+
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5 uppercase tracking-wide">Email *</label>
+                <input name="email" type="email" required placeholder="tu@email.com"
+                  className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5 uppercase tracking-wide">WhatsApp</label>
+                <input name="whatsapp" placeholder="300 000 0000"
+                  className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5 uppercase tracking-wide">Municipio / territorio de interés</label>
+              <input name="municipio" placeholder="Ej: Barranquilla, Galapa, Departamento Atlántico..."
+                className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5 uppercase tracking-wide">¿Qué necesitas medir?</label>
+              <textarea name="mensaje" rows={3} placeholder="Cuéntanos tu caso..."
+                className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none" />
+            </div>
+
+            <button type="submit"
+              className="w-full rounded-xl bg-blue-600 hover:bg-blue-700 py-4 text-white font-semibold text-sm transition-colors flex items-center justify-center gap-2">
+              Solicitar demo gratuita <ArrowRight className="h-4 w-4" />
+            </button>
+          </form>
+
+          <div className="flex items-center justify-center gap-2 mt-6 text-sm text-slate-500">
+            <Phone className="h-4 w-4" />
+            <span>O escríbenos directo a <a href="https://wa.me/573000000000" className="text-blue-600 hover:underline">WhatsApp</a></span>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Footer ───────────────────────────────────────────────────── */}
+      <footer className="py-10 px-6 bg-slate-900 text-slate-400 text-sm">
+        <div className="mx-auto max-w-6xl flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <div className="h-6 w-6 rounded bg-blue-600 flex items-center justify-center">
+              <MapPin className="h-3.5 w-3.5 text-white" />
+            </div>
+            <span className="font-semibold text-white">GeoDataVoice</span>
+            <span className="text-slate-600">— Panel territorial validado</span>
+          </div>
+          <div className="flex items-center gap-6">
+            <span>Colombia · 2026</span>
+            <Link href="/login" className="hover:text-white transition-colors">Acceso clientes</Link>
+          </div>
+        </div>
+      </footer>
+
     </div>
   );
 }
