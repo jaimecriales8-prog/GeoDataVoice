@@ -35,7 +35,14 @@ export default function Providers({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     initAuth();
     const stored = getUser();
-    if (stored) setUser(stored);
+    if (stored) {
+      setUser(stored);
+    } else {
+      // No token — redirect to login unless already there
+      if (!window.location.pathname.startsWith("/login")) {
+        router.push("/login");
+      }
+    }
   }, []);
 
   function logout() {
