@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.v1.routes import (
     clients, projects, territories, participants,
-    field, consents, panel, surveys, audio, payments, peers, messages, analytics
+    field, consents, panel, surveys, audio, payments, peers, messages, analytics, auth
 )
 
 app = FastAPI(title="GeoDataVoice API", version="0.1.0")
@@ -28,6 +28,7 @@ app.include_router(payments.router, prefix="/api/v1/payments", tags=["payments"]
 app.include_router(peers.router, prefix="/api/v1/peers", tags=["peers"])
 app.include_router(messages.router, prefix="/api/v1/messages", tags=["messages"])
 app.include_router(analytics.router, prefix="/api/v1/analytics", tags=["analytics"])
+app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
 
 
 @app.get("/health")
