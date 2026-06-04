@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+dist/
+*.egg-info/
+.eggs/
+.pytest_cache/
+.mypy_cache/
+
+# Node
+node_modules/
+.next/
+.turbo/
+out/
+build/
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Uploads / audio
+backend/uploads/
+*.mp3
+*.ogg
+*.wav
+*.m4a
+
+# Alembic
+backend/alembic/versions/*.pyc
