@@ -101,6 +101,7 @@ export default function NuevaEncuesta({ params }: { params: Promise<{ id: string
     const { data: survey, error: sErr } = await supabase
       .from("surveys")
       .insert({
+        id: crypto.randomUUID(),
         project_id: proyectoId,
         name: nombre.trim(),
         wave,
@@ -114,6 +115,7 @@ export default function NuevaEncuesta({ params }: { params: Promise<{ id: string
     if (sErr || !survey) { setError(sErr?.message ?? "Error al crear la encuesta"); setSaving(false); return; }
 
     const preguntasRows = preguntas.map((p, i) => ({
+      id: crypto.randomUUID(),
       survey_id: survey.id,
       type: p.type,
       text: p.text.trim(),

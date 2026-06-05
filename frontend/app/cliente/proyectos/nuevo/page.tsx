@@ -46,6 +46,7 @@ export default function NuevoProyecto() {
     setSaving(true); setError("");
     const supabase = createClient();
     const { data, error: dbErr } = await supabase.from("projects").insert({
+      id: crypto.randomUUID(),
       client_id: clienteId,
       name: form.name.trim(),
       type: form.type,

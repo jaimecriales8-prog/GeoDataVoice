@@ -48,6 +48,7 @@ export default function ClientesPage() {
     setSaving(true); setError("");
     const supabase = createClient();
     const { error: e } = await supabase.from("clients").insert({
+      id: crypto.randomUUID(),
       name: form.name, type: form.type,
       contact_name: form.contact_name || null,
       contact_email: form.contact_email || null,

@@ -46,6 +46,7 @@ export default function EncuestadoresPage() {
     setSaving(true); setError("");
     const supabase = createClient();
     const { error: e } = await supabase.from("field_operators").insert({
+      id: crypto.randomUUID(),
       name: form.name,
       document: form.document,
       phone: form.phone || null,
