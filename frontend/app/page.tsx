@@ -105,16 +105,78 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── 4 Perfiles ───────────────────────────────────────────────── */}
+      {/* ── 3 Actores ────────────────────────────────────────────────── */}
       <section id="perfiles" className="py-24 px-6">
         <div className="mx-auto max-w-5xl">
           <div className="text-center mb-14">
-            <span className="text-sm font-semibold text-blue-600 uppercase tracking-wider">Plataforma</span>
-            <h2 className="text-3xl font-bold text-slate-900 mt-2 mb-4">Cuatro roles, un solo ecosistema</h2>
+            <span className="text-sm font-semibold text-blue-600 uppercase tracking-wider">Cómo funciona el ecosistema</span>
+            <h2 className="text-3xl font-bold text-slate-900 mt-2 mb-4">Tres actores, una sola inteligencia</h2>
             <p className="text-slate-600 max-w-xl mx-auto">
-              Cada persona que participa en GeoDataVoice tiene un rol claro y un acceso diseñado para lo que necesita.
+              GeoDataVoice conecta a quienes necesitan información, quienes la recolectan y quienes la producen con su voz.
             </p>
           </div>
+
+          {/* Actors row */}
+          <div className="grid md:grid-cols-3 gap-6 mb-16">
+            {[
+              {
+                icon: BarChart3,
+                color: "violet",
+                bg: "bg-violet-600",
+                border: "border-violet-100",
+                num: "01",
+                title: "Cliente",
+                who: "Candidatos, alcaldías, gobernaciones, gremios",
+                desc: "Contrata el servicio para medir su territorio. Recibe un dashboard con favorabilidad, sentimiento ciudadano y narrativas actualizadas después de cada ola.",
+              },
+              {
+                icon: MapPin,
+                color: "emerald",
+                bg: "bg-emerald-600",
+                border: "border-emerald-100",
+                num: "02",
+                title: "Encuestador",
+                who: "Operador de campo local",
+                desc: "Sale al territorio a reclutar panelistas puerta a puerta. Verifica identidad, captura GPS y obtiene consentimientos desde su celular con la app de campo.",
+              },
+              {
+                icon: Mic,
+                color: "amber",
+                bg: "bg-amber-500",
+                border: "border-amber-100",
+                num: "03",
+                title: "Panelista",
+                who: "Ciudadano verificado del municipio",
+                desc: "Responde encuestas cortas por WhatsApp cada 2 semanas y graba una nota de voz explicando su opinión. Recibe pagos por cada respuesta válida.",
+              },
+            ].map(({ icon: Icon, bg, border, num, title, who, desc }) => (
+              <div key={title} className={`rounded-2xl border-2 ${border} bg-white p-6 flex flex-col gap-3`}>
+                <div className="flex items-center justify-between">
+                  <div className={`h-11 w-11 rounded-xl ${bg} flex items-center justify-center`}>
+                    <Icon className="h-5 w-5 text-white" />
+                  </div>
+                  <span className="text-2xl font-black text-slate-100">{num}</span>
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 text-lg">{title}</h3>
+                  <p className="text-xs text-slate-400 font-medium">{who}</p>
+                </div>
+                <p className="text-sm text-slate-600 leading-relaxed">{desc}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Arrow connector */}
+          <div className="hidden md:flex items-center justify-center gap-4 mb-12 text-sm text-slate-400">
+            <span className="font-medium">El cliente define qué medir</span>
+            <ArrowRight className="h-4 w-4 text-slate-300" />
+            <span className="font-medium">El encuestador recluta y valida</span>
+            <ArrowRight className="h-4 w-4 text-slate-300" />
+            <span className="font-medium">El panelista responde y explica</span>
+            <ArrowRight className="h-4 w-4 text-slate-300" />
+            <span className="font-semibold text-blue-600">El cliente recibe inteligencia</span>
+          </div>
+
 
           {/* Solo panelista — centrado y destacado */}
           <div className="max-w-xl mx-auto">
