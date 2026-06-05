@@ -196,51 +196,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── AGORA ────────────────────────────────────────────────────── */}
-      <section className="py-20 px-6 bg-gradient-to-r from-blue-600 to-blue-800 text-white">
-        <div className="mx-auto max-w-5xl grid md:grid-cols-2 gap-12 items-center">
-          <div>
-            <span className="text-sm font-semibold text-blue-200 uppercase tracking-wider">Subproducto</span>
-            <h2 className="text-3xl font-bold mt-2 mb-4">AGORA by GeoDataVoice</h2>
-            <p className="text-blue-100 leading-relaxed mb-6">
-              El panel escucha y mide. AGORA convierte esa inteligencia en comunicación directa
-              con personas reales en tu territorio — pares verificados que comparten mensajes
-              aprobados y retroalimentan lo que funciona.
-            </p>
-            <ul className="space-y-3">
-              {[
-                "Red de pares verificados por zona y comunidad",
-                "Tareas de comunicación con evidencia medible",
-                "Mensajes que responden a lo que el panel encontró",
-                "Pagos por interacción verificable",
-              ].map(item => (
-                <li key={item} className="flex items-start gap-2 text-sm text-blue-100">
-                  <CheckCircle className="h-4 w-4 text-blue-300 shrink-0 mt-0.5" />
-                  {item}
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div className="rounded-2xl bg-white/10 border border-white/20 p-8">
-            <div className="space-y-4">
-              {[
-                { label: "Pares activos", value: "50–100", sub: "por proyecto piloto" },
-                { label: "Cobertura territorial", value: "100%", sub: "verificada con GPS" },
-                { label: "Retroalimentación", value: "48h", sub: "después de cada ola" },
-              ].map(({ label, value, sub }) => (
-                <div key={label} className="flex items-center justify-between border-b border-white/10 pb-4 last:border-0 last:pb-0">
-                  <span className="text-sm text-blue-200">{label}</span>
-                  <div className="text-right">
-                    <div className="text-xl font-bold text-white">{value}</div>
-                    <div className="text-xs text-blue-300">{sub}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* ── Para quién ───────────────────────────────────────────────── */}
       <section id="clientes" className="py-24 px-6 bg-slate-50">
         <div className="mx-auto max-w-5xl">
@@ -264,7 +219,7 @@ export default function LandingPage() {
               },
               {
                 icon: "🏢", title: "Gremios y empresas",
-                items: ["Panel de afiliados y agenda sectorial", "Percepción frente a reformas", "AGORA para comunicación directa con miembros"],
+                items: ["Panel de afiliados y agenda sectorial", "Percepción frente a reformas", "Comunicación directa con miembros"],
               },
             ].map(({ icon, title, items }) => (
               <div key={title} className="rounded-2xl bg-white border border-slate-200 p-6 hover:border-blue-200 hover:shadow-sm transition-all">
@@ -320,7 +275,7 @@ export default function LandingPage() {
                 { label: "Cadencia de medición", value: "Quincenal" },
                 { label: "Dashboard actualizado", value: "Después de cada ola" },
                 { label: "Audios procesados con IA", value: "Cada respuesta" },
-                { label: "Red AGORA piloto", value: "50–100 pares" },
+                { label: "Panel validado activo", value: "500–1.000", sub: "personas" },
               ].map(({ label, value }) => (
                 <div key={label} className="flex justify-between items-center text-sm border-b border-white/10 pb-3 last:border-0 last:pb-0">
                   <span className="text-slate-400">{label}</span>
@@ -364,7 +319,7 @@ export default function LandingPage() {
                 price: "A medida",
                 period: "",
                 desc: "Cobertura departamental",
-                items: ["Panel multi-municipio", "AGORA incluido", "Tracking de campaña", "Acompañamiento estratégico"],
+                items: ["Panel multi-municipio", "Tracking de campaña", "Acompañamiento estratégico", "Reportes departamentales"],
                 cta: "Hablar con el equipo",
                 highlight: false,
               },
