@@ -11,6 +11,7 @@ export default function RegistroEncuestadorPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [showPass, setShowPass] = useState(false);
+  const [showPass2, setShowPass2] = useState(false);
 
   const [form, setForm] = useState({
     full_name: "",
@@ -19,6 +20,7 @@ export default function RegistroEncuestadorPage() {
     municipio: "",
     email: "",
     password: "",
+    password2: "",
     experiencia: "",
   });
 
@@ -32,6 +34,7 @@ export default function RegistroEncuestadorPage() {
       setError("Completa los campos obligatorios."); return;
     }
     if (form.password.length < 8) { setError("La contraseña debe tener al menos 8 caracteres."); return; }
+    if (form.password !== form.password2) { setError("Las contraseñas no coinciden."); return; }
 
     setLoading(true);
     setError("");
@@ -148,6 +151,17 @@ export default function RegistroEncuestadorPage() {
                     <button type="button" onClick={() => setShowPass(v => !v)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white">
                       {showPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </Field>
+                <Field label="Confirmar contraseña *" color="emerald">
+                  <div className="relative">
+                    <input type={showPass2 ? "text" : "password"} value={form.password2}
+                      onChange={e => update("password2", e.target.value)}
+                      placeholder="Repite tu contraseña" className={`${input("emerald")} pr-11`} />
+                    <button type="button" onClick={() => setShowPass2(v => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white">
+                      {showPass2 ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
                 </Field>

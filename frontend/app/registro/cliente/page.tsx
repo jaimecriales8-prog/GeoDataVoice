@@ -30,7 +30,9 @@ export default function RegistroClientePage() {
     email: "",
     phone: "",
     password: "",
+    password2: "",
   });
+  const [showPass2, setShowPass2] = useState(false);
 
   function update(field: string, value: string) {
     setForm(prev => ({ ...prev, [field]: value }));
@@ -44,6 +46,10 @@ export default function RegistroClientePage() {
     }
     if (form.password.length < 8) {
       setError("La contraseña debe tener al menos 8 caracteres.");
+      return;
+    }
+    if (form.password !== form.password2) {
+      setError("Las contraseñas no coinciden.");
       return;
     }
 
@@ -186,6 +192,18 @@ export default function RegistroClientePage() {
                     <button type="button" onClick={() => setShowPass(v => !v)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white">
                       {showPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </Field>
+
+                <Field label="Confirmar contraseña *">
+                  <div className="relative">
+                    <input type={showPass2 ? "text" : "password"} value={form.password2}
+                      onChange={e => update("password2", e.target.value)}
+                      placeholder="Repite tu contraseña" autoComplete="new-password" className={`${inputCls} pr-11`} />
+                    <button type="button" onClick={() => setShowPass2(v => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white">
+                      {showPass2 ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
                 </Field>
