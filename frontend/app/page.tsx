@@ -116,110 +116,50 @@ export default function LandingPage() {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-6">
-
-            {/* Cliente */}
-            <div className="rounded-2xl border-2 border-violet-100 bg-violet-50 p-7 flex flex-col gap-4">
-              <div className="flex items-center gap-3">
-                <div className="h-11 w-11 rounded-xl bg-violet-600 flex items-center justify-center shrink-0">
-                  <BarChart3 className="h-5 w-5 text-white" />
+          {/* Solo panelista — centrado y destacado */}
+          <div className="max-w-xl mx-auto">
+            <div className="rounded-2xl border-2 border-amber-200 bg-amber-50 p-8 flex flex-col gap-5 shadow-sm">
+              <div className="flex items-center gap-4">
+                <div className="h-14 w-14 rounded-2xl bg-amber-500 flex items-center justify-center shrink-0 shadow-sm">
+                  <Mic className="h-7 w-7 text-white" />
                 </div>
                 <div>
-                  <p className="text-xs font-semibold text-violet-600 uppercase tracking-wide">Rol</p>
-                  <h3 className="font-bold text-slate-900 text-lg">Cliente</h3>
+                  <span className="text-xs font-bold text-amber-600 uppercase tracking-wider">¿Quieres ganar dinero?</span>
+                  <h3 className="font-extrabold text-slate-900 text-xl leading-tight">Únete al panel ciudadano</h3>
                 </div>
               </div>
-              <p className="text-sm text-slate-600 leading-relaxed">
-                Candidatos, alcaldes, gobernadores, gremios o empresas que contratan el servicio.
-                Acceden a su dashboard con los resultados de su proyecto en tiempo real.
+
+              <p className="text-slate-600 leading-relaxed">
+                Responde encuestas cortas por WhatsApp cada 2 semanas y graba una nota de voz explicando tu opinión.
+                Recibe <strong className="text-amber-700">$2.000–$3.000 COP</strong> en Nequi o Daviplata por cada respuesta válida.
               </p>
-              <ul className="space-y-1.5">
-                {["Dashboard con favorabilidad y sentimiento", "Mapas por polígono territorial", "Narrativas y frases ciudadanas", "Informes ejecutivos descargables"].map(i => (
+
+              <div className="grid grid-cols-3 gap-3 text-center">
+                {[
+                  { v: "15 min", l: "por encuesta" },
+                  { v: "$3.000", l: "por respuesta" },
+                  { v: "100%", l: "desde tu celular" },
+                ].map(({ v, l }) => (
+                  <div key={l} className="rounded-xl bg-white border border-amber-100 py-3 px-2">
+                    <p className="text-amber-600 font-extrabold text-lg leading-none">{v}</p>
+                    <p className="text-xs text-slate-500 mt-1">{l}</p>
+                  </div>
+                ))}
+              </div>
+
+              <ul className="space-y-2">
+                {["Participas por WhatsApp — sin instalar nada", "Notas de voz cortas después de cada pregunta", "Pagos directos a tu Nequi o Daviplata", "Un encuestador te visita una vez para verificarte"].map(i => (
                   <li key={i} className="flex items-center gap-2 text-sm text-slate-700">
-                    <CheckCircle className="h-3.5 w-3.5 text-violet-500 shrink-0" />{i}
+                    <CheckCircle className="h-4 w-4 text-amber-500 shrink-0" />{i}
                   </li>
                 ))}
               </ul>
-              <div className="mt-auto flex flex-col gap-2">
-                <Link href="/registro/cliente"
-                  className="inline-flex items-center gap-2 rounded-xl bg-violet-600 hover:bg-violet-700 px-5 py-2.5 text-sm font-semibold text-white transition-colors w-fit">
-                  Registrarme como cliente <ArrowRight className="h-3.5 w-3.5" />
-                </Link>
-                <Link href="/login"
-                  className="inline-flex items-center gap-2 rounded-xl border border-violet-300 text-violet-700 hover:bg-violet-100 px-5 py-2.5 text-sm font-semibold transition-colors w-fit">
-                  Ya tengo cuenta — Ingresar
-                </Link>
-              </div>
-            </div>
 
-            {/* Encuestador */}
-            <div className="rounded-2xl border-2 border-emerald-100 bg-emerald-50 p-7 flex flex-col gap-4">
-              <div className="flex items-center gap-3">
-                <div className="h-11 w-11 rounded-xl bg-emerald-600 flex items-center justify-center shrink-0">
-                  <MapPin className="h-5 w-5 text-white" />
-                </div>
-                <div>
-                  <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wide">Rol</p>
-                  <h3 className="font-bold text-slate-900 text-lg">Encuestador</h3>
-                </div>
-              </div>
-              <p className="text-sm text-slate-600 leading-relaxed">
-                Operadores de campo que hacen el barrido territorial. Registran personas,
-                capturan GPS, toman evidencia fotográfica y obtienen consentimientos desde el celular.
-              </p>
-              <ul className="space-y-1.5">
-                {["App móvil offline-first", "Registro con GPS automático", "Captura de consentimientos", "Sync automático al recuperar señal"].map(i => (
-                  <li key={i} className="flex items-center gap-2 text-sm text-slate-700">
-                    <CheckCircle className="h-3.5 w-3.5 text-emerald-500 shrink-0" />{i}
-                  </li>
-                ))}
-              </ul>
-              <div className="mt-auto flex flex-col gap-2">
-                <Link href="/registro/encuestador"
-                  className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white transition-colors w-fit">
-                  Aplicar como encuestador <ArrowRight className="h-3.5 w-3.5" />
-                </Link>
-                <a href="https://geodatavoice-campo.vercel.app"
-                  className="inline-flex items-center gap-2 rounded-xl border border-emerald-300 text-emerald-700 hover:bg-emerald-100 px-5 py-2.5 text-sm font-semibold transition-colors w-fit">
-                  Ya tengo cuenta — App de campo
-                </a>
-              </div>
+              <Link href="/registro/panelista"
+                className="flex items-center justify-center gap-2 rounded-2xl bg-amber-500 hover:bg-amber-600 active:bg-amber-700 px-6 py-4 text-base font-bold text-white transition-colors shadow-md shadow-amber-200">
+                Quiero ser panelista 🎤 <ArrowRight className="h-5 w-5" />
+              </Link>
             </div>
-
-            {/* Encuestado */}
-            <div className="rounded-2xl border-2 border-amber-100 bg-amber-50 p-7 flex flex-col gap-4">
-              <div className="flex items-center gap-3">
-                <div className="h-11 w-11 rounded-xl bg-amber-500 flex items-center justify-center shrink-0">
-                  <Mic className="h-5 w-5 text-white" />
-                </div>
-                <div>
-                  <p className="text-xs font-semibold text-amber-600 uppercase tracking-wide">Rol</p>
-                  <h3 className="font-bold text-slate-900 text-lg">Encuestado / Panelista</h3>
-                </div>
-              </div>
-              <p className="text-sm text-slate-600 leading-relaxed">
-                Ciudadanos verificados que participan en el panel. Reciben encuestas por WhatsApp,
-                responden preguntas y envían notas de voz. Reciben pagos por cada respuesta válida.
-              </p>
-              <ul className="space-y-1.5">
-                {["Participa 100% por WhatsApp", "Encuestas cortas cada 2 semanas", "Notas de voz de máx. 2 minutos", "Pagos por Nequi o Daviplata"].map(i => (
-                  <li key={i} className="flex items-center gap-2 text-sm text-slate-700">
-                    <CheckCircle className="h-3.5 w-3.5 text-amber-500 shrink-0" />{i}
-                  </li>
-                ))}
-              </ul>
-              <div className="mt-auto flex flex-col gap-2">
-                <Link href="/registro/panelista"
-                  className="inline-flex items-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors w-fit">
-                  Quiero ser panelista 🎤 <ArrowRight className="h-3.5 w-3.5" />
-                </Link>
-                <a href="https://geodatavoice-campo.vercel.app/panelista"
-                  className="inline-flex items-center gap-2 rounded-xl border border-amber-300 text-amber-700 hover:bg-amber-50 px-5 py-2.5 text-sm font-semibold transition-colors w-fit">
-                  Ya soy panelista — Ver mis encuestas
-                </a>
-              </div>
-            </div>
-
           </div>
         </div>
       </section>
