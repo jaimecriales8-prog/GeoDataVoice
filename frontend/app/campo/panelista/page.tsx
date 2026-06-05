@@ -15,7 +15,7 @@ type Survey = {
   status: string;
 };
 
-// Mock data — se conecta a Supabase cuando el panelista esté autenticado
+// Mock data — conectar a Supabase cuando las tablas estén creadas
 const MOCK_SURVEYS: Survey[] = [
   { id: "s1", name: "Pulso ciudadano — Junio 2026", wave: 3, closes_at: "2026-06-10", status: "pending" },
   { id: "s2", name: "Satisfacción servicios públicos", wave: 2, closes_at: "2026-06-07", status: "pending" },
@@ -41,7 +41,6 @@ export default function PanelistaHome() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* Header */}
       <div className="bg-gradient-to-br from-blue-700 to-blue-900 px-5 pt-12 pb-8 text-white">
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -53,7 +52,6 @@ export default function PanelistaHome() {
           </div>
         </div>
 
-        {/* Stats strip */}
         <div className="grid grid-cols-3 gap-3">
           {[
             { label: "Encuestas\npendientes", value: pendientes, color: "text-yellow-300" },
@@ -69,8 +67,6 @@ export default function PanelistaHome() {
       </div>
 
       <div className="px-5 py-6 space-y-6">
-
-        {/* Encuestas pendientes */}
         <section>
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-bold text-slate-800 flex items-center gap-2">
@@ -93,7 +89,7 @@ export default function PanelistaHome() {
           ) : (
             <div className="space-y-3">
               {MOCK_SURVEYS.map(survey => (
-                <Link key={survey.id} href={`/panelista/encuesta/${survey.id}`}>
+                <Link key={survey.id} href={`/campo/panelista/encuesta/${survey.id}`}>
                   <div className="rounded-2xl bg-white border border-slate-200 p-4 flex items-center gap-4 active:bg-slate-50 transition-colors shadow-sm">
                     <div className="h-12 w-12 rounded-xl bg-blue-100 flex items-center justify-center shrink-0">
                       <ClipboardList className="h-6 w-6 text-blue-600" />
@@ -123,11 +119,10 @@ export default function PanelistaHome() {
           )}
         </section>
 
-        {/* Acceso rápido */}
         <section>
           <h2 className="font-bold text-slate-800 mb-3">Acceso rápido</h2>
           <div className="grid grid-cols-2 gap-3">
-            <Link href="/panelista/pagos">
+            <Link href="/campo/panelista/pagos">
               <div className="rounded-2xl bg-white border border-slate-200 p-5 flex flex-col items-center gap-2 text-center active:bg-slate-50 transition-colors shadow-sm">
                 <div className="h-12 w-12 rounded-xl bg-emerald-100 flex items-center justify-center">
                   <Wallet className="h-6 w-6 text-emerald-600" />
@@ -136,19 +131,18 @@ export default function PanelistaHome() {
                 <p className="text-xs text-slate-500">Ver historial</p>
               </div>
             </Link>
-            <Link href="/panelista/encuesta/demo">
+            <Link href="/campo/panelista/encuesta/demo">
               <div className="rounded-2xl bg-white border border-slate-200 p-5 flex flex-col items-center gap-2 text-center active:bg-slate-50 transition-colors shadow-sm">
                 <div className="h-12 w-12 rounded-xl bg-violet-100 flex items-center justify-center">
                   <Mic className="h-6 w-6 text-violet-600" />
                 </div>
-                <p className="text-sm font-semibold text-slate-800">Grabar audio</p>
-                <p className="text-xs text-slate-500">Nota de voz</p>
+                <p className="text-sm font-semibold text-slate-800">Encuesta demo</p>
+                <p className="text-xs text-slate-500">Probar flujo</p>
               </div>
             </Link>
           </div>
         </section>
 
-        {/* Mi progreso */}
         <section className="rounded-2xl bg-gradient-to-r from-blue-600 to-blue-800 p-5 text-white">
           <div className="flex items-center gap-2 mb-4">
             <TrendingUp className="h-4 w-4 text-blue-200" />
@@ -166,24 +160,21 @@ export default function PanelistaHome() {
                   <span className="font-semibold">{value}/{total}</span>
                 </div>
                 <div className="h-2 rounded-full bg-white/20 overflow-hidden">
-                  <div
-                    className="h-full bg-white rounded-full transition-all"
-                    style={{ width: `${(value / total) * 100}%` }}
-                  />
+                  <div className="h-full bg-white rounded-full transition-all"
+                    style={{ width: `${(value / total) * 100}%` }} />
                 </div>
               </div>
             ))}
           </div>
         </section>
-
       </div>
 
       {/* Bottom nav */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-6 py-3 grid grid-cols-3 gap-1">
         {[
-          { icon: ClipboardList, label: "Encuestas", href: "/panelista", active: true },
-          { icon: Mic, label: "Audio", href: "/panelista/encuesta/demo", active: false },
-          { icon: Wallet, label: "Pagos", href: "/panelista/pagos", active: false },
+          { icon: ClipboardList, label: "Encuestas", href: "/campo/panelista", active: true },
+          { icon: Mic, label: "Audio", href: "/campo/panelista/encuesta/demo", active: false },
+          { icon: Wallet, label: "Pagos", href: "/campo/panelista/pagos", active: false },
         ].map(({ icon: Icon, label, href, active }) => (
           <Link key={label} href={href}
             className={`flex flex-col items-center gap-1 py-1 rounded-xl transition-colors ${active ? "text-blue-600" : "text-slate-400 hover:text-slate-600"}`}>
@@ -192,7 +183,7 @@ export default function PanelistaHome() {
           </Link>
         ))}
       </div>
-      <div className="h-20" /> {/* space for bottom nav */}
+      <div className="h-20" />
     </div>
   );
 }

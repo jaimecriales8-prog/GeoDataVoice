@@ -63,7 +63,7 @@ export default function EncuestaPage({ params }: { params: Promise<{ id: string 
   const questions = DEMO_QUESTIONS;
   const current = questions[step];
   const isLastQuestion = step === questions.length - 1;
-  const totalSteps = questions.length * 2; // answer + audio per question
+  const totalSteps = questions.length * 2;
   const currentStepNum = step * 2 + (substep === "recording" ? 1 : 0) + 1;
   const progress = (currentStepNum / totalSteps) * 100;
 
@@ -89,7 +89,7 @@ export default function EncuestaPage({ params }: { params: Promise<{ id: string 
       setRecording(true);
       setRecordingTime(0);
       timerRef.current = setInterval(() => setRecordingTime(t => {
-        if (t >= 119) { stopRecording(); return t; } // auto-stop at 2 min
+        if (t >= 119) { stopRecording(); return t; }
         return t + 1;
       }), 1000);
     } catch {
@@ -110,11 +110,9 @@ export default function EncuestaPage({ params }: { params: Promise<{ id: string 
 
   async function handleNext() {
     if (substep === "answering") {
-      // Move to audio recording step
       setSubstep("recording");
       setAudioUrl(audios[current.id] || null);
     } else {
-      // Done with this question — move to next or submit
       if (isLastQuestion) {
         setSubmitting(true);
         await new Promise(r => setTimeout(r, 1800));
@@ -140,9 +138,7 @@ export default function EncuestaPage({ params }: { params: Promise<{ id: string 
     }
   }
 
-  const canContinue = substep === "answering"
-    ? !!answers[current.id]
-    : true; // audio is optional — can skip
+  const canContinue = substep === "answering" ? !!answers[current.id] : true;
 
   if (done) {
     return (
@@ -153,7 +149,6 @@ export default function EncuestaPage({ params }: { params: Promise<{ id: string 
         <h1 className="text-2xl font-bold text-slate-900 mb-2">¡Gracias!</h1>
         <p className="text-slate-600 mb-2">Tu respuesta fue registrada correctamente.</p>
 
-        {/* Stats */}
         <div className="w-full max-w-xs rounded-2xl bg-white border border-slate-200 p-5 mb-6 space-y-3">
           <div className="flex justify-between text-sm">
             <span className="text-slate-500">Preguntas respondidas</span>
@@ -175,7 +170,7 @@ export default function EncuestaPage({ params }: { params: Promise<{ id: string 
           <p className="text-emerald-700 font-semibold text-sm">Se acreditará en tu Nequi en 48h</p>
         </div>
 
-        <button onClick={() => router.push("/panelista")}
+        <button onClick={() => router.push("/campo/panelista")}
           className="rounded-xl bg-blue-600 hover:bg-blue-700 px-7 py-3.5 text-white font-semibold transition-colors">
           Volver al inicio
         </button>
@@ -185,8 +180,6 @@ export default function EncuestaPage({ params }: { params: Promise<{ id: string 
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
-
-      {/* Header */}
       <div className="bg-white border-b border-slate-200 px-5 py-4 flex items-center gap-4">
         <button onClick={handleBack} className="text-slate-500 active:text-slate-900">
           <ArrowLeft className="h-5 w-5" />
@@ -205,14 +198,11 @@ export default function EncuestaPage({ params }: { params: Promise<{ id: string 
         </div>
       </div>
 
-      {/* ── ANSWERING STEP ── */}
       {substep === "answering" && (
         <div className="flex-1 flex flex-col px-5 py-8">
-          <div className="mb-2">
-            <span className="text-xs font-semibold text-blue-600 uppercase tracking-wider">
-              Pregunta {step + 1}
-            </span>
-          </div>
+          <span className="text-xs font-semibold text-blue-600 uppercase tracking-wider mb-2">
+            Pregunta {step + 1}
+          </span>
           <h2 className="text-xl font-bold text-slate-900 leading-snug mb-8">{current.text}</h2>
 
           <div className="space-y-3 flex-1">
@@ -237,43 +227,31 @@ export default function EncuestaPage({ params }: { params: Promise<{ id: string 
         </div>
       )}
 
-      {/* ── RECORDING STEP ── */}
       {substep === "recording" && (
         <div className="flex-1 flex flex-col px-5 py-6">
-          {/* Context: what they answered */}
           <div className="rounded-2xl bg-blue-50 border border-blue-100 px-4 py-3 mb-6">
             <p className="text-xs text-blue-500 font-medium mb-0.5">Tu respuesta</p>
             <p className="text-sm font-semibold text-blue-800">{answers[current.id]}</p>
           </div>
 
-          {/* Audio prompt */}
           <div className="mb-6">
             <div className="flex items-center gap-2 mb-2">
               <Volume2 className="h-4 w-4 text-slate-500" />
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                Ahora cuéntanos
-              </span>
+              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Ahora cuéntanos</span>
             </div>
-            <h2 className="text-xl font-bold text-slate-900 leading-snug">
-              {current.audio_prompt}
-            </h2>
+            <h2 className="text-xl font-bold text-slate-900 leading-snug">{current.audio_prompt}</h2>
             <p className="text-sm text-slate-500 mt-2">
               Habla con naturalidad. Máximo 2 minutos. Puedes omitir si no quieres grabar.
             </p>
           </div>
 
-          {/* Recording UI */}
           <div className="flex-1 flex flex-col items-center justify-center gap-6">
             {!audioUrl ? (
               <>
                 <button
-                  onPointerDown={startRecording}
-                  onPointerUp={recording ? stopRecording : undefined}
-                  onClick={!recording ? startRecording : stopRecording}
+                  onClick={recording ? stopRecording : startRecording}
                   className={`h-32 w-32 rounded-full flex flex-col items-center justify-center gap-2 transition-all shadow-xl active:scale-95 ${
-                    recording
-                      ? "bg-red-500 shadow-red-200 scale-110"
-                      : "bg-blue-600 shadow-blue-200"
+                    recording ? "bg-red-500 shadow-red-200 scale-110" : "bg-blue-600 shadow-blue-200"
                   }`}>
                   {recording ? (
                     <>
@@ -285,28 +263,22 @@ export default function EncuestaPage({ params }: { params: Promise<{ id: string 
                   ) : (
                     <>
                       <Mic className="h-11 w-11 text-white" />
-                      <span className="text-white text-xs font-medium">Mantén para grabar</span>
+                      <span className="text-white text-xs font-medium">Grabar</span>
                     </>
                   )}
                 </button>
 
-                {/* Waveform animation */}
                 {recording && (
                   <div className="flex items-center gap-1 h-8">
                     {[...Array(12)].map((_, i) => (
-                      <div key={i}
-                        className="w-1.5 bg-red-400 rounded-full animate-pulse"
-                        style={{
-                          height: `${Math.sin(i * 0.8) * 12 + 16}px`,
-                          animationDuration: `${0.4 + i * 0.07}s`
-                        }}
+                      <div key={i} className="w-1.5 bg-red-400 rounded-full animate-pulse"
+                        style={{ height: `${Math.sin(i * 0.8) * 12 + 16}px`, animationDuration: `${0.4 + i * 0.07}s` }}
                       />
                     ))}
                   </div>
                 )}
               </>
             ) : (
-              /* Playback */
               <div className="w-full space-y-4">
                 <div className="rounded-2xl bg-white border border-slate-200 p-5">
                   <div className="flex items-center gap-2 mb-3">
@@ -316,7 +288,7 @@ export default function EncuestaPage({ params }: { params: Promise<{ id: string 
                   <audio src={audioUrl} controls className="w-full" />
                 </div>
                 <button onClick={resetAudio}
-                  className="w-full rounded-xl border border-slate-200 bg-white py-3 text-sm text-slate-600 active:bg-slate-50 transition-colors">
+                  className="w-full rounded-xl border border-slate-200 bg-white py-3 text-sm text-slate-600 active:bg-slate-50">
                   Grabar de nuevo
                 </button>
               </div>
@@ -325,7 +297,6 @@ export default function EncuestaPage({ params }: { params: Promise<{ id: string 
         </div>
       )}
 
-      {/* Bottom button */}
       <div className="px-5 py-5 bg-white border-t border-slate-100 space-y-2">
         <button onClick={handleNext} disabled={!canContinue || submitting}
           className="w-full flex items-center justify-center gap-2 rounded-2xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:opacity-40 py-4 text-white font-semibold text-base transition-colors">
@@ -340,7 +311,6 @@ export default function EncuestaPage({ params }: { params: Promise<{ id: string 
           )}
         </button>
 
-        {/* Skip audio */}
         {substep === "recording" && !audioUrl && !recording && (
           <button onClick={handleNext}
             className="w-full py-3 text-sm text-slate-400 hover:text-slate-600 transition-colors">

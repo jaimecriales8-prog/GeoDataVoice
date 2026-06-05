@@ -130,16 +130,6 @@ export default function LandingPage() {
                 desc: "Contrata el servicio para medir su territorio. Recibe un dashboard con favorabilidad, sentimiento ciudadano y narrativas actualizadas después de cada ola.",
               },
               {
-                icon: MapPin,
-                color: "emerald",
-                bg: "bg-emerald-600",
-                border: "border-emerald-100",
-                num: "02",
-                title: "Encuestador",
-                who: "Operador de campo local",
-                desc: "Sale al territorio a reclutar panelistas puerta a puerta. Verifica identidad, captura GPS y obtiene consentimientos desde su celular con la app de campo.",
-              },
-              {
                 icon: Mic,
                 color: "amber",
                 bg: "bg-amber-500",
@@ -147,7 +137,7 @@ export default function LandingPage() {
                 num: "03",
                 title: "Panelista",
                 who: "Ciudadano verificado del municipio",
-                desc: "Responde encuestas cortas por WhatsApp cada 2 semanas y graba una nota de voz explicando su opinión. Recibe pagos por cada respuesta válida.",
+                desc: "Responde encuestas cortas desde su celular cada 2 semanas y graba una nota de voz explicando su opinión. Recibe pagos por cada respuesta válida.",
               },
             ].map(({ icon: Icon, bg, border, num, title, who, desc }) => (
               <div key={title} className={`rounded-2xl border-2 ${border} bg-white p-6 flex flex-col gap-3`}>
@@ -170,9 +160,7 @@ export default function LandingPage() {
           <div className="hidden md:flex items-center justify-center gap-4 mb-12 text-sm text-slate-400">
             <span className="font-medium">El cliente define qué medir</span>
             <ArrowRight className="h-4 w-4 text-slate-300" />
-            <span className="font-medium">El encuestador recluta y valida</span>
-            <ArrowRight className="h-4 w-4 text-slate-300" />
-            <span className="font-medium">El panelista responde y explica</span>
+            <span className="font-medium">El panelista se verifica y responde</span>
             <ArrowRight className="h-4 w-4 text-slate-300" />
             <span className="font-semibold text-blue-600">El cliente recibe inteligencia</span>
           </div>
@@ -192,7 +180,7 @@ export default function LandingPage() {
               </div>
 
               <p className="text-slate-600 leading-relaxed">
-                Responde encuestas cortas por WhatsApp cada 2 semanas y graba una nota de voz explicando tu opinión.
+                Responde encuestas cortas desde tu celular cada 2 semanas y graba una nota de voz explicando tu opinión.
                 Recibe <strong className="text-amber-700">$2.000–$3.000 COP</strong> en Nequi o Daviplata por cada respuesta válida.
               </p>
 
@@ -210,7 +198,7 @@ export default function LandingPage() {
               </div>
 
               <ul className="space-y-2">
-                {["Participas por WhatsApp — sin instalar nada", "Notas de voz cortas después de cada pregunta", "Pagos directos a tu Nequi o Daviplata", "Un encuestador te visita una vez para verificarte"].map(i => (
+                {["Encuestas desde la web — sin instalar nada", "Notas de voz cortas después de cada pregunta", "Pagos directos a tu Nequi o Daviplata", "Verificación de identidad digital — sin salir de casa"].map(i => (
                   <li key={i} className="flex items-center gap-2 text-sm text-slate-700">
                     <CheckCircle className="h-4 w-4 text-amber-500 shrink-0" />{i}
                   </li>
@@ -240,9 +228,9 @@ export default function LandingPage() {
 
           <div className="grid md:grid-cols-4 gap-4">
             {[
-              { step: "01", icon: Users, title: "Reclutamiento presencial", desc: "Barrido puerta a puerta con operadores locales. Verificación de identidad tipo KYC y residencia comprobada." },
+              { step: "01", icon: Users, title: "Registro y verificación", desc: "El panelista se registra desde su celular y verifica su identidad digitalmente. Residencia comprobada con geolocalización." },
               { step: "02", icon: Shield, title: "Panel verificado", desc: "Solo personas reales con celular validado, geolocalización y consentimiento explícito." },
-              { step: "03", icon: Mic, title: "Medición por WhatsApp y voz", desc: "Encuestas cada 2 semanas por WhatsApp. Notas de voz que capturan el porqué de la opinión." },
+              { step: "03", icon: Mic, title: "Medición web y voz", desc: "Encuestas cada 2 semanas desde el celular. Notas de voz que capturan el porqué de la opinión." },
               { step: "04", icon: BarChart3, title: "Dashboard de inteligencia", desc: "Favorabilidad, sentimiento, temas y narrativas por zona — actualizado después de cada ola." },
             ].map(({ step, icon: Icon, title, desc }) => (
               <div key={step} className="relative rounded-2xl border border-slate-200 bg-white p-6 hover:border-blue-200 hover:shadow-md transition-all">
@@ -448,8 +436,8 @@ export default function LandingPage() {
                   className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5 uppercase tracking-wide">WhatsApp</label>
-                <input name="whatsapp" placeholder="300 000 0000"
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5 uppercase tracking-wide">Teléfono</label>
+                <input name="telefono" placeholder="300 000 0000"
                   className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
               </div>
             </div>
@@ -474,7 +462,7 @@ export default function LandingPage() {
 
           <div className="flex items-center justify-center gap-2 mt-6 text-sm text-slate-500">
             <Phone className="h-4 w-4" />
-            <span>O escríbenos directo a <a href="https://wa.me/573000000000" className="text-blue-600 hover:underline">WhatsApp</a></span>
+            <span>O escríbenos a <a href="mailto:jaimecriales8@icloud.com" className="text-blue-600 hover:underline">jaimecriales8@icloud.com</a></span>
           </div>
         </div>
       </section>

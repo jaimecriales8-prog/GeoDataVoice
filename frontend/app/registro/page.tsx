@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BarChart3, MapPin, Mic, ArrowRight, ArrowLeft } from "lucide-react";
+import { BarChart3, Mic, ArrowRight, ArrowLeft, MapPin, Shield, Lock } from "lucide-react";
 
 const PERFILES = [
   {
@@ -13,22 +13,12 @@ const PERFILES = [
     badge: "Solicitud sujeta a aprobación",
   },
   {
-    href: "/registro/encuestador",
-    icon: MapPin,
-    color: "emerald",
-    title: "Soy encuestador",
-    subtitle: "Operador de campo en barrido territorial",
-    description: "Trabaja registrando personas en campo, capturando GPS y obteniendo consentimientos desde tu celular. Pago por persona validada.",
-    cta: "Aplicar como encuestador",
-    badge: "Trabajo remunerado",
-  },
-  {
     href: "/registro/panelista",
     icon: Mic,
     color: "amber",
     title: "Quiero ser panelista",
     subtitle: "Ciudadano que participa en el panel",
-    description: "Responde encuestas cortas por WhatsApp cada 2 semanas y graba notas de voz. Gana $2.000–$3.000 por cada respuesta válida.",
+    description: "Responde encuestas cortas desde tu celular cada 2 semanas y graba notas de voz. Gana $2.000–$3.000 por cada respuesta válida.",
     cta: "Unirme al panel",
     badge: "Gana dinero desde casa",
   },
@@ -36,25 +26,21 @@ const PERFILES = [
 
 const colorMap: Record<string, string> = {
   violet: "border-violet-200 hover:border-violet-400 hover:shadow-violet-100",
-  emerald: "border-emerald-200 hover:border-emerald-400 hover:shadow-emerald-100",
   amber: "border-amber-200 hover:border-amber-400 hover:shadow-amber-100",
 };
 
 const iconBg: Record<string, string> = {
   violet: "bg-violet-600",
-  emerald: "bg-emerald-600",
   amber: "bg-amber-500",
 };
 
 const badgeColor: Record<string, string> = {
   violet: "bg-violet-100 text-violet-700",
-  emerald: "bg-emerald-100 text-emerald-700",
   amber: "bg-amber-100 text-amber-700",
 };
 
 const btnColor: Record<string, string> = {
   violet: "bg-violet-600 hover:bg-violet-700",
-  emerald: "bg-emerald-600 hover:bg-emerald-700",
   amber: "bg-amber-500 hover:bg-amber-600",
 };
 
@@ -88,12 +74,9 @@ export default function RegistroPage() {
             <Link key={href} href={href}>
               <div className={`group rounded-2xl bg-white border-2 p-6 shadow-sm hover:shadow-lg transition-all cursor-pointer ${colorMap[color]}`}>
                 <div className="flex items-start gap-5">
-                  {/* Icon */}
                   <div className={`h-14 w-14 rounded-2xl ${iconBg[color]} flex items-center justify-center shrink-0 shadow-sm`}>
                     <Icon className="h-7 w-7 text-white" />
                   </div>
-
-                  {/* Content */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-3 mb-1">
                       <div>
@@ -115,8 +98,37 @@ export default function RegistroPage() {
           ))}
         </div>
 
+        {/* Protección de datos */}
+        <div className="mt-8 rounded-2xl border border-blue-500/20 bg-blue-500/5 p-5">
+          <div className="flex items-start gap-3">
+            <div className="h-9 w-9 rounded-xl bg-blue-500/20 flex items-center justify-center shrink-0 mt-0.5">
+              <Shield className="h-4 w-4 text-blue-400" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-white mb-1">Protección de datos personales</p>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Tus datos están protegidos bajo la{" "}
+                <span className="text-blue-400 font-medium">Ley 1581 de 2012</span> (Habeas Data, Colombia).
+                Solo recolectamos la información necesaria para el servicio, con tu consentimiento explícito.
+                Tienes derecho a acceder, rectificar y suprimir tus datos en cualquier momento.
+              </p>
+              <div className="flex flex-wrap gap-3 mt-3">
+                {[
+                  { icon: Lock, label: "Datos cifrados en tránsito y reposo" },
+                  { icon: Shield, label: "Sin venta a terceros" },
+                ].map(({ icon: Icon, label }) => (
+                  <div key={label} className="flex items-center gap-1.5 text-xs text-slate-400">
+                    <Icon className="h-3 w-3 text-blue-400 shrink-0" />
+                    {label}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Already have account */}
-        <div className="mt-8 rounded-2xl border border-white/10 bg-white/5 p-5 text-center">
+        <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-5 text-center">
           <p className="text-slate-400 text-sm mb-3">¿Ya tienes una cuenta?</p>
           <Link href="/login"
             className="inline-flex items-center gap-2 rounded-xl border border-white/20 hover:bg-white/10 px-6 py-2.5 text-sm font-semibold text-white transition-colors">

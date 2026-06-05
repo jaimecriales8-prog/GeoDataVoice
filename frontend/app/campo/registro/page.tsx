@@ -2,53 +2,51 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { preRegisterParticipant, recordVisit, recordConsents, fetchConsentTexts } from "@/lib/api";
+import { createClient } from "@/lib/supabase";
 import {
-  ArrowLeft, ArrowRight, MapPin, User, Phone, CheckCircle,
+  ArrowLeft, ArrowRight, MapPin, User, CheckCircle,
   AlertCircle, Loader2, Navigation
 } from "lucide-react";
 
 type Step = "datos" | "gps" | "consentimientos" | "exito";
 type Gender = "male" | "female" | "other" | "prefer_not_to_say";
 
-const OPERATOR_ID = process.env.NEXT_PUBLIC_OPERATOR_ID ?? "00000000-0000-0000-0000-000000000001";
-
 const CONSENT_TYPES = ["panel", "whatsapp", "payments"] as const;
+
 const CONSENT_LABELS: Record<string, string> = {
-  panel: "Participar en el panel de opinión",
-  audio: "Grabación y análisis de mis notas de voz",
-  whatsapp: "Recibir encuestas por WhatsApp",
-  payments: "Recibir pagos por mis respuestas (Nequi/Daviplata)",
+  panel: "Autorizo a GeoDataVoice a incluirme en su panel territorial validado y contactarme para mediciones de opinión.",
+  whatsapp: "Autorizo el envío de mensajes por WhatsApp para participar en encuestas y recibir información del panel.",
+  payments: "Autorizo el registro de mi cuenta de pago (Nequi/Daviplata) para recibir incentivos por participación.",
 };
+
+async function sha256(text: string): Promise<string> {
+  const data = new TextEncoder().encode(text.toUpperCase().trim());
+  const hash = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(hash))
+    .map(b => b.toString(16).padStart(2, "0"))
+    .join("");
+}
 
 export default function RegistroPage() {
   const router = useRouter();
+  const supabase = createClient();
+
   const [step, setStep] = useState<Step>("datos");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [participantId, setParticipantId] = useState("");
-  const [consentTexts, setConsentTexts] = useState<Record<string, string>>({});
 
-  // Form fields
   const [nombre, setNombre] = useState("");
   const [documento, setDocumento] = useState("");
   const [telefono, setTelefono] = useState("");
   const [genero, setGenero] = useState<Gender | "">("");
   const [anioNacimiento, setAnioNacimiento] = useState("");
 
-  // GPS
   const [gps, setGps] = useState<{ lat: number; lon: number; accuracy: number } | null>(null);
   const [gpsLoading, setGpsLoading] = useState(false);
   const [gpsError, setGpsError] = useState("");
 
-  // Consents
   const [accepted, setAccepted] = useState<Record<string, boolean>>({});
-
-  useEffect(() => {
-    fetchConsentTexts()
-      .then((d: { texts: Record<string, string> }) => setConsentTexts(d.texts))
-      .catch(() => {});
-  }, []);
 
   // ── Step 1: Datos ────────────────────────────────────────────────────
 
@@ -68,21 +66,33 @@ export default function RegistroPage() {
     setError("");
     setLoading(true);
     try {
-      const result = await preRegisterParticipant({
-        document_number: documento,
-        phone: telefono,
-        name: nombre,
-        gender: genero || undefined,
-        birth_year: anioNacimiento ? parseInt(anioNacimiento) : undefined,
-      });
-      if (result) {
-        setParticipantId(result.id);
+      const docHash = await sha256(documento);
+      const phoneHash = await sha256(telefono);
+
+      const { data, error: dbError } = await supabase
+        .from("participants")
+        .insert({
+          document_hash: docHash,
+          phone_hash: phoneHash,
+          name: nombre,
+          gender: genero || null,
+          birth_year: anioNacimiento ? parseInt(anioNacimiento) : null,
+          status: "preregistered",
+          kyc_status: "pending",
+        })
+        .select("id")
+        .single();
+
+      if (dbError?.code === "23505") {
+        setError("Esta persona ya está registrada en el panel.");
+        setLoading(false);
+        return;
       }
-      // Move to GPS even if offline (result may be null — will sync later)
+
+      if (data) setParticipantId(data.id);
       setStep("gps");
-    } catch (e) {
-      setError("Error al registrar. Los datos se guardarán para sincronizar después.");
-      setStep("gps");
+    } catch {
+      setError("Error al guardar. Verifica tu conexión.");
     } finally {
       setLoading(false);
     }
@@ -95,14 +105,10 @@ export default function RegistroPage() {
     setGpsError("");
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        setGps({
-          lat: pos.coords.latitude,
-          lon: pos.coords.longitude,
-          accuracy: pos.coords.accuracy,
-        });
+        setGps({ lat: pos.coords.latitude, lon: pos.coords.longitude, accuracy: pos.coords.accuracy });
         setGpsLoading(false);
       },
-      (err) => {
+      () => {
         setGpsError("No se pudo obtener ubicación. Verifica permisos.");
         setGpsLoading(false);
       },
@@ -112,9 +118,8 @@ export default function RegistroPage() {
 
   async function handleGPS() {
     if (gps && participantId) {
-      await recordVisit({
-        operator_id: OPERATOR_ID,
-        participant_id: participantId || undefined,
+      await supabase.from("field_visits").insert({
+        participant_id: participantId,
         latitude: gps.lat,
         longitude: gps.lon,
         gps_accuracy: gps.accuracy,
@@ -132,24 +137,31 @@ export default function RegistroPage() {
   }
 
   async function handleConsentimientos() {
-    const requiredTypes = ["panel", "whatsapp"];
-    const allAccepted = requiredTypes.every(t => accepted[t]);
-    if (!allAccepted) {
+    const required = ["panel", "whatsapp"];
+    if (!required.every(t => accepted[t])) {
       setError("Debes aceptar los consentimientos obligatorios (Panel y WhatsApp).");
       return;
     }
     setError("");
     setLoading(true);
     try {
-      const acceptedTypes = Object.entries(accepted)
+      const rows = Object.entries(accepted)
         .filter(([, v]) => v)
-        .map(([k]) => k);
-      if (participantId) {
-        await recordConsents(participantId, acceptedTypes);
+        .map(([type]) => ({
+          participant_id: participantId,
+          type,
+          version: "1.0",
+          accepted: true,
+          channel: "field_app",
+          accepted_at: new Date().toISOString(),
+        }));
+
+      if (participantId && rows.length > 0) {
+        await supabase.from("consents").insert(rows);
       }
       setStep("exito");
     } catch {
-      setStep("exito"); // Don't block the user — sync later
+      setStep("exito");
     } finally {
       setLoading(false);
     }
@@ -157,17 +169,23 @@ export default function RegistroPage() {
 
   // ── Render ───────────────────────────────────────────────────────────
 
+  const goBack = () => {
+    if (step === "datos") router.back();
+    else if (step === "gps") setStep("datos");
+    else if (step === "consentimientos") setStep("gps");
+  };
+
   return (
     <div className="flex flex-col min-h-screen bg-slate-900">
-      {/* Header */}
       <header className="bg-blue-900 px-5 py-4 flex items-center gap-3">
-        <button onClick={() => step === "datos" ? router.back() : setStep(step === "gps" ? "datos" : step === "consentimientos" ? "gps" : "datos")}
-          className="text-blue-300 active:text-white">
+        <button onClick={goBack} className="text-blue-300 active:text-white">
           <ArrowLeft className="h-5 w-5" />
         </button>
         <div>
           <p className="text-xs text-blue-300 uppercase tracking-wide">Registro de persona</p>
-          <StepIndicator step={step} />
+          <p className="text-xs text-blue-200">
+            Paso {["datos", "gps", "consentimientos"].indexOf(step) + 1} de 3
+          </p>
         </div>
       </header>
 
@@ -177,35 +195,18 @@ export default function RegistroPage() {
             <SectionTitle icon={User} title="Datos personales" />
 
             <Field label="Nombre completo *">
-              <input
-                type="text"
-                value={nombre}
-                onChange={e => setNombre(e.target.value)}
-                placeholder="Ej: María García López"
-                className={inputClass}
-              />
+              <input type="text" value={nombre} onChange={e => setNombre(e.target.value)}
+                placeholder="Ej: María García López" className={inputClass} />
             </Field>
 
             <Field label="Número de documento *">
-              <input
-                type="number"
-                value={documento}
-                onChange={e => setDocumento(e.target.value)}
-                placeholder="Ej: 12345678"
-                inputMode="numeric"
-                className={inputClass}
-              />
+              <input type="number" value={documento} onChange={e => setDocumento(e.target.value)}
+                placeholder="Ej: 12345678" inputMode="numeric" className={inputClass} />
             </Field>
 
             <Field label="Celular *">
-              <input
-                type="tel"
-                value={telefono}
-                onChange={e => setTelefono(e.target.value)}
-                placeholder="Ej: 3001234567"
-                inputMode="tel"
-                className={inputClass}
-              />
+              <input type="tel" value={telefono} onChange={e => setTelefono(e.target.value)}
+                placeholder="Ej: 3001234567" inputMode="tel" className={inputClass} />
             </Field>
 
             <div className="grid grid-cols-2 gap-4">
@@ -219,20 +220,14 @@ export default function RegistroPage() {
                 </select>
               </Field>
               <Field label="Año de nacimiento">
-                <input
-                  type="number"
-                  value={anioNacimiento}
+                <input type="number" value={anioNacimiento}
                   onChange={e => setAnioNacimiento(e.target.value)}
-                  placeholder="Ej: 1985"
-                  inputMode="numeric"
-                  min={1920} max={2010}
-                  className={inputClass}
-                />
+                  placeholder="Ej: 1985" inputMode="numeric" min={1920} max={2010}
+                  className={inputClass} />
               </Field>
             </div>
 
             {error && <ErrorBox message={error} />}
-
             <PrimaryButton onClick={handleDatos} loading={loading} label="Continuar" />
           </div>
         )}
@@ -247,8 +242,7 @@ export default function RegistroPage() {
             {gps ? (
               <div className="rounded-xl bg-emerald-900/30 border border-emerald-700 p-4 space-y-1">
                 <div className="flex items-center gap-2 text-emerald-400 font-medium text-sm">
-                  <CheckCircle className="h-4 w-4" />
-                  Ubicación capturada
+                  <CheckCircle className="h-4 w-4" /> Ubicación capturada
                 </div>
                 <p className="text-xs text-slate-300">
                   Lat: {gps.lat.toFixed(6)} · Lon: {gps.lon.toFixed(6)}
@@ -256,27 +250,15 @@ export default function RegistroPage() {
                 <p className="text-xs text-slate-400">Precisión: ±{Math.round(gps.accuracy)}m</p>
               </div>
             ) : (
-              <button
-                onClick={captureGPS}
-                disabled={gpsLoading}
-                className="w-full flex items-center justify-center gap-2 rounded-xl bg-blue-600 py-4 text-white font-medium active:opacity-80 disabled:opacity-50"
-              >
-                {gpsLoading ? (
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                ) : (
-                  <MapPin className="h-5 w-5" />
-                )}
+              <button onClick={captureGPS} disabled={gpsLoading}
+                className="w-full flex items-center justify-center gap-2 rounded-xl bg-blue-600 py-4 text-white font-medium active:opacity-80 disabled:opacity-50">
+                {gpsLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <MapPin className="h-5 w-5" />}
                 {gpsLoading ? "Obteniendo ubicación..." : "Capturar GPS"}
               </button>
             )}
 
             {gpsError && <ErrorBox message={gpsError} />}
-
-            <PrimaryButton
-              onClick={handleGPS}
-              label={gps ? "Continuar" : "Omitir GPS"}
-              loading={false}
-            />
+            <PrimaryButton onClick={handleGPS} label={gps ? "Continuar" : "Omitir GPS"} loading={false} />
           </div>
         )}
 
@@ -284,24 +266,20 @@ export default function RegistroPage() {
           <div className="space-y-5">
             <SectionTitle icon={CheckCircle} title="Consentimientos" />
             <p className="text-sm text-slate-400">
-              Lee y acepta las autorizaciones antes de continuar. Los marcados con * son obligatorios.
+              Lee y acepta las autorizaciones. Los marcados con * son obligatorios.
             </p>
 
             <div className="space-y-3">
               {CONSENT_TYPES.map(type => {
                 const isRequired = type === "panel" || type === "whatsapp";
-                const text = consentTexts[type] ?? CONSENT_LABELS[type] ?? type;
                 return (
                   <label key={type}
                     className={`flex items-start gap-3 rounded-xl border p-4 cursor-pointer transition-colors ${accepted[type] ? "bg-blue-900/30 border-blue-600" : "bg-slate-800 border-slate-700"}`}>
-                    <input
-                      type="checkbox"
-                      checked={!!accepted[type]}
+                    <input type="checkbox" checked={!!accepted[type]}
                       onChange={() => toggleConsent(type)}
-                      className="mt-0.5 h-4 w-4 rounded accent-blue-500 shrink-0"
-                    />
+                      className="mt-0.5 h-4 w-4 rounded accent-blue-500 shrink-0" />
                     <span className="text-sm text-slate-200">
-                      {text}
+                      {CONSENT_LABELS[type]}
                       {isRequired && <span className="text-blue-400 ml-1">*</span>}
                     </span>
                   </label>
@@ -310,7 +288,6 @@ export default function RegistroPage() {
             </div>
 
             {error && <ErrorBox message={error} />}
-
             <PrimaryButton onClick={handleConsentimientos} loading={loading} label="Finalizar registro" />
           </div>
         )}
@@ -322,17 +299,20 @@ export default function RegistroPage() {
             </div>
             <h2 className="text-xl font-bold text-white">¡Registro exitoso!</h2>
             <p className="text-sm text-slate-400 max-w-xs">
-              La persona ha sido registrada. Los datos se sincronizarán con el servidor automáticamente.
+              La persona ha sido registrada en el panel.
             </p>
             {participantId && (
               <p className="text-xs text-slate-500 font-mono bg-slate-800 px-3 py-1.5 rounded-lg">
                 ID: {participantId.slice(0, 8)}…
               </p>
             )}
-            <button
-              onClick={() => router.push("/")}
-              className="mt-6 w-full rounded-xl bg-blue-600 py-4 text-white font-semibold active:opacity-80"
-            >
+            <button onClick={() => {
+              setStep("datos");
+              setNombre(""); setDocumento(""); setTelefono("");
+              setGenero(""); setAnioNacimiento("");
+              setGps(null); setAccepted({}); setParticipantId("");
+            }}
+              className="mt-6 w-full rounded-xl bg-blue-600 py-4 text-white font-semibold active:opacity-80">
               Registrar otra persona
             </button>
           </div>
@@ -378,24 +358,11 @@ function PrimaryButton({ onClick, loading, label }: {
   onClick: () => void; loading: boolean; label: string;
 }) {
   return (
-    <button
-      onClick={onClick}
-      disabled={loading}
-      className="w-full flex items-center justify-center gap-2 rounded-xl bg-blue-600 py-4 text-white font-semibold active:opacity-80 disabled:opacity-50 mt-4"
-    >
-      {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
+    <button onClick={onClick} disabled={loading}
+      className="w-full flex items-center justify-center gap-2 rounded-xl bg-blue-600 py-4 text-white font-semibold active:opacity-80 disabled:opacity-50 mt-4">
+      {loading && <Loader2 className="h-5 w-5 animate-spin" />}
       {loading ? "Procesando..." : label}
       {!loading && <ArrowRight className="h-4 w-4" />}
     </button>
-  );
-}
-
-function StepIndicator({ step }: { step: Step }) {
-  const steps: Step[] = ["datos", "gps", "consentimientos", "exito"];
-  const current = steps.indexOf(step) + 1;
-  return (
-    <p className="text-xs text-blue-200">
-      Paso {current} de {steps.length - 1}
-    </p>
   );
 }

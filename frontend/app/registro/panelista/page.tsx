@@ -53,15 +53,15 @@ export default function RegistroPanelistaPage() {
         </div>
         <h1 className="text-2xl font-bold text-white mb-3">¡Ya estás en la lista!</h1>
         <p className="text-slate-300 mb-2 max-w-xs">
-          Un encuestador de GeoDataVoice visitará tu casa para verificar tu identidad y activar tu cuenta en el panel.
+          Recibirás un correo para completar la verificación de identidad y activar tu cuenta.
         </p>
         <div className="rounded-2xl bg-white/10 border border-white/20 p-5 mb-8 w-full max-w-xs space-y-2 text-left">
           <p className="text-xs text-amber-300 font-semibold uppercase tracking-wide mb-3">¿Qué sigue?</p>
           {[
-            "Un encuestador te visitará en los próximos días",
-            "Verificarán tu identidad y residencia",
-            "Activarás tu cuenta y recibirás la primera encuesta por WhatsApp",
-            "Ganarás $2.000–$3.000 por cada encuesta respondida",
+            "Revisa tu correo y completa la verificación de identidad",
+            "Una vez verificado, tu cuenta queda activa",
+            "Responde tu primera encuesta desde la web",
+            "Gana $2.000–$3.000 por cada encuesta respondida",
           ].map((s, i) => (
             <div key={i} className="flex items-start gap-2 text-sm text-slate-300">
               <span className="h-5 w-5 rounded-full bg-amber-500/30 text-amber-300 text-xs flex items-center justify-center shrink-0 mt-0.5 font-bold">{i + 1}</span>
@@ -168,7 +168,7 @@ export default function RegistroPanelistaPage() {
                 <p className="text-xs text-amber-300 font-semibold uppercase tracking-wide">Contacto y pagos</p>
               </div>
               <div className="space-y-3">
-                <Field label="Celular (WhatsApp) *">
+                <Field label="Celular *">
                   <input type="tel" value={form.phone} onChange={e => update("phone", e.target.value)}
                     placeholder="3001234567" inputMode="tel" className={inputCls} />
                 </Field>
@@ -188,7 +188,7 @@ export default function RegistroPanelistaPage() {
             </button>
 
             <p className="text-xs text-slate-500 text-center">
-              Un encuestador te visitará para verificar tu identidad antes de activar tu cuenta.
+              Recibirás un correo para completar la verificación de identidad digital.
             </p>
           </form>
         </div>

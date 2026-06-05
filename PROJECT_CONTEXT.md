@@ -1,141 +1,155 @@
 # PROJECT_CONTEXT.md — GeoDataVoice
-> Generado: 2026-06-04 | Arquitecto: Claude Sonnet 4.6 | Estado: Sesión inicial completada
+> Actualizado: 2026-06-04 | Arquitecto: Claude Sonnet 4.6
 
 ---
 
 ## Resumen Ejecutivo
 
 ### Objetivo del proyecto
-Construir una plataforma de **inteligencia territorial** que recluta personas reales y verificadas, las organiza en un panel georreferenciado, y mide su opinión de forma recurrente mediante WhatsApp, formularios y notas de voz. El análisis de voz ciudadana (transcripción + NLP) es el diferencial frente a encuestadoras tradicionales.
+Plataforma de **inteligencia territorial** para Colombia que recluta personas verificadas, las organiza en paneles georreferenciados y mide su opinión de forma recurrente mediante formularios y notas de voz analizadas con IA. El diferencial es el análisis automático de audio ciudadano (transcripción + NLP) para extraer sentimiento, emoción, temas y citas representativas por municipio.
 
-### Problema de negocio que resuelve
-Alcaldes, gobernadores, candidatos y organizaciones con públicos masivos toman decisiones con información incompleta. Las encuestas tradicionales son costosas, episódicas y poco explicativas. GeoDataVoice llena la brecha para municipios medianos y ciudades intermedias de Colombia que no tienen acceso a medición recurrente adaptada a su tamaño y presupuesto.
+### Problema que resuelve
+Alcaldes, gobernadores, candidatos y organizaciones en municipios medianos de Colombia toman decisiones con información incompleta. Las encuestadoras tradicionales son episódicas, costosas y poco explicativas. GeoDataVoice provee medición recurrente, accesible y territorializada con voz ciudadana analizada por IA como diferencial.
+
+### Producto en dos capas
+- **GeoDataVoice**: panel territorial, encuestas recurrentes, análisis de audio, dashboard analítico.
+- **AGORA**: red de pares verificados (módulo fase 2 — no iniciado).
 
 ### Estado actual del desarrollo
-**Fase: Arquitectura base — primer commit.** El proyecto tiene la estructura de carpetas, todos los modelos de datos SQLAlchemy y dos rutas de API completamente implementadas (`/clients`, `/participants`). El resto de las 12 rutas son stubs vacíos. No hay frontend, no hay migraciones, no hay tests, no hay autenticación.
 
-### Nivel de avance estimado
 ```
-Modelos de datos          ████████░░  80%
-API Backend               ██░░░░░░░░  20%  (2/12 rutas implementadas)
-Autenticación / Auth      ░░░░░░░░░░   0%
-Migraciones DB            ░░░░░░░░░░   0%
-Frontend dashboard        ░░░░░░░░░░   0%
-PWA campo (encuestadores) ░░░░░░░░░░   0%
-Integración WhatsApp      ░░░░░░░░░░   0%
-Pipeline de audio         ██░░░░░░░░  20%  (servicio escrito, no conectado)
-Tests                     ░░░░░░░░░░   0%
-CI/CD                     ░░░░░░░░░░   0%
-TOTAL                     ██░░░░░░░░  ~12%
+Landing page (frontend)       ████████████  100%  Comercial, completa
+Auth / Login (Supabase)       ████████████  100%  Funcionando
+Registro 3 perfiles           ████████████  100%  Cliente, encuestador, panelista
+Dashboard frontend             ████░░░░░░░░   35%  Listado proyectos (query Supabase)
+PWA campo — registro           ████████░░░░   65%  GPS + consentimientos (llama al backend aún)
+PWA campo — panelista          ████░░░░░░░░   40%  Home + encuesta flow (datos mock)
+Backend FastAPI                ████████░░░░  [DESCONTINUADO] — NO continuar desarrollo aquí
+Schema Supabase                ░░░░░░░░░░░░    0%  Tablas, RLS, policies — PENDIENTE DISEÑAR
+Lógica en Edge Functions       ░░░░░░░░░░░░    0%  Audio, NLP, KYC — PENDIENTE
+TOTAL                          ██░░░░░░░░░░  ~30%  (reset por cambio de arquitectura)
 ```
 
 ---
 
-## Arquitectura General
+## DECISIÓN ARQUITECTÓNICA CRÍTICA
 
-### Arquitectura de alto nivel
+### El backend FastAPI fue descontinuado
+
+**La nueva arquitectura es: Frontends → Supabase directamente.**
+
+| Antes | Ahora |
+|---|---|
+| Next.js → FastAPI (Python) → PostgreSQL | Next.js → Supabase (PostgREST + Auth + Storage) |
+| SQLAlchemy + Alembic para schema | SQL directo en Supabase (dashboard o migrations) |
+| JWT propio en backend | Supabase Auth (JWT gestionado por Supabase) |
+| FastAPI routes para lógica de negocio | Supabase Edge Functions para lógica compleja |
+| `lib/api.ts` con axios a localhost:8000 | `lib/supabase.ts` con `createClient()` |
+
+**El directorio `backend/` existe pero NO debe continuar desarrollándose.**  
+Todo código nuevo va en `frontend/` y `field-app/` usando el cliente de Supabase.
+
+### Qué hace falta diseñar/implementar para el nuevo stack
+
+1. **Schema de tablas en Supabase**: reemplaza los modelos SQLAlchemy. Hay que diseñar las tablas directamente en el SQL Editor de Supabase o con `supabase/migrations/`.
+2. **Row Level Security (RLS)**: cada tabla necesita policies para que los usuarios solo vean sus propios datos.
+3. **Supabase Edge Functions**: para lógica que no puede ir en el cliente (audio con Whisper/GPT, envío de emails, OTP, KYC).
+4. **Reescribir `field-app/lib/api.ts`**: actualmente llama al backend FastAPI. Debe migrar a llamadas Supabase.
+
+---
+
+## Arquitectura General (nueva)
+
 ```
-┌─────────────────────────────────────────────────────┐
-│                   CLIENTES                          │
-│  Dashboard Web (Next.js)   PWA Campo (Next.js)      │
-└────────────────┬───────────────────┬────────────────┘
-                 │ HTTP/REST          │ HTTP/REST (offline-first)
-┌────────────────▼───────────────────▼────────────────┐
-│              FastAPI Backend (Python)               │
-│  /api/v1/[clients|projects|territories|participants │
-│            |field|consents|panel|surveys|           │
-│             audio|payments|peers|messages]          │
-└──────┬──────────────────────────┬───────────────────┘
-       │ SQLAlchemy async          │ Celery tasks
-┌──────▼──────┐          ┌────────▼────────┐
-│  PostgreSQL │          │  Redis (broker) │
-│  + PostGIS  │          └────────┬────────┘
-└─────────────┘                   │
-                         ┌────────▼────────┐
-                         │  Workers Celery │
-                         │  - Whisper STT  │
-                         │  - GPT-4o-mini  │
-                         │  - Pagos batch  │
-                         └─────────────────┘
+┌────────────────────────────────────────────────────────────┐
+│                       FRONTENDS                            │
+│                                                            │
+│  frontend/ (Next.js 16 — dashboard clientes/admin)         │
+│  Puerto 3000 — Vercel en producción                        │
+│                                                            │
+│  field-app/ (Next.js 16 PWA — encuestadores + panelistas)  │
+│  Puerto 3001 — Vercel en producción                        │
+└──────────────────────┬─────────────────────────────────────┘
+                       │ @supabase/ssr + @supabase/supabase-js
+                       │ (PostgREST API automática por tabla)
+┌──────────────────────▼─────────────────────────────────────┐
+│                     SUPABASE                               │
+│                                                            │
+│  PostgreSQL + PostGIS  →  tablas del dominio               │
+│  Auth                  →  registro/login todos los roles   │
+│  Storage               →  audios + evidencias de campo     │
+│  Edge Functions        →  Whisper, GPT, OTP, emails, KYC   │
+│  Realtime              →  notificaciones en tiempo real     │
+└────────────────────────────────────────────────────────────┘
 
-Servicios externos:
-- WhatsApp Business API (mensajería/encuestas)
-- Proveedor KYC (Truora/Metamap — por definir)
-- OpenAI (Whisper + GPT-4o-mini)
-- Nequi/Daviplata (dispersión de pagos)
-- Supabase Storage (audios y evidencias)
+Servicios externos (via Edge Functions):
+  OpenAI Whisper-1   → transcripción de audio
+  OpenAI GPT-4o-mini → análisis NLP (sentimiento, temas, emoción)
+  Resend / SendGrid  → emails transaccionales
+  Twilio / 360dialog → WhatsApp Business (pendiente)
+  Truora / Metamap   → KYC (pendiente)
+  Nequi / Daviplata  → dispersión de pagos (manual en MVP)
 ```
 
-### Componentes principales
-| Componente | Estado | Descripción |
-|---|---|---|
-| `backend/` | Parcial | FastAPI, modelos, 2 rutas reales |
-| `frontend/` | Vacío | Dashboard para clientes (por construir) |
-| `field-app/` | Vacío | PWA offline para encuestadores |
-| `infra/` | Docker Compose | PostgreSQL+PostGIS + Redis |
+### Flujo de información (nuevo)
 
-### Flujo de información
-1. Encuestador en campo → PWA → `POST /participants/pre-register`
-2. Sistema dispara KYC → proveedor externo → `PATCH /participants/{id}/kyc`
-3. OTP valida celular → panelista queda `VERIFIED`
-4. Motor de panel asigna cohorte → `POST /panel-memberships`
-5. Módulo de encuestas envía link por WhatsApp → panelista responde
-6. Audio recibido → worker Celery → Whisper → GPT-4o-mini → `nlp_outputs`
-7. Dashboard consulta `GET /analytics/projects/{id}` → cliente ve resultados
-8. AGORA activa pares con mensajes aprobados → recibe evidencias
+```
+1. Encuestador → field-app → supabase.from("participants").insert({...})
+   (doc+cel hasheados en el cliente o via Edge Function)
 
-### Integraciones externas
-| Servicio | Propósito | Estado |
-|---|---|---|
-| OpenAI Whisper | Transcripción de audios | Servicio escrito, sin conectar |
-| OpenAI GPT-4o-mini | Análisis sentimiento/NLP | Servicio escrito, sin conectar |
-| WhatsApp Business API | Envío de encuestas y links | No implementado |
-| KYC (Truora/Metamap) | Validación de identidad | No implementado — proveedor sin decidir |
-| Nequi/Daviplata | Dispersión de pagos | No implementado |
-| Supabase | Storage de audios + auth | SDK incluido, sin configurar |
+2. → supabase.from("consents").insert([...])   [bulk]
+3. → supabase.from("field_visits").insert({lat, lon, ...})
+
+4. [Edge Function] → KYC proveedor → webhook → UPDATE participants SET status='verified'
+
+5. → supabase.from("panel_memberships").insert({participant_id, project_id, cohorte})
+
+6. [Edge Function "send-survey"] → genera tokens por panelista → WhatsApp
+
+7. Panelista → field-app → supabase.from("responses").insert([...])
+   → supabase.storage.from("audio").upload(file)
+   → [Edge Function "process-audio"] → Whisper → GPT → nlp_outputs INSERT
+
+8. Cliente → frontend → supabase.from("analytics_view").select(...)
+   (vista calculada en SQL o Edge Function "get-analytics")
+```
 
 ---
 
 ## Stack Tecnológico
 
-### Backend
-- **Python 3.12** + **FastAPI 0.115** (async)
-- **SQLAlchemy 2.0** (async ORM) + **asyncpg** (driver)
-- **Alembic 1.13** (migraciones — configuración pendiente)
-- **Pydantic v2** (validación y schemas)
-- **Celery 5.4** + **Redis** (procesamiento asíncrono de audios y pagos)
-- **GeoAlchemy2 0.15** + **Shapely** (geometrías PostGIS)
-- **python-jose** + **passlib[bcrypt]** (JWT — sin implementar)
-- **OpenAI SDK 1.51** (Whisper + GPT)
-- **Supabase Python SDK 2.9**
+### Frontends (dashboard + field-app)
 
-### Frontend
-- **Next.js** (por construir) — dashboard de clientes
-- **Next.js PWA** (por construir) — app de campo offline-first
+| Componente | Tecnología | Versión |
+|---|---|---|
+| Framework | Next.js 16.2.7 (App Router) | — |
+| React | React 19 | — |
+| Estilos | Tailwind CSS v4 | — |
+| Iconos | Lucide React | — |
+| Charts | Recharts 3.8.1 (frontend) | — |
+| Auth + DB | @supabase/ssr + @supabase/supabase-js | — |
+| Data fetching | TanStack React Query 5 | — |
+| HTTP | Axios (actualmente apunta al backend — migrar) | — |
+| Offline queue | idb 8 (IndexedDB — field-app) | — |
+| Lenguaje | TypeScript 5 | — |
 
-### Base de datos
-- **PostgreSQL 16 + PostGIS 3.4** (geolocalización de territorios/panelistas)
-- Campos sensibles: documento y celular almacenados como SHA-256 hash; nombre como texto plano (pendiente cifrado real con KMS)
+### Supabase (backend-as-a-service)
 
-### Autenticación
-- Librerías instaladas (`python-jose`, `passlib`) pero **sin implementar**
-- No hay sistema de usuarios/roles todavía
+| Servicio | Uso |
+|---|---|
+| PostgreSQL 15 + PostGIS | BD principal del dominio |
+| Supabase Auth | JWT para todos los roles (cliente, encuestador, panelista, admin) |
+| PostgREST | API REST automática sobre las tablas (con RLS) |
+| Supabase Storage | Audios de panelistas + fotos de evidencia de campo |
+| Edge Functions (Deno) | Lógica compleja: audio processing, OTP, emails, KYC webhook |
+| Realtime | Notificaciones en tiempo real (pendiente) |
 
-### Infraestructura
-- **Docker Compose** para desarrollo local (PostGIS + Redis + backend)
-- Sin configuración de producción (no hay Supabase project, no hay deploy)
-- Sin CI/CD
+### Proyecto Supabase
 
-### Dependencias relevantes
-```
-fastapi==0.115.0        # Framework HTTP async
-sqlalchemy==2.0.35      # ORM — versión con async completo
-geoalchemy2==0.15.2     # Extensión PostGIS para SQLAlchemy
-celery==5.4.0           # Task queue para audio/pagos
-openai==1.51.0          # Whisper STT + GPT-4o-mini NLP
-supabase==2.9.1         # Storage y auth en producción
-phonenumbers==8.13.48   # Validación de números de teléfono colombianos
-```
+- **ID del proyecto**: `bsjiqatcqbjqmtytlgll`
+- **URL**: `https://bsjiqatcqbjqmtytlgll.supabase.co`
+- **Región**: us-west-2 (AWS)
+- **Bucket de storage**: `geodatavoice-audio`
 
 ---
 
@@ -143,312 +157,624 @@ phonenumbers==8.13.48   # Validación de números de teléfono colombianos
 
 ```
 GeoDataVoice/
-├── .gitignore
 ├── PROJECT_CONTEXT.md        ← este archivo
-├── TASKS.md                  ← backlog priorizado
-├── DECISIONS.md              ← decisiones arquitectónicas
-├── ARCHITECTURE.md           ← diagramas y flujos
+├── TASKS.md                  ← backlog
+├── DECISIONS.md              ← ADRs
 │
-├── backend/
-│   ├── Dockerfile
-│   ├── requirements.txt
-│   ├── .env.example
+├── frontend/                 ← Next.js 16 dashboard (clientes/admin)
+│   ├── middleware.ts          ← protege /dashboard con sesión Supabase
+│   ├── lib/
+│   │   ├── supabase.ts        ← createBrowserClient (componentes cliente)
+│   │   ├── supabase-server.ts ← createServerClient (server components)
+│   │   ├── auth.ts            ← helpers de auth Supabase
+│   │   └── api.ts             ← ⚠️ APUNTA AL BACKEND — MIGRAR A SUPABASE
 │   └── app/
-│       ├── main.py           ← entrada FastAPI, registro de routers
-│       ├── core/
-│       │   ├── config.py     ← Settings con pydantic-settings
-│       │   └── database.py   ← engine async, Base ORM, get_db()
-│       ├── models/           ← 12 modelos SQLAlchemy (ver abajo)
-│       ├── api/v1/routes/    ← 12 routers (2 implementados, 10 stubs)
-│       └── services/
-│           └── audio_processor.py  ← Whisper + GPT-4o-mini
+│       ├── page.tsx           ← Landing comercial (completa)
+│       ├── login/             ← Login Supabase Auth (funciona)
+│       ├── dashboard/         ← Dashboard proyectos (parcialmente conectado)
+│       ├── projects/[id]/     ← Detalle proyecto (pendiente)
+│       └── registro/
+│           ├── page.tsx       ← Selector perfil (completo)
+│           ├── cliente/       ← Registro cliente (Supabase signUp)
+│           ├── encuestador/   ← Registro encuestador (pendiente conectar)
+│           └── panelista/     ← Registro panelista (pendiente conectar)
 │
-├── frontend/                 ← VACÍO — Next.js dashboard (por construir)
-├── field-app/                ← VACÍO — Next.js PWA (por construir)
+├── field-app/                ← Next.js 16 PWA (encuestadores + panelistas)
+│   ├── lib/
+│   │   ├── api.ts             ← ⚠️ APUNTA AL BACKEND — MIGRAR A SUPABASE
+│   │   ├── supabase.ts        ← createBrowserClient (existe, listo)
+│   │   └── offline-queue.ts   ← IndexedDB para sincronización offline
+│   └── app/
+│       ├── registro/          ← Flujo 3 pasos: datos→GPS→consentimientos
+│       └── panelista/
+│           ├── page.tsx       ← Home panelista (MOCK_SURVEYS — pendiente)
+│           ├── encuesta/[id]/ ← Flujo encuesta con audio (pendiente)
+│           └── pagos/         ← Historial pagos (MOCK — pendiente)
+│
+├── backend/                  ← ⚠️ DESCONTINUADO — no continuar desarrollo
+│   └── ...                   ← Útil como referencia de lógica de negocio
+│
 └── infra/
-    └── docker-compose.yml    ← PostGIS + Redis + backend
+    └── docker-compose.yml    ← PostGIS + Redis (solo si se reactiva backend)
 ```
 
-### Archivos críticos
-| Archivo | Responsabilidad |
-|---|---|
-| `backend/app/main.py` | Punto de entrada, CORS, registro de routers |
-| `backend/app/core/config.py` | Variables de entorno centralizadas |
-| `backend/app/core/database.py` | Motor async, sesión, Base declarativa |
-| `backend/app/models/participant.py` | Entidad central del sistema |
-| `backend/app/services/audio_processor.py` | Diferencial técnico del producto |
-| `infra/docker-compose.yml` | Entorno de desarrollo local |
+### Archivos críticos (nueva arquitectura)
 
-### Modelos implementados (12)
-| Modelo | Tabla | Descripción |
+| Archivo | Estado | Acción requerida |
 |---|---|---|
-| `Client` | `clients` | Clientes contratantes |
-| `Project` | `projects` | Proyectos por cliente |
-| `Territory` | `territories` | Jerarquía geográfica con geometría PostGIS |
-| `Participant` | `participants` | Panelistas (datos hasheados/cifrados) |
-| `ParticipantProfile` | `participant_profiles` | Variables demográficas adicionales |
-| `FieldOperator` | `field_operators` | Encuestadores en campo |
-| `FieldVisit` | `field_visits` | Registro GPS de visitas |
-| `Consent` | `consents` | Consentimientos versionados por tipo |
-| `Cohort` | `cohorts` | Grupos activo/reserva/descanso |
-| `PanelMembership` | `panel_memberships` | Relación participante-proyecto-cohorte |
-| `Survey` | `surveys` | Instrumentos de medición por ola |
-| `Question` | `questions` | Preguntas del instrumento |
-| `Response` | `responses` | Respuestas cerradas/abiertas |
-| `AudioResponse` | `audio_responses` | Archivos de audio con transcripción |
-| `NLPOutput` | `nlp_outputs` | Resultados IA: sentimiento, emoción, temas |
-| `Payment` | `payments` | Pagos a panelistas y pares |
-| `Peer` | `peers` | Red de pares AGORA |
-| `PeerTask` | `peer_tasks` | Tareas asignadas a pares |
-| `PeerEvidence` | `peer_evidences` | Evidencias de interacción |
-| `Message` | `messages` | Banco de contenidos aprobados |
+| `frontend/lib/supabase.ts` | ✅ Listo | Usar para todas las queries |
+| `frontend/lib/supabase-server.ts` | ✅ Listo | Usar en server components |
+| `frontend/middleware.ts` | ✅ Funciona | — |
+| `frontend/lib/api.ts` | ⚠️ Apunta al backend | Reescribir con Supabase |
+| `field-app/lib/supabase.ts` | ✅ Existe | Usar para todas las queries |
+| `field-app/lib/api.ts` | ⚠️ Apunta al backend | Reescribir con Supabase |
+| `field-app/lib/offline-queue.ts` | ✅ Listo | Adaptar para que encole queries Supabase |
 
 ---
 
-## Funcionalidades Implementadas
+## Trabajo Realizado (que sigue siendo válido)
 
-1. **Estructura de modelos de datos completa** — todas las entidades del dominio están definidas con relaciones SQLAlchemy correctas.
-2. **API de Clientes** (`/api/v1/clients`) — `GET /` lista clientes activos; `POST /` crea cliente; `GET /{id}` obtiene por ID.
-3. **Pre-registro de Participantes** (`POST /api/v1/participants/pre-register`) — hashea documento y celular con SHA-256, detecta duplicados, persiste con estado `PREREGISTERED`.
-4. **Consulta de Participante** (`GET /api/v1/participants/{id}`) — retorna datos no sensibles.
-5. **Actualización estado KYC** (`PATCH /api/v1/participants/{id}/kyc`) — transición de estado a `VERIFIED`.
-6. **Servicio de transcripción de audio** — función `transcribe()` con OpenAI Whisper.
-7. **Servicio de análisis NLP** — función `analyze_sentiment()` con GPT-4o-mini, retorna JSON estructurado con 9 variables cualitativas.
-8. **Configuración de entorno** — `Settings` centralizada con pydantic-settings, `.env.example` documentado.
-9. **Docker Compose** — PostgreSQL 16 + PostGIS 3.4 + Redis 7 + backend, listos para desarrollo.
-10. **CORS configurado** — permite `localhost:3000` y `localhost:3001`.
-11. **Endpoint `/health`** — liveness check con versión.
-12. **`.gitignore`** completo — excluye `.env`, audios, `__pycache__`, `.next`, etc.
+### Funcionalidades de frontend completadas
 
----
+- **Landing comercial** (`frontend/app/page.tsx`) — completa con nav, hero, metodología, 3 actores, contacto
+- **Login** (`frontend/app/login/page.tsx`) — Supabase Auth, maneja sesión activa
+- **Selector de perfil** (`frontend/app/registro/page.tsx`) — 3 tarjetas (cliente/encuestador/panelista)
+- **Registro cliente** — Supabase `signUp` con metadata `{role: "client", org_name, org_type}`
+- **Dashboard con listado proyectos** (`frontend/app/dashboard/page.tsx`) — query directa a Supabase `projects`
+- **Middleware protección `/dashboard`** — redirige a `/login` si no hay sesión
+- **Flujo de registro panelista en field-app** — 3 pasos: datos → GPS → consentimientos (actualmente llama al backend, hay que migrar)
+- **Offline queue** (`field-app/lib/offline-queue.ts`) — IndexedDB para sincronización offline (lógica válida, hay que adaptar las URLs)
+- **Home panelista** — UI completa con stats, encuestas pendientes y pagos (datos mock)
+- **Flujo de encuesta con audio** — UI por pregunta con grabación de audio (datos mock)
 
-## Funcionalidades Pendientes
+### Lo que el backend tiene de útil como referencia
 
-### P0 — Crítico para el MVP (sin esto no hay producto)
-1. **Migraciones Alembic** — configurar `alembic.ini`, `env.py` y generar migración inicial desde los modelos
-2. **Autenticación JWT** — usuarios internos (admin, analista, supervisor) y clientes; roles y permisos por proyecto
-3. **Ruta de Field** — registro de visita con GPS, evidencia (foto), operador y resultado
-4. **Ruta de Consentimientos** — guardar consentimiento versionado con prueba
-5. **Ruta de Encuestas** — crear cuestionario, asignar a cohorte, enviar link por WhatsApp/SMS
-6. **Pipeline de audio end-to-end** — recibir archivo, guardarlo en storage, disparar worker Celery que llama `audio_processor`, persistir `AudioResponse` + `NLPOutput`
-7. **Dashboard API** — `GET /analytics/projects/{id}` con indicadores agregados (favorabilidad, sentimiento, temas por polígono)
-8. **Pagos exportables** — lista de pagos aprobados exportable a CSV para dispersión manual Nequi/Daviplata
-9. **PWA de campo** (Next.js) — formulario de registro, captura GPS, foto de evidencia, funcionamiento offline con sync posterior
-10. **Integración KYC** — conectar proveedor externo (Truora o Metamap); webhook de resultado
+El código del backend sirve como **especificación de la lógica de negocio** a reimplementar en Supabase:
 
-### P1 — Importante para el pitch con clientes
-11. **Dashboard frontend** (Next.js) — indicadores ejecutivos, mapas de polígonos, filtros por segmento, evolución temporal
-12. **Ruta de Panel** — asignar cohortes, cambiar estado de panelistas, gestionar rotación
-13. **Integración WhatsApp Business API** — envío de encuestas y recordatorios
-14. **Módulo AGORA básico** — crear par, asignar tarea, recibir evidencia, aprobar pago
-15. **Banco de mensajes** — CRUD con flujo de aprobación por el cliente
-
-### P2 — Optimización post-validación
-16. Pagos automáticos (integración directa Wompi/Nequi)
-17. Mapa interactivo con capas de indicadores (PostGIS + Mapbox/Leaflet)
-18. Post-estratificación y ponderación estadística en el módulo analítico
-19. Portal de pares (app dedicada para AGORA)
-20. CI/CD con GitHub Actions + deploy en Railway/Fly.io/Render
-
----
-
-## Decisiones Técnicas Identificadas
-
-| Decisión | Evidencia | Impacto |
-|---|---|---|
-| **FastAPI async** en lugar de Django/Flask | `asyncpg`, `async_sessionmaker`, todas las rutas `async def` | Mejor throughput para llamadas concurrentes a WhatsApp API y workers; mayor complejidad para devs sin experiencia en async |
-| **SQLAlchemy 2.0 ORM** (no Supabase ORM directo) | `from sqlalchemy.orm import Mapped, mapped_column` | Control total del esquema y migraciones Alembic; el SDK de Supabase se usará solo para Storage y Auth |
-| **Hashing SHA-256** para documento y celular | `hashlib.sha256(value.strip().upper().encode()).hexdigest()` en `participants.py` | Permite búsqueda por hash sin exponer el dato; limitación: no se puede recuperar el valor original (correcto por diseño) |
-| **Nombre en texto plano** para participantes | `name_encrypted=data.name` con TODO en comentario | RIESGO de privacidad — está pendiente cifrado real con KMS; actualmente es un placeholder |
-| **GPT-4o-mini** para NLP en lugar de modelo propio | `model="gpt-4o-mini"` en `audio_processor.py` | Más rápido de implementar, costo variable por audio; en escala sería más barato un modelo fine-tuneado propio |
-| **Celery + Redis** para procesamiento async | `celery==5.4.0`, `redis==5.1.1` en requirements | Los workers no están implementados aún; solo las funciones del servicio existen |
-| **PostGIS** para territorios | `geoalchemy2`, `Geometry("MULTIPOLYGON", srid=4326)` | Correcto para polígonos homogéneos; requiere que Docker Compose use imagen `postgis/postgis` |
-| **CORS abierto a localhost** | `allow_origins=["http://localhost:3000", "http://localhost:3001"]` | Solo válido en desarrollo; en producción se debe restringir al dominio real |
+- `backend/app/models/` → diseño de las tablas que hay que crear en Supabase
+- `backend/app/api/v1/routes/consents.py` → textos de consentimiento versionados, lógica de bulk/revocación
+- `backend/app/api/v1/routes/field.py` → campos requeridos para registro de visitas GPS
+- `backend/app/api/v1/routes/surveys.py` → lógica de encuestas, respuestas, generación de tokens
+- `backend/app/api/v1/routes/analytics.py` → queries SQL de favorabilidad, sentimiento, temas
+- `backend/app/services/audio_processor.py` → prompt exacto de GPT-4o-mini para NLP (9 variables)
+- `backend/app/models/participant.py` → convención SHA-256 para hashear documento y celular
 
 ---
 
 ## Estado Actual del Código
 
-### Módulos completos (listos para usar)
-- `app/core/config.py` — configuración centralizada
-- `app/core/database.py` — motor async y sesión
-- `app/models/` — todos los modelos (20 tablas)
-- `app/api/v1/routes/clients.py` — CRUD básico de clientes
-- `app/services/audio_processor.py` — transcripción y NLP
-- `infra/docker-compose.yml` — entorno local
+### Funciona correctamente (con la nueva arquitectura)
+- Landing page → sin auth, funciona en frío
+- Login → Supabase Auth, produce sesión JWT válida
+- Registro cliente → `supabase.auth.signUp()` con metadata de rol
+- Dashboard listado proyectos → `supabase.from("projects").select(*)` (requiere que la tabla exista en Supabase)
+- Middleware de auth → protege `/dashboard`
 
-### Módulos incompletos (stub o parcial)
-- `app/api/v1/routes/participants.py` — faltan: OTP, listado, actualización de perfil, historial
-- `app/api/v1/routes/projects.py` — stub vacío
-- `app/api/v1/routes/territories.py` — stub vacío
-- `app/api/v1/routes/field.py` — stub vacío
-- `app/api/v1/routes/consents.py` — stub vacío
-- `app/api/v1/routes/panel.py` — stub vacío
-- `app/api/v1/routes/surveys.py` — stub vacío
-- `app/api/v1/routes/audio.py` — stub vacío
-- `app/api/v1/routes/payments.py` — stub vacío
-- `app/api/v1/routes/peers.py` — stub vacío
-- `app/api/v1/routes/messages.py` — stub vacío
+### Requiere migración (apunta al backend descontinuado)
+- `field-app/lib/api.ts` → `preRegisterParticipant`, `recordVisit`, `recordConsents`, `fetchConsentTexts` — todas llaman a `localhost:8000`
+- `frontend/lib/api.ts` → `fetchProjects`, `fetchAnalytics` — llaman a `localhost:8000`
+- `field-app/app/registro/page.tsx` → usa `preRegisterParticipant` de la lib anterior
 
-### Módulos en riesgo
-- **Autenticación**: librería instalada pero sin implementar. Cualquier endpoint actual es de acceso público.
-- **Cifrado de nombre**: marcado como TODO, actualmente en texto plano — riesgo legal antes de procesar datos reales.
-- **Workers Celery**: sin archivo `celery.py` de configuración, sin tareas definidas.
-- **Alembic**: sin `alembic.ini` ni `env.py` — las tablas no se pueden crear.
+### Pendiente de construir (lógica de negocio nueva)
+- Tablas en Supabase (schema SQL)
+- RLS policies
+- Edge Functions para: audio processing, OTP, emails, KYC webhook
+- Consultas analytics (vistas SQL o Edge Function)
 
 ---
 
-## Bugs Conocidos o Potenciales
+## Pendientes Prioritarios
 
-| # | Descripción | Severidad | Solución sugerida |
+### Alta prioridad — Fundación nueva arquitectura
+
+**1. Diseñar y crear el schema en Supabase**
+
+Las tablas mínimas para el MVP (consultar `backend/app/models/` como referencia):
+
+```sql
+-- Participantes del panel (datos sensibles hasheados)
+CREATE TABLE participants (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  document_hash text UNIQUE NOT NULL,  -- SHA-256 cédula
+  phone_hash text UNIQUE NOT NULL,     -- SHA-256 celular
+  name text NOT NULL,                  -- TODO: cifrar con Supabase Vault
+  gender text,
+  birth_year int,
+  territory_id uuid REFERENCES territories(id),
+  status text DEFAULT 'preregistered', -- preregistered | verified | suspended
+  kyc_status text DEFAULT 'pending',
+  phone_verified bool DEFAULT false,
+  created_at timestamptz DEFAULT now()
+);
+
+-- Territorios (barrios, comunas, municipios, departamentos)
+CREATE TABLE territories (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name text NOT NULL,
+  type text NOT NULL,  -- barrio | comuna | municipio | departamento
+  parent_id uuid REFERENCES territories(id),
+  codigo_dane text,
+  status text DEFAULT 'active'
+);
+
+-- Proyectos de medición
+CREATE TABLE projects (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  client_id uuid NOT NULL,  -- user_id de Supabase Auth con role=client
+  name text NOT NULL,
+  type text NOT NULL,       -- favorability | satisfaction | pulse | custom
+  purpose text NOT NULL,    -- political | public_management | private
+  status text DEFAULT 'active',
+  start_date date,
+  end_date date,
+  created_at timestamptz DEFAULT now()
+);
+
+-- Membresías de panel (participante ↔ proyecto)
+CREATE TABLE panel_memberships (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  participant_id uuid REFERENCES participants(id),
+  project_id uuid REFERENCES projects(id),
+  status text DEFAULT 'active',  -- active | reserve | resting
+  joined_at timestamptz DEFAULT now()
+);
+
+-- Encuestas (olas de medición)
+CREATE TABLE surveys (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id uuid REFERENCES projects(id),
+  name text NOT NULL,
+  wave int DEFAULT 1,
+  status text DEFAULT 'draft',  -- draft | ready | sent | closed
+  sent_at timestamptz,
+  closes_at timestamptz,
+  created_at timestamptz DEFAULT now()
+);
+
+-- Preguntas de encuesta
+CREATE TABLE questions (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  survey_id uuid REFERENCES surveys(id),
+  type text NOT NULL,  -- single_choice | multiple_choice | open_text | audio | scale
+  text text NOT NULL,
+  options jsonb,
+  required bool DEFAULT true,
+  "order" int DEFAULT 0
+);
+
+-- Respuestas de panelistas
+CREATE TABLE responses (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  participant_id uuid REFERENCES participants(id),
+  survey_id uuid REFERENCES surveys(id),
+  question_id uuid REFERENCES questions(id),
+  value text,
+  responded_at timestamptz DEFAULT now()
+);
+
+-- Audios subidos a Storage
+CREATE TABLE audio_responses (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  response_id uuid REFERENCES responses(id),
+  audio_url text NOT NULL,  -- Supabase Storage URL
+  transcription text,
+  quality text DEFAULT 'pending',  -- pending | transcribed | processed | error
+  processed_at timestamptz,
+  created_at timestamptz DEFAULT now()
+);
+
+-- Resultados NLP por audio
+CREATE TABLE nlp_outputs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  audio_id uuid REFERENCES audio_responses(id),
+  sentiment text,      -- positive | negative | neutral | mixed
+  emotion text,        -- rabia | miedo | esperanza | frustración | orgullo | ...
+  intensity text,      -- low | medium | high
+  main_topic text,
+  topics jsonb,
+  narrative text,
+  summary text,
+  citizen_quote text,
+  actor_mentioned text,
+  opinion_driver text,
+  confidence numeric,
+  model_version text DEFAULT 'gpt-4o-mini',
+  created_at timestamptz DEFAULT now()
+);
+
+-- Consentimientos versionados
+CREATE TABLE consents (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  participant_id uuid REFERENCES participants(id),
+  type text NOT NULL,   -- panel | audio | whatsapp | payments | agora | political
+  version text DEFAULT '1.0',
+  accepted bool NOT NULL,
+  channel text DEFAULT 'field_app',
+  ip_or_device text,
+  accepted_at timestamptz DEFAULT now(),
+  revoked_at timestamptz
+);
+
+-- Operadores de campo (encuestadores)
+CREATE TABLE field_operators (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid,         -- Supabase Auth user_id
+  name text NOT NULL,
+  document text NOT NULL,
+  phone text,
+  territory_id uuid REFERENCES territories(id),
+  status text DEFAULT 'active'
+);
+
+-- Visitas de campo con GPS
+CREATE TABLE field_visits (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  operator_id uuid REFERENCES field_operators(id),
+  participant_id uuid REFERENCES participants(id),
+  latitude numeric,
+  longitude numeric,
+  gps_accuracy numeric,
+  address text,
+  evidence_url text,
+  result text,  -- registered | duplicate | refused | absent
+  notes text,
+  visited_at timestamptz NOT NULL,
+  created_at timestamptz DEFAULT now()
+);
+
+-- Pagos a panelistas
+CREATE TABLE payments (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  participant_id uuid REFERENCES participants(id),
+  project_id uuid REFERENCES projects(id),
+  concept text NOT NULL,  -- survey_response | audio_response | agora_task
+  amount_cop int NOT NULL,
+  status text DEFAULT 'pending',  -- pending | approved | paid | failed
+  channel text,   -- nequi | daviplata
+  paid_at timestamptz,
+  created_at timestamptz DEFAULT now()
+);
+```
+
+**2. Configurar RLS en cada tabla**
+
+Ejemplo básico:
+```sql
+-- Participantes: solo el encuestador que los registró y admins
+ALTER TABLE participants ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "admins can do anything" ON participants
+  USING (auth.jwt() ->> 'role' = 'admin');
+
+CREATE POLICY "operators see their territory" ON participants
+  USING (territory_id IN (
+    SELECT territory_id FROM field_operators WHERE user_id = auth.uid()
+  ));
+
+-- Projects: clientes ven solo los suyos
+ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "client sees own projects" ON projects
+  USING (client_id = auth.uid());
+
+CREATE POLICY "admin sees all" ON projects
+  USING (auth.jwt() ->> 'role' = 'admin');
+```
+
+**3. Migrar `field-app/lib/api.ts` a Supabase**
+
+```typescript
+// field-app/lib/api.ts  (NUEVA VERSIÓN)
+import { createClient } from "@/lib/supabase";
+
+function hashSHA256(value: string): string {
+  // En Edge/browser usar SubtleCrypto
+  // Alternativa: mover el hash a una Edge Function
+}
+
+export async function preRegisterParticipant(data: PreRegisterPayload) {
+  const supabase = createClient();
+  // Opción A: insertar directo (hash en cliente)
+  const { data: participant, error } = await supabase
+    .from("participants")
+    .insert({
+      document_hash: await sha256(data.document_number.toUpperCase().trim()),
+      phone_hash: await sha256(data.phone.trim()),
+      name: data.name,
+      gender: data.gender,
+      birth_year: data.birth_year,
+    })
+    .select()
+    .single();
+
+  if (error?.code === "23505") throw new Error("Ya registrado");
+  return participant;
+}
+```
+
+**4. Migrar `frontend/lib/api.ts` a Supabase**
+
+```typescript
+// frontend/lib/api.ts  (NUEVA VERSIÓN)
+import { createClient } from "@/lib/supabase";
+
+export async function fetchProjects() {
+  const supabase = createClient();
+  const { data } = await supabase
+    .from("projects")
+    .select("*")
+    .eq("status", "active");
+  return data ?? [];
+}
+```
+
+**5. Crear Edge Function para procesamiento de audio**
+
+```typescript
+// supabase/functions/process-audio/index.ts
+import { createClient } from "https://esm.sh/@supabase/supabase-js";
+import OpenAI from "https://esm.sh/openai";
+
+Deno.serve(async (req) => {
+  const { audio_id, audio_url } = await req.json();
+  const openai = new OpenAI({ apiKey: Deno.env.get("OPENAI_API_KEY") });
+
+  // Descargar audio de Storage y transcribir
+  // ...transcribe con whisper-1...
+  // ...analizar con gpt-4o-mini...
+  // UPDATE audio_responses + INSERT nlp_outputs
+
+  return new Response(JSON.stringify({ ok: true }));
+});
+```
+
+### Media prioridad
+
+6. **Roles en Supabase Auth**: guardar `role` en `user_metadata` durante el registro y usarlo en RLS policies (`auth.jwt() ->> 'role'`)
+7. **Conectar home panelista** a encuestas reales vía Supabase
+8. **Edge Function OTP**: generar y enviar código de 6 dígitos por SMS para verificar celular
+9. **Edge Function emails**: notificaciones para panelistas y clientes (Resend + Supabase)
+10. **Vista analítica en SQL**: crear una vista o function de PostgreSQL que calcule favorabilidad, sentimiento y temas por proyecto (ver lógica en `backend/app/api/v1/routes/analytics.py`)
+
+### Baja prioridad
+
+11. **Supabase Realtime**: notificaciones en tiempo real para el dashboard
+12. **Supabase Vault**: cifrar el campo `name` de participantes (requerimiento Ley 1581/2012)
+13. **Mapa con polígonos**: columna `geometry` en `territories` + Mapbox GL o Leaflet en el dashboard
+14. **AGORA módulo**: pares, tareas, evidencias — fase 2
+
+---
+
+## Bugs Conocidos / Problemas Activos
+
+| # | Descripción | Impacto | Solución |
 |---|---|---|---|
-| B1 | `name_encrypted` guarda el nombre en texto plano | **Alta** | Implementar cifrado simétrico (AES-256) con clave en KMS/env antes de cualquier dato real |
-| B2 | Ningún endpoint tiene autenticación — cualquiera puede crear/leer datos | **Alta** | Implementar middleware JWT antes de conectar a cualquier cliente o PWA |
-| B3 | `Territory.children` tiene `foreign_keys=[parent_id]` pero SQLAlchemy podría confundirse con la relación auto-referencial | **Media** | Agregar `primaryjoin` explícito en la relación `children` |
-| B4 | `audio_processor.py` abre el archivo con `open()` síncrono dentro de una función `async` | **Media** | Usar `aiofiles` o ejecutar en threadpool con `asyncio.to_thread()` |
-| B5 | CORS permite `allow_credentials=True` con orígenes específicos, pero en producción los dominios no están definidos | **Media** | Agregar variable de entorno `ALLOWED_ORIGINS` y usarla en producción |
-| B6 | `docker-compose.yml` tiene credenciales de DB hardcodeadas (`geodata_dev`) | **Baja** | Mover a `.env` del proyecto infra |
-| B7 | No hay límite de tamaño en carga de archivos de audio | **Media** | Agregar `MAX_UPLOAD_SIZE` en la ruta de audio antes de guardar en storage |
-| B8 | `import json` está dentro de la función `analyze_sentiment()` | **Baja** | Mover al top del archivo |
+| B1 | `field-app/lib/api.ts` llama a `localhost:8000` (backend descontinuado) | **Bloqueante** — el flujo de registro no funciona sin el backend corriendo | Reescribir con Supabase client |
+| B2 | `frontend/lib/api.ts` llama a `localhost:8000` | **Bloqueante** para analytics y detalle de proyectos | Reescribir con Supabase client |
+| B3 | `MOCK_SURVEYS` y `MOCK_PAYMENTS` hardcodeados en panelista home | **Alto** — no muestra datos reales | Conectar a Supabase tras crear tablas |
+| B4 | Nombre del panelista en texto plano en la BD | **Riesgo legal** — Ley 1581/2012 Colombia | Usar Supabase Vault o cifrado en Edge Function antes de datos reales |
+| B5 | SHA-256 puro para doc/celular (sin salt) | **Medio** — vulnerable a rainbow tables | Migrar a HMAC-SHA256 con `HASH_SECRET` en Supabase secrets |
+| B6 | RLS no configurado — cualquier usuario autenticado puede leer todas las filas | **Alto** una vez haya datos reales | Configurar policies antes de conectar clientes reales |
+| B7 | `NEXT_PUBLIC_OPERATOR_ID` hardcodeado en field-app | **Medio** — visitas quedan con operador ficticio | Implementar login de encuestador y usar su `user_id` |
 
 ---
 
 ## Deuda Técnica
 
-| Ítem | Descripción | Prioridad |
+| ID | Descripción | Prioridad |
 |---|---|---|
-| DT1 | Sin tests (unitarios, integración, e2e) | Alta |
-| DT2 | Sin schemas Pydantic para la mayoría de rutas (solo clients y participants los tienen) | Alta |
-| DT3 | Sin capa de servicios/repositorios — lógica de negocio mezclada con rutas | Media |
-| DT4 | Sin logging estructurado (solo el default de uvicorn) | Media |
-| DT5 | Sin manejo de errores global (exception handlers) | Media |
-| DT6 | `requirements.txt` sin separación dev/prod (pytest, etc. deberían estar en `requirements-dev.txt`) | Baja |
-| DT7 | Sin documentación de API (OpenAPI está auto-generado pero sin ejemplos ni descripciones) | Baja |
-| DT8 | Modelos de `Peer` y `PeerTask` referencian `Message` pero el import circular no está resuelto explícitamente | Media |
+| DT-01 | `axios` instalado en frontends pero debería eliminarse al migrar a Supabase | Media |
+| DT-02 | Sin tests de ningún tipo | Alta |
+| DT-03 | Hash SHA-256 sin HMAC (ver B5) | Media |
+| DT-04 | Nombre participante en texto plano | Alta |
+| DT-05 | `CORS` y `ALLOWED_ORIGINS` del backend ya no aplican | — (ignorar, backend descontinuado) |
+| DT-06 | `backend/` crea confusión en el repositorio — documentar explícitamente como "solo referencia" | Baja |
+| DT-07 | Sin paginación en ninguna query Supabase | Baja — problema real con volumen |
 
 ---
 
 ## Configuración del Entorno
 
-### Variables requeridas (`.env`)
+### Variables de entorno — Frontend (`frontend/.env.local`)
+
 ```bash
-DATABASE_URL=postgresql+asyncpg://geodata:geodata_dev@localhost:5432/geodatavoice
-SECRET_KEY=genera-con-openssl-rand-hex-32
-SUPABASE_URL=https://xxxx.supabase.co
-SUPABASE_SERVICE_KEY=eyJ...
-REDIS_URL=redis://localhost:6379/0
-OPENAI_API_KEY=sk-...
-STORAGE_BUCKET=geodatavoice-audio
-KYC_PROVIDER_URL=       # pendiente definir proveedor
-KYC_API_KEY=            # pendiente
+NEXT_PUBLIC_SUPABASE_URL=https://bsjiqatcqbjqmtytlgll.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+# Ya no se necesita NEXT_PUBLIC_API_URL
 ```
 
-### Pasos para ejecutar el proyecto (hoy)
+### Variables de entorno — Field-app (`field-app/.env.local`)
+
 ```bash
-# 1. Clonar y entrar al proyecto
-cd /Users/jaimecriales/Sites/GeoDataVoice
+NEXT_PUBLIC_SUPABASE_URL=https://bsjiqatcqbjqmtytlgll.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+# NEXT_PUBLIC_API_URL → eliminar después de migrar lib/api.ts
+# NEXT_PUBLIC_OPERATOR_ID → eliminar cuando se implemente login de encuestador
+```
 
-# 2. Levantar base de datos y Redis
-docker compose -f infra/docker-compose.yml up db redis -d
+### Variables de entorno — Supabase Edge Functions
 
-# 3. Instalar dependencias Python
-cd backend
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-
-# 4. Configurar entorno
-cp .env.example .env
-# editar .env con los valores reales
-
-# 5. Crear tablas (pendiente — Alembic no configurado aún)
-# alembic upgrade head   ← NO FUNCIONA AÚN
-
-# 6. Levantar servidor
-uvicorn app.main:app --reload --port 8000
-
-# 7. Ver docs
-open http://localhost:8000/docs
+Configurar en el dashboard de Supabase → Project Settings → Edge Functions:
+```bash
+OPENAI_API_KEY=sk-...
+RESEND_API_KEY=re_...            # para emails
+HASH_SECRET=<cadena aleatoria>   # para HMAC-SHA256
+KYC_PROVIDER_URL=                # pendiente definir
+KYC_API_KEY=                     # pendiente
 ```
 
 ---
 
 ## Comandos Útiles
 
+### Frontend
+
 ```bash
-# Desarrollo
-uvicorn app.main:app --reload --port 8000
+cd frontend
+npm install
+npm run dev    # http://localhost:3000
+npm run build  # build de producción
+npm run lint
+```
 
-# Docker completo
-docker compose -f infra/docker-compose.yml up --build
+### Field-app
 
-# Solo DB + Redis
-docker compose -f infra/docker-compose.yml up db redis -d
+```bash
+cd field-app
+npm install
+npm run dev    # http://localhost:3001
+npm run build
+```
 
-# Migraciones (una vez configurado Alembic)
-alembic init alembic
-alembic revision --autogenerate -m "initial"
-alembic upgrade head
-alembic downgrade -1
+### Supabase CLI (para Edge Functions y migraciones)
 
-# Worker Celery (una vez implementado)
-celery -A app.workers.celery worker --loglevel=info
+```bash
+# Instalar Supabase CLI
+brew install supabase/tap/supabase
 
-# Tests (una vez implementados)
-pytest backend/tests/ -v --cov=app
+# Login
+supabase login
 
-# Linting
-ruff check backend/
-black backend/ --check
+# Inicializar en el proyecto (si no está hecho)
+supabase init
+
+# Linkear al proyecto remoto
+supabase link --project-ref bsjiqatcqbjqmtytlgll
+
+# Crear una Edge Function
+supabase functions new process-audio
+
+# Hacer deploy de Edge Functions
+supabase functions deploy process-audio
+
+# Migraciones de BD (alternativa al SQL Editor del dashboard)
+supabase db diff -f nombre_migracion   # generar desde cambios
+supabase db push                        # aplicar en producción
+supabase db reset                       # reset local
+
+# Ejecutar SQL en la BD de producción
+supabase db execute --file schema.sql
+```
+
+### Vercel (deploy de frontends)
+
+```bash
+# Primer deploy interactivo
+cd frontend && vercel
+
+# Deploy a producción
+vercel --prod
+
+# Lo mismo para field-app
+cd field-app && vercel --prod
 ```
 
 ---
 
-## Próximos Pasos Recomendados (Top 20)
+## Estado de Git
 
-| # | Tarea | Prioridad | Tiempo est. |
-|---|---|---|---|
-| 1 | Configurar Alembic + migración inicial | P0 | 1h |
-| 2 | Implementar autenticación JWT (usuarios internos + clientes) | P0 | 3h |
-| 3 | Implementar ruta `POST /field/visits` con GPS + evidencia | P0 | 2h |
-| 4 | Implementar ruta `POST /consents` | P0 | 1h |
-| 5 | Cifrar el campo `name_encrypted` con AES-256 | P0 | 1h |
-| 6 | Configurar Celery (`app/workers/celery.py`) + tarea `process_audio` | P0 | 2h |
-| 7 | Implementar ruta `POST /audio` con upload a Supabase Storage | P0 | 2h |
-| 8 | Conectar pipeline audio end-to-end (upload → worker → NLPOutput) | P0 | 3h |
-| 9 | Implementar CRUD de proyectos y territorios | P0 | 2h |
-| 10 | Implementar motor de encuestas (crear, asignar cohorte, generar link) | P0 | 3h |
-| 11 | Implementar `GET /analytics/projects/{id}` con indicadores básicos | P0 | 3h |
-| 12 | Implementar exportación de pagos aprobados (CSV) | P0 | 1h |
-| 13 | Crear PWA de campo en `field-app/` con Next.js | P1 | 8h |
-| 14 | Agregar service workers para modo offline en PWA | P1 | 3h |
-| 15 | Crear dashboard frontend en `frontend/` con Next.js | P1 | 8h |
-| 16 | Integrar WhatsApp Business API para envío de encuestas | P1 | 4h |
-| 17 | Definir e integrar proveedor KYC (Truora recomendado para Colombia) | P1 | 4h |
-| 18 | Módulo AGORA básico (peers + tasks + evidence) | P1 | 4h |
-| 19 | Banco de mensajes con flujo de aprobación | P1 | 2h |
-| 20 | Tests unitarios para modelos y rutas críticas | P1 | 4h |
+- **Rama**: `main`
+- **Commits**: 33
+- **Último commit**: `ac08194` — cambios en landing page
+
+### Archivos más importantes para la nueva arquitectura
+
+| Archivo | Estado |
+|---|---|
+| `frontend/lib/supabase.ts` | ✅ Usar tal cual |
+| `frontend/lib/supabase-server.ts` | ✅ Usar tal cual |
+| `frontend/middleware.ts` | ✅ Funciona |
+| `frontend/app/page.tsx` | ✅ Landing completa |
+| `frontend/app/login/page.tsx` | ✅ Funciona |
+| `frontend/app/dashboard/page.tsx` | ⚠️ Funciona si la tabla `projects` existe en Supabase |
+| `frontend/lib/api.ts` | ❌ Migrar a Supabase |
+| `field-app/lib/supabase.ts` | ✅ Usar tal cual |
+| `field-app/lib/api.ts` | ❌ Migrar a Supabase |
+| `field-app/lib/offline-queue.ts` | ✅ Lógica válida, adaptar URLs |
+| `field-app/app/registro/page.tsx` | ⚠️ Migrar las llamadas a api.ts |
+
+---
+
+## Próximos Pasos Recomendados (Top 10)
+
+| # | Tarea | Tiempo est. |
+|---|---|---|
+| 1 | Crear tablas en Supabase SQL Editor (schema de arriba) | 2h |
+| 2 | Configurar RLS básico para `projects`, `participants`, `panel_memberships` | 1.5h |
+| 3 | Migrar `field-app/lib/api.ts` — reemplazar llamadas al backend por Supabase client | 2h |
+| 4 | Migrar `field-app/app/registro/page.tsx` para usar el nuevo `api.ts` | 1h |
+| 5 | Migrar `frontend/lib/api.ts` — fetchProjects + fetchAnalytics con Supabase | 1.5h |
+| 6 | Crear Edge Function `process-audio` (Deno + Whisper + GPT → nlp_outputs) | 3h |
+| 7 | Conectar panelista home a encuestas reales (Supabase query) | 1.5h |
+| 8 | Conectar flujo de encuesta a `responses` y `audio_responses` en Supabase | 2h |
+| 9 | Crear vista SQL `project_analytics` con favorabilidad y sentimiento | 2h |
+| 10 | Implementar login de encuestador y eliminar `NEXT_PUBLIC_OPERATOR_ID` hardcodeado | 1.5h |
 
 ---
 
 ## Prompt de Continuación
 
-Usa este prompt al inicio de una nueva sesión para retomar el desarrollo:
+> Copia este bloque completo en una nueva sesión de Claude Code.
 
 ```
-Estoy trabajando en GeoDataVoice, una plataforma de inteligencia territorial
-ubicada en /Users/jaimecriales/Sites/GeoDataVoice.
+Estoy desarrollando GeoDataVoice, una plataforma de inteligencia territorial para Colombia.
+Ruta local: /Users/jaimecriales/Sites/GeoDataVoice
 
-STACK: FastAPI + Python 3.12 / SQLAlchemy 2.0 async / PostgreSQL + PostGIS /
-Celery + Redis / OpenAI (Whisper + GPT-4o-mini) / Supabase Storage.
-Frontend (aún por construir): Next.js dashboard + Next.js PWA de campo offline.
+## ARQUITECTURA (monorepo)
 
-ESTADO ACTUAL: Modelos de datos completos (20 tablas), 2 rutas implementadas
-(/clients, /participants parcial), resto son stubs. Sin autenticación, sin
-migraciones Alembic, sin frontend, sin tests. Ver PROJECT_CONTEXT.md para el
-mapa completo.
+**El backend FastAPI (backend/) está DESCONTINUADO. No continuar desarrollo allí.**
+La arquitectura nueva es: Frontends → Supabase directamente.
+
+### frontend/ — Next.js 16 (puerto 3000) — dashboard clientes/admin
+### field-app/ — Next.js 16 PWA (puerto 3001) — encuestadores + panelistas
+
+Ambos usan:
+  - @supabase/ssr + @supabase/supabase-js para auth + datos
+  - TanStack React Query para data fetching
+  - Tailwind CSS v4 + Lucide React
+  - TypeScript 5
+
+## PROYECTO SUPABASE
+- ID: bsjiqatcqbjqmtytlgll
+- URL: https://bsjiqatcqbjqmtytlgll.supabase.co
+- Anon key y service key en frontend/.env.local y field-app/.env.local
+
+## ESTADO ACTUAL — LO QUE FUNCIONA
+- Landing page (frontend/app/page.tsx) — completa
+- Login (frontend/app/login/page.tsx) — Supabase Auth funciona
+- Registro cliente (frontend/app/registro/cliente/page.tsx) — Supabase signUp
+- Dashboard listado proyectos (frontend/app/dashboard/page.tsx) — query directa a Supabase
+- Middleware protección /dashboard — funciona
+
+## PROBLEMA PRINCIPAL — LO QUE HAY QUE MIGRAR
+- frontend/lib/api.ts — apunta a localhost:8000 (backend descontinuado) → reescribir con Supabase
+- field-app/lib/api.ts — apunta a localhost:8000 → reescribir con Supabase
+- field-app/app/registro/page.tsx — usa las funciones del api.ts anterior
+
+## TABLAS EN SUPABASE — ESTADO
+Las tablas del dominio AÚN NO EXISTEN en Supabase (hay que crearlas).
+Usar backend/app/models/ como referencia de diseño.
+Tablas necesarias: participants, territories, projects, panel_memberships,
+surveys, questions, responses, audio_responses, nlp_outputs, consents,
+field_operators, field_visits, payments.
+
+## LÓGICA DE NEGOCIO DEL BACKEND (usar como referencia)
+- backend/app/services/audio_processor.py — prompt GPT-4o-mini para NLP (9 variables)
+- backend/app/api/v1/routes/consents.py — textos de consentimiento versionados
+- backend/app/api/v1/routes/analytics.py — queries SQL de analytics (re-implementar como vista SQL)
+- backend/app/models/participant.py — convención hash SHA-256 para doc+celular
+
+## DATOS MOCK PENDIENTES DE CONECTAR
+- field-app/app/panelista/page.tsx — MOCK_SURVEYS y MOCK_PAYMENTS hardcodeados
+- field-app/app/panelista/encuesta/[id]/page.tsx — flujo de encuesta con datos mock
+
+## PRÓXIMAS 3 TAREAS
+1. Crear schema de tablas en Supabase (ver PROJECT_CONTEXT.md para el SQL)
+2. Migrar field-app/lib/api.ts a Supabase client
+3. Crear Edge Function process-audio (Whisper + GPT-4o-mini → nlp_outputs)
+
+Lee PROJECT_CONTEXT.md para el mapa completo antes de escribir código.
 
 TAREA DE HOY: [describe aquí lo que quieres construir]
-
-Antes de escribir código, lee los archivos relevantes del proyecto para
-entender el contexto existente.
 ```

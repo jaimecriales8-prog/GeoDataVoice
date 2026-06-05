@@ -155,7 +155,7 @@ export default function RegistroClientePage() {
                     placeholder="tu@email.com" autoComplete="email" className={inputCls} />
                 </Field>
 
-                <Field label="WhatsApp">
+                <Field label="Teléfono">
                   <input type="tel" value={form.phone} onChange={e => update("phone", e.target.value)}
                     placeholder="300 000 0000" className={inputCls} />
                 </Field>
