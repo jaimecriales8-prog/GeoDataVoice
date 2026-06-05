@@ -28,10 +28,10 @@ export default function LandingPage() {
               className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors">
               Ingresar
             </Link>
-            <a href="#contacto"
+            <Link href="/registro"
               className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors">
-              Solicitar demo
-            </a>
+              Registrarse
+            </Link>
           </div>
         </div>
       </nav>
@@ -116,35 +116,7 @@ export default function LandingPage() {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-6">
-
-            {/* Administrador */}
-            <div className="rounded-2xl border-2 border-blue-100 bg-blue-50 p-7 flex flex-col gap-4">
-              <div className="flex items-center gap-3">
-                <div className="h-11 w-11 rounded-xl bg-blue-600 flex items-center justify-center shrink-0">
-                  <Shield className="h-5 w-5 text-white" />
-                </div>
-                <div>
-                  <p className="text-xs font-semibold text-blue-600 uppercase tracking-wide">Rol</p>
-                  <h3 className="font-bold text-slate-900 text-lg">Administrador</h3>
-                </div>
-              </div>
-              <p className="text-sm text-slate-600 leading-relaxed">
-                Gestiona toda la plataforma: crea proyectos, configura territorios, administra operadores,
-                aprueba pagos y accede a los datos completos de todos los clientes.
-              </p>
-              <ul className="space-y-1.5">
-                {["Panel de control total", "Gestión de clientes y proyectos", "Aprobación de pagos", "Configuración de territorios y cohortes"].map(i => (
-                  <li key={i} className="flex items-center gap-2 text-sm text-slate-700">
-                    <CheckCircle className="h-3.5 w-3.5 text-blue-500 shrink-0" />{i}
-                  </li>
-                ))}
-              </ul>
-              <Link href="/login"
-                className="mt-auto inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 px-5 py-2.5 text-sm font-semibold text-white transition-colors w-fit">
-                Ingresar como admin <ArrowRight className="h-3.5 w-3.5" />
-              </Link>
-            </div>
+          <div className="grid md:grid-cols-3 gap-6">
 
             {/* Cliente */}
             <div className="rounded-2xl border-2 border-violet-100 bg-violet-50 p-7 flex flex-col gap-4">
