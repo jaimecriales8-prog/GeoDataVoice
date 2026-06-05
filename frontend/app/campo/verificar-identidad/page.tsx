@@ -329,6 +329,24 @@ export default function VerificarIdentidadPage() {
       setRole(userRole);
       setUserId(user.id);
 
+      // Verificar si la verificación de identidad está activa en la config
+      const { data: cfg } = await supabase
+        .from("platform_config")
+        .select("value")
+        .eq("key", "identity_verification")
+        .maybeSingle();
+
+      const identityCfg = cfg?.value as { enabled: boolean; required_for: string[] } | null;
+      const verificacionRequerida = identityCfg?.enabled !== false &&
+        (identityCfg?.required_for ?? ["panelista", "encuestador"]).includes(userRole);
+
+      // Si no está requerida → saltar directo al panel
+      if (!verificacionRequerida) {
+        const destino = userRole === "panelista" ? "/campo/panelista" : "/campo/encuestador";
+        router.push(destino);
+        return;
+      }
+
       // Verificar si ya completó el KYC
       if (userRole === "panelista") {
         const { data } = await supabase
