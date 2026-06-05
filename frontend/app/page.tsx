@@ -130,6 +130,16 @@ export default function LandingPage() {
                 desc: "Contrata el servicio para medir su territorio. Recibe un dashboard con favorabilidad, sentimiento ciudadano y narrativas actualizadas después de cada ola.",
               },
               {
+                icon: MapPin,
+                color: "emerald",
+                bg: "bg-emerald-600",
+                border: "border-emerald-100",
+                num: "02",
+                title: "Encuestador",
+                who: "Operador de campo local",
+                desc: "Sale al territorio a registrar y verificar panelistas desde su celular. Captura GPS, obtiene consentimientos y aplica encuestas en nombre del panelista.",
+              },
+              {
                 icon: Mic,
                 color: "amber",
                 bg: "bg-amber-500",
@@ -160,14 +170,16 @@ export default function LandingPage() {
           <div className="hidden md:flex items-center justify-center gap-4 mb-12 text-sm text-slate-400">
             <span className="font-medium">El cliente define qué medir</span>
             <ArrowRight className="h-4 w-4 text-slate-300" />
-            <span className="font-medium">El panelista se verifica y responde</span>
+            <span className="font-medium">El encuestador recluta y valida</span>
+            <ArrowRight className="h-4 w-4 text-slate-300" />
+            <span className="font-medium">El panelista responde y explica</span>
             <ArrowRight className="h-4 w-4 text-slate-300" />
             <span className="font-semibold text-blue-600">El cliente recibe inteligencia</span>
           </div>
 
 
-          {/* Solo panelista — centrado y destacado */}
-          <div className="max-w-xl mx-auto">
+          {/* Panelista + Encuestador — dos tarjetas lado a lado */}
+          <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
             <div className="rounded-2xl border-2 border-amber-200 bg-amber-50 p-8 flex flex-col gap-5 shadow-sm">
               <div className="flex items-center gap-4">
                 <div className="h-14 w-14 rounded-2xl bg-amber-500 flex items-center justify-center shrink-0 shadow-sm">
@@ -206,14 +218,12 @@ export default function LandingPage() {
               </ul>
 
               <Link href="/registro/panelista"
-                className="flex items-center justify-center gap-2 rounded-2xl bg-amber-500 hover:bg-amber-600 active:bg-amber-700 px-6 py-4 text-base font-bold text-white transition-colors shadow-md shadow-amber-200">
+                className="flex items-center justify-center gap-2 rounded-2xl bg-amber-500 hover:bg-amber-600 active:bg-amber-700 px-6 py-4 text-base font-bold text-white transition-colors shadow-md shadow-amber-200 mt-auto">
                 Quiero ser panelista 🎤 <ArrowRight className="h-5 w-5" />
               </Link>
             </div>
-          </div>
 
-          {/* Encuestador — destacado */}
-          <div className="max-w-xl mx-auto mt-8">
+            {/* Encuestador */}
             <div className="rounded-2xl border-2 border-emerald-200 bg-emerald-50 p-8 flex flex-col gap-5 shadow-sm">
               <div className="flex items-center gap-4">
                 <div className="h-14 w-14 rounded-2xl bg-emerald-600 flex items-center justify-center shrink-0 shadow-sm">
