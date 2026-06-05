@@ -51,18 +51,13 @@ export default function RegistroClientePage() {
     setError("");
 
     const supabase = createClient();
-    const { error: authError } = await supabase.auth.signUp({
+    const { data: authData, error: authError } = await supabase.auth.signUp({
       email: form.email,
       password: form.password,
       options: {
         data: {
           full_name: form.full_name,
           role: "client",
-          org_name: form.org_name,
-          org_type: form.org_type,
-          municipio: form.municipio,
-          phone: form.phone,
-          status: "pending_approval",
         },
       },
     });
@@ -73,6 +68,29 @@ export default function RegistroClientePage() {
         : "Error al crear la cuenta. Intenta de nuevo.");
       setLoading(false);
       return;
+    }
+
+    // Insertar en tabla clients para que aparezca en el panel admin
+    if (authData.user) {
+      const TYPE_MAP: Record<string, string> = {
+        "Campaña electoral": "political_campaign",
+        "Alcaldía / Gobernación": "municipality",
+        "Municipio": "municipality",
+        "Gremio empresarial": "guild",
+        "Empresa privada": "private",
+        "ONG / Fundación": "ngo",
+        "Otro": "other",
+      };
+
+      await supabase.from("clients").insert({
+        id: authData.user.id,
+        name: form.org_name,
+        type: TYPE_MAP[form.org_type] ?? "other",
+        contact_name: form.full_name,
+        contact_email: form.email,
+        contact_phone: form.phone || null,
+        status: "pending",
+      });
     }
 
     setStep("done");

@@ -62,11 +62,13 @@ export default function ClientesPage() {
     setSaving(false);
   }
 
-  async function toggleStatus(id: string, current: string) {
+  async function setStatus(id: string, status: string) {
     const supabase = createClient();
-    await supabase.from("clients").update({ status: current === "active" ? "inactive" : "active" }).eq("id", id);
+    await supabase.from("clients").update({ status }).eq("id", id);
     await load();
   }
+
+  const pendientes = clientes.filter(c => c.status === "pending").length;
 
   const filtrados = clientes.filter(c =>
     c.name.toLowerCase().includes(busqueda.toLowerCase()) ||
@@ -78,7 +80,14 @@ export default function ClientesPage() {
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-bold text-white">Clientes</h1>
-          <p className="text-slate-400 text-sm mt-1">{clientes.length} clientes registrados</p>
+          <p className="text-slate-400 text-sm mt-1">
+            {clientes.length} registrados
+            {pendientes > 0 && (
+              <span className="ml-2 rounded-full bg-amber-500/20 text-amber-400 text-xs font-semibold px-2 py-0.5">
+                {pendientes} pendiente{pendientes > 1 ? "s" : ""} de activar
+              </span>
+            )}
+          </p>
         </div>
         <button onClick={() => setShowForm(true)}
           className="flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors">
@@ -189,17 +198,32 @@ export default function ClientesPage() {
                     <p className="text-xs text-slate-500">{c.contact_email ?? ""}</p>
                   </td>
                   <td className="px-5 py-4">
-                    <button onClick={() => toggleStatus(c.id, c.status)}
-                      className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-                        c.status === "active"
-                          ? "bg-emerald-500/20 text-emerald-400"
-                          : "bg-slate-700 text-slate-400"
-                      }`}>
-                      {c.status === "active" ? "Activo" : "Inactivo"}
-                    </button>
+                    <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+                      c.status === "active"  ? "bg-emerald-500/20 text-emerald-400" :
+                      c.status === "pending" ? "bg-amber-500/20 text-amber-400" :
+                                               "bg-slate-700 text-slate-400"
+                    }`}>
+                      {c.status === "active" ? "Activo" : c.status === "pending" ? "Pendiente" : "Inactivo"}
+                    </span>
                   </td>
                   <td className="px-5 py-4 text-right">
-                    <ChevronRight className="h-4 w-4 text-slate-600 ml-auto" />
+                    {c.status === "pending" ? (
+                      <div className="flex items-center gap-2 justify-end">
+                        <button onClick={() => setStatus(c.id, "active")}
+                          className="rounded-lg bg-emerald-600 hover:bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-white transition-colors">
+                          Activar
+                        </button>
+                        <button onClick={() => setStatus(c.id, "inactive")}
+                          className="rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 px-3 py-1.5 text-xs text-slate-400 hover:text-white transition-colors">
+                          Rechazar
+                        </button>
+                      </div>
+                    ) : (
+                      <button onClick={() => setStatus(c.id, c.status === "active" ? "inactive" : "active")}
+                        className="text-xs text-slate-500 hover:text-white transition-colors">
+                        {c.status === "active" ? "Desactivar" : "Activar"}
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
