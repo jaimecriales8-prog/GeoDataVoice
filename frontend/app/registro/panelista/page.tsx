@@ -2,13 +2,23 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Mic, Loader2, ArrowLeft, CheckCircle, Phone, MapPin, User } from "lucide-react";
+import { createClient } from "@/lib/supabase";
+import { Mic, Loader2, ArrowLeft, CheckCircle, Phone, MapPin, User, Lock, Eye, EyeOff, Mail } from "lucide-react";
+
+async function sha256(text: string): Promise<string> {
+  const data = new TextEncoder().encode(text.toUpperCase().trim());
+  const hash = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, "0")).join("");
+}
 
 export default function RegistroPanelistaPage() {
   const router = useRouter();
   const [step, setStep] = useState<"form" | "done">("form");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showPass, setShowPass] = useState(false);
+  const [showPass2, setShowPass2] = useState(false);
+  const [email, setEmail] = useState("");
 
   const [form, setForm] = useState({
     full_name: "",
@@ -19,6 +29,9 @@ export default function RegistroPanelistaPage() {
     birth_year: "",
     gender: "",
     nequi_or_daviplata: "",
+    email: "",
+    password: "",
+    password2: "",
   });
 
   function update(field: string, value: string) {
@@ -27,20 +40,69 @@ export default function RegistroPanelistaPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.full_name || !form.phone || !form.documento || !form.municipio) {
-      setError("Completa los campos obligatorios."); return;
+
+    // Validaciones
+    if (!form.full_name || !form.phone || !form.documento || !form.municipio || !form.email || !form.password) {
+      setError("Completa todos los campos obligatorios."); return;
     }
     if (!/^3\d{9}$/.test(form.phone)) {
       setError("Ingresa un celular colombiano válido (ej: 3001234567)."); return;
     }
+    if (!/^\d{7,12}$/.test(form.documento)) {
+      setError("El número de documento debe tener entre 7 y 12 dígitos."); return;
+    }
+    if (form.password.length < 8) {
+      setError("La contraseña debe tener al menos 8 caracteres."); return;
+    }
+    if (form.password !== form.password2) {
+      setError("Las contraseñas no coinciden."); return;
+    }
 
     setLoading(true);
     setError("");
+    const supabase = createClient();
 
-    // En MVP: guardamos en Supabase como participante pre-registrado
-    // El equipo lo valida y activa manualmente
-    await new Promise(r => setTimeout(r, 1500)); // simula envío
+    // 1. Crear cuenta en Supabase Auth
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email: form.email,
+      password: form.password,
+      options: {
+        data: {
+          full_name: form.full_name,
+          role: "panelista",
+          municipio: form.municipio,
+        },
+      },
+    });
 
+    if (authError) {
+      setError(authError.message === "User already registered"
+        ? "Este email ya está registrado. Intenta iniciar sesión."
+        : "Error al crear la cuenta. Intenta de nuevo.");
+      setLoading(false); return;
+    }
+
+    // 2. Insertar en tabla participants
+    if (authData.user) {
+      const [docHash, phoneHash] = await Promise.all([
+        sha256(form.documento),
+        sha256(form.phone),
+      ]);
+
+      await supabase.from("participants").insert({
+        id: authData.user.id,
+        document_hash: docHash,
+        phone_hash: phoneHash,
+        name: form.full_name,
+        gender: form.gender || null,
+        birth_year: form.birth_year ? parseInt(form.birth_year) : null,
+        status: "preregistered",
+        kyc_status: "pending",
+        phone_verified: false,
+      });
+    }
+
+    setEmail(form.email);
     setStep("done");
     setLoading(false);
   }
@@ -49,19 +111,21 @@ export default function RegistroPanelistaPage() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-amber-900 via-orange-950 to-slate-900 flex flex-col items-center justify-center px-6 text-center">
         <div className="h-20 w-20 rounded-full bg-amber-400/20 flex items-center justify-center mx-auto mb-5">
-          <CheckCircle className="h-10 w-10 text-amber-400" />
+          <Mail className="h-10 w-10 text-amber-400" />
         </div>
-        <h1 className="text-2xl font-bold text-white mb-3">¡Ya estás en la lista!</h1>
-        <p className="text-slate-300 mb-2 max-w-xs">
-          Recibirás un correo para completar la verificación de identidad y activar tu cuenta.
+        <h1 className="text-2xl font-bold text-white mb-3">¡Revisa tu correo!</h1>
+        <p className="text-slate-300 mb-1 max-w-xs">
+          Te enviamos un enlace de confirmación a
         </p>
+        <p className="text-amber-300 font-semibold mb-6">{email}</p>
+
         <div className="rounded-2xl bg-white/10 border border-white/20 p-5 mb-8 w-full max-w-xs space-y-2 text-left">
           <p className="text-xs text-amber-300 font-semibold uppercase tracking-wide mb-3">¿Qué sigue?</p>
           {[
-            "Revisa tu correo y completa la verificación de identidad",
-            "Una vez verificado, tu cuenta queda activa",
-            "Responde tu primera encuesta desde la web",
-            "Gana $2.000–$3.000 por cada encuesta respondida",
+            "Abre el correo que te enviamos y haz clic en el enlace",
+            "Tu cuenta queda activa automáticamente",
+            "Inicia sesión y responde tu primera encuesta",
+            "Gana dinero por cada respuesta válida",
           ].map((s, i) => (
             <div key={i} className="flex items-start gap-2 text-sm text-slate-300">
               <span className="h-5 w-5 rounded-full bg-amber-500/30 text-amber-300 text-xs flex items-center justify-center shrink-0 mt-0.5 font-bold">{i + 1}</span>
@@ -69,9 +133,10 @@ export default function RegistroPanelistaPage() {
             </div>
           ))}
         </div>
-        <button onClick={() => router.push("/")}
+
+        <button onClick={() => router.push("/login")}
           className="rounded-xl bg-amber-500 hover:bg-amber-600 px-7 py-3 text-white font-semibold transition-colors">
-          Volver al inicio
+          Ir a iniciar sesión
         </button>
       </div>
     );
@@ -81,7 +146,7 @@ export default function RegistroPanelistaPage() {
     <div className="min-h-screen bg-gradient-to-br from-amber-900 via-orange-950 to-slate-900 px-4 py-10">
       <div className="mx-auto w-full max-w-md">
 
-        <button onClick={() => router.push("/#perfiles")} className="flex items-center gap-2 text-amber-300 hover:text-white transition-colors mb-8 text-sm">
+        <button onClick={() => router.push("/registro")} className="flex items-center gap-2 text-amber-300 hover:text-white transition-colors mb-8 text-sm">
           <ArrowLeft className="h-4 w-4" /> Volver
         </button>
 
@@ -95,7 +160,7 @@ export default function RegistroPanelistaPage() {
           </div>
         </div>
 
-        {/* Beneficios rápidos */}
+        {/* Beneficios */}
         <div className="rounded-2xl bg-amber-500/10 border border-amber-500/30 p-4 mb-6">
           <p className="text-xs text-amber-300 font-semibold uppercase tracking-wide mb-2">¿Qué ganas?</p>
           <div className="grid grid-cols-3 gap-2 text-center">
@@ -115,6 +180,7 @@ export default function RegistroPanelistaPage() {
         <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur p-6">
           <form onSubmit={handleSubmit} className="space-y-4">
 
+            {/* Datos personales */}
             <div className="flex items-center gap-2 mb-1">
               <User className="h-4 w-4 text-amber-400" />
               <p className="text-xs text-amber-300 font-semibold uppercase tracking-wide">Tus datos</p>
@@ -145,6 +211,7 @@ export default function RegistroPanelistaPage() {
               </select>
             </Field>
 
+            {/* Ubicación */}
             <div className="border-t border-white/10 pt-3">
               <div className="flex items-center gap-2 mb-3">
                 <MapPin className="h-4 w-4 text-amber-400" />
@@ -162,6 +229,7 @@ export default function RegistroPanelistaPage() {
               </div>
             </div>
 
+            {/* Contacto y pagos */}
             <div className="border-t border-white/10 pt-3">
               <div className="flex items-center gap-2 mb-3">
                 <Phone className="h-4 w-4 text-amber-400" />
@@ -179,19 +247,64 @@ export default function RegistroPanelistaPage() {
               </div>
             </div>
 
-            {error && <div className="rounded-xl bg-red-500/10 border border-red-500/30 px-4 py-3 text-sm text-red-300">{error}</div>}
+            {/* Acceso */}
+            <div className="border-t border-white/10 pt-3">
+              <div className="flex items-center gap-2 mb-3">
+                <Lock className="h-4 w-4 text-amber-400" />
+                <p className="text-xs text-amber-300 font-semibold uppercase tracking-wide">Datos de acceso</p>
+              </div>
+              <div className="space-y-3">
+                <Field label="Email *">
+                  <input type="email" value={form.email} onChange={e => update("email", e.target.value)}
+                    placeholder="tu@email.com" autoComplete="email" className={inputCls} />
+                </Field>
+
+                <Field label="Contraseña *">
+                  <div className="relative">
+                    <input type={showPass ? "text" : "password"} value={form.password}
+                      onChange={e => update("password", e.target.value)}
+                      placeholder="Mínimo 8 caracteres" className={`${inputCls} pr-11`} />
+                    <button type="button" onClick={() => setShowPass(v => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white">
+                      {showPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </Field>
+
+                <Field label="Confirmar contraseña *">
+                  <div className="relative">
+                    <input type={showPass2 ? "text" : "password"} value={form.password2}
+                      onChange={e => update("password2", e.target.value)}
+                      placeholder="Repite tu contraseña" className={`${inputCls} pr-11`} />
+                    <button type="button" onClick={() => setShowPass2(v => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white">
+                      {showPass2 ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </Field>
+              </div>
+            </div>
+
+            {error && (
+              <div className="rounded-xl bg-red-500/10 border border-red-500/30 px-4 py-3 text-sm text-red-300">{error}</div>
+            )}
 
             <button type="submit" disabled={loading}
               className="w-full flex items-center justify-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-400 disabled:opacity-50 py-4 text-white font-bold text-base transition-colors">
               {loading && <Loader2 className="h-5 w-5 animate-spin" />}
-              {loading ? "Enviando..." : "Quiero unirme al panel 🎤"}
+              {loading ? "Creando cuenta..." : "Unirme al panel 🎤"}
             </button>
 
             <p className="text-xs text-slate-500 text-center">
-              Recibirás un correo para completar la verificación de identidad digital.
+              Al registrarte aceptas nuestra política de privacidad y el uso de tus datos bajo la Ley 1581/2012.
             </p>
           </form>
         </div>
+
+        <p className="text-center text-sm text-slate-500 mt-5">
+          ¿Ya tienes cuenta?{" "}
+          <a href="/login" className="text-amber-400 hover:text-white transition-colors">Iniciar sesión</a>
+        </p>
       </div>
     </div>
   );
