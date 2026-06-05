@@ -13,6 +13,16 @@ const PERFILES = [
     badge: "Solicitud sujeta a aprobación",
   },
   {
+    href: "/registro/encuestador",
+    icon: MapPin,
+    color: "emerald",
+    title: "Soy encuestador",
+    subtitle: "Operador de campo en barrido territorial",
+    description: "Trabaja registrando y verificando personas en campo desde tu dispositivo. Pago por persona validada.",
+    cta: "Aplicar como encuestador",
+    badge: "Trabajo remunerado",
+  },
+  {
     href: "/registro/panelista",
     icon: Mic,
     color: "amber",
@@ -26,21 +36,25 @@ const PERFILES = [
 
 const colorMap: Record<string, string> = {
   violet: "border-violet-200 hover:border-violet-400 hover:shadow-violet-100",
+  emerald: "border-emerald-200 hover:border-emerald-400 hover:shadow-emerald-100",
   amber: "border-amber-200 hover:border-amber-400 hover:shadow-amber-100",
 };
 
 const iconBg: Record<string, string> = {
   violet: "bg-violet-600",
+  emerald: "bg-emerald-600",
   amber: "bg-amber-500",
 };
 
 const badgeColor: Record<string, string> = {
   violet: "bg-violet-100 text-violet-700",
+  emerald: "bg-emerald-100 text-emerald-700",
   amber: "bg-amber-100 text-amber-700",
 };
 
 const btnColor: Record<string, string> = {
   violet: "bg-violet-600 hover:bg-violet-700",
+  emerald: "bg-emerald-600 hover:bg-emerald-700",
   amber: "bg-amber-500 hover:bg-amber-600",
 };
 
