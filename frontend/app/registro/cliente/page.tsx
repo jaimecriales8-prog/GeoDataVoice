@@ -61,6 +61,7 @@ export default function RegistroClientePage() {
       email: form.email,
       password: form.password,
       options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
         data: {
           full_name: form.full_name,
           role: "cliente",

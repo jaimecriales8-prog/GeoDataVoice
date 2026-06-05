@@ -43,6 +43,7 @@ export default function RegistroEncuestadorPage() {
       email: form.email,
       password: form.password,
       options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
         data: {
           full_name: form.full_name,
           role: "encuestador",
