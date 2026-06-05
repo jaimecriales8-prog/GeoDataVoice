@@ -90,17 +90,25 @@ export default function RegistroPanelistaPage() {
         sha256(form.phone),
       ]);
 
-      await supabase.from("participants").insert({
+      // name_encrypted: por ahora texto plano (cifrado AES pendiente — ver ADR-005)
+      const { error: insertError } = await supabase.from("participants").insert({
         id: authData.user.id,
         document_hash: docHash,
         phone_hash: phoneHash,
-        name: form.full_name,
+        name_encrypted: form.full_name,
         gender: form.gender || null,
         birth_year: form.birth_year ? parseInt(form.birth_year) : null,
         status: "preregistered",
         kyc_status: "pending",
         phone_verified: false,
       });
+
+      if (insertError) {
+        setError("Error al guardar tus datos. Contacta soporte.");
+        console.error("[registro/panelista] insert participant:", insertError);
+        setLoading(false);
+        return;
+      }
     }
 
     setEmail(form.email || form.email);

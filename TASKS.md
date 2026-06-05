@@ -17,7 +17,7 @@
 - [ ] **B4** Flujo de encuesta real — `frontend/app/campo/panelista/encuesta/[id]/page.tsx` usa `DEMO_QUESTIONS` y no guarda respuestas en Supabase
 
 ### Auth & seguridad
-- [ ] **P0-01** Completar middleware de verificación de identidad — `frontend/middleware.ts:37-43` tiene el bloque vacío; debe redirigir a `/campo/verificar-identidad` si el panelista/encuestador no está verificado
+- [x] **P0-01** Gate de verificación en middleware — bloquea `/campo/*` si panelista con `kyc_status != approved`, respetando `platform_config` (sin loops)
 - [ ] **P0-02** Proteger `/campo/*` por rol — el middleware solo verifica sesión, no rol; un cliente podría acceder a `/campo/panelista`
 
 ### Flujo de respuesta real
@@ -61,7 +61,8 @@
 - [x] **P1-11b** Credenciales AutenTIC obtenidas y **validadas** (cuenta saas-3): API key crea sesiones (HTTP 201), secret firma HMAC OK (HTTP 200). Guardadas comentadas en `.env.local`.
 - [ ] **P1-11b2** ⚠️ BLOQUEANTE para modo real: configurar Decision Webhook URL en panel AutenTIC → `https://geodatavoice-dashboard.vercel.app/api/identidad/webhook`. Hasta entonces se queda en SIMULACIÓN. Cuenta saas-3 compartida con CertiLaboral (que está en simulación, sin conflicto).
 - [ ] **P1-11b3** Cuando el webhook esté listo: descomentar vars en `.env.local`, cargarlas en Vercel Production, deploy.
-- [ ] **P1-11c** Gate en middleware: bloquear `/campo/panelista` si `kyc_status != approved` (ver P0-01)
+- [x] **P1-11c** Gate en middleware: bloquea `/campo/*` si `kyc_status != approved` (ver P0-01)
+- [x] **Fix registro panelista**: insert usaba `name` (columna inexistente) → corregido a `name_encrypted` + captura de error. Antes el insert fallaba silenciosamente y `participants` quedaba vacía.
 
 ---
 

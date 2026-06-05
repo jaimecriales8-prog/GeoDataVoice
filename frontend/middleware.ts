@@ -33,12 +33,39 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  // Redirigir panelista/encuestador no verificados a verificación de identidad
-  if (user && pathname.startsWith("/campo") && !authOnlyPaths.some(p => pathname.startsWith(p))) {
+  // ── Gate de verificación de identidad (KYC) ──────────────────────────────
+  // Bloquea el acceso a /campo/* si el panelista no completó su verificación.
+  // Respeta platform_config.identity_verification para no crear loops con la
+  // propia página de verificación (que aplica la misma lógica).
+  if (
+    user &&
+    pathname.startsWith("/campo") &&
+    !authOnlyPaths.some(p => pathname.startsWith(p))
+  ) {
     const role = user.user_metadata?.role ?? "";
-    if (role === "panelista" || role === "encuestador") {
-      // Solo verificar si viene de una página de campo (no el propio verificar-identidad)
-      // La verificación real la hace la propia página de verificar-identidad
+    if (role === "panelista") {
+      const { data: participant } = await supabase
+        .from("participants")
+        .select("kyc_status")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (participant?.kyc_status !== "approved") {
+        // Confirmar que el KYC está realmente requerido antes de redirigir
+        const { data: cfg } = await supabase
+          .from("platform_config")
+          .select("value")
+          .eq("key", "identity_verification")
+          .maybeSingle();
+        const c = cfg?.value as { enabled?: boolean; required_for?: string[] } | null;
+        const requerido =
+          c?.enabled !== false &&
+          (c?.required_for ?? ["panelista"]).includes("panelista");
+
+        if (requerido) {
+          return NextResponse.redirect(new URL("/campo/verificar-identidad", request.url));
+        }
+      }
     }
   }
 
