@@ -46,6 +46,7 @@ export default function LoginPage() {
     const role = data.user?.user_metadata?.role ?? "admin";
     const destino: Record<string, string> = {
       admin:       "/dashboard",
+      client:      "/cliente",   // alias registro antiguo
       cliente:     "/cliente",
       panelista:   "/campo/panelista",
       encuestador: "/campo/encuestador",
@@ -89,7 +90,7 @@ export default function LoginPage() {
             <p className="text-xs text-blue-300 mb-4">{activeUser.email}</p>
             <div className="flex gap-2">
               <button onClick={() => {
-                const destino: Record<string, string> = { admin: "/dashboard", cliente: "/cliente", panelista: "/campo/panelista", encuestador: "/campo/encuestador" };
+                const destino: Record<string, string> = { admin: "/dashboard", client: "/cliente", cliente: "/cliente", panelista: "/campo/panelista", encuestador: "/campo/encuestador" };
                 router.push(destino[activeUser.role] ?? "/dashboard");
               }}
                 className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-500 py-2.5 text-sm font-semibold text-white transition-colors">

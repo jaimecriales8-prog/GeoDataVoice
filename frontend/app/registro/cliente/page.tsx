@@ -63,7 +63,7 @@ export default function RegistroClientePage() {
       options: {
         data: {
           full_name: form.full_name,
-          role: "client",
+          role: "cliente",
         },
       },
     });
