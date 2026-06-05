@@ -108,7 +108,7 @@ export default function PanelistaHome() {
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full">
-                        +$3.000
+                        Pago
                       </span>
                       <ChevronRight className="h-4 w-4 text-slate-400" />
                     </div>

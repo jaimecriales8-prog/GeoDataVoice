@@ -28,7 +28,7 @@ const PERFILES = [
     color: "amber",
     title: "Quiero ser panelista",
     subtitle: "Ciudadano que participa en el panel",
-    description: "Responde encuestas cortas desde tu celular cada 2 semanas y graba notas de voz. Gana $2.000–$3.000 por cada respuesta válida.",
+    description: "Responde encuestas cortas desde tu celular cada 2 semanas y graba notas de voz. Recibe un pago por cada encuesta respondida.",
     cta: "Unirme al panel",
     badge: "Gana dinero desde casa",
   },

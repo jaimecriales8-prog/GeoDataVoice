@@ -193,13 +193,13 @@ export default function LandingPage() {
 
               <p className="text-slate-600 leading-relaxed">
                 Responde encuestas cortas desde tu celular cada 2 semanas y graba una nota de voz explicando tu opinión.
-                Recibe <strong className="text-amber-700">$2.000–$3.000 COP</strong> en Nequi o Daviplata por cada respuesta válida.
+                Recibe un pago en Nequi o Daviplata por cada encuesta respondida.
               </p>
 
               <div className="grid grid-cols-3 gap-3 text-center">
                 {[
                   { v: "15 min", l: "por encuesta" },
-                  { v: "$3.000", l: "por respuesta" },
+                  { v: "Pago", l: "por encuesta" },
                   { v: "100%", l: "desde tu celular" },
                 ].map(({ v, l }) => (
                   <div key={l} className="rounded-xl bg-white border border-amber-100 py-3 px-2">

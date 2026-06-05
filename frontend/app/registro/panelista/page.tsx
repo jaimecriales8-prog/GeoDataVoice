@@ -166,7 +166,7 @@ export default function RegistroPanelistaPage() {
           <p className="text-xs text-amber-300 font-semibold uppercase tracking-wide mb-2">¿Qué ganas?</p>
           <div className="grid grid-cols-3 gap-2 text-center">
             {[
-              { v: "$2.000–3.000", l: "por encuesta" },
+              { v: "Pago", l: "por encuesta" },
               { v: "15 min", l: "de tu tiempo" },
               { v: "Nequi", l: "o Daviplata" },
             ].map(({ v, l }) => (
