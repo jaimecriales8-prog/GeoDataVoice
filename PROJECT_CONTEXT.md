@@ -47,7 +47,7 @@ frontend/ (Next.js 16 — puerto 3010 local, Vercel en prod)
 
 Supabase: https://bsjiqatcqbjqmtytlgll.supabase.co (us-west-2)
 GitHub: https://github.com/jaimecriales8-prog/GeoDataVoice.git
-Producción Vercel: geodatavoice-dashboard-git-main-jaime-criales-projects.vercel.app
+Producción: https://geodatavoice.grialtech.co (Vercel, proyecto geodatavoice-dashboard)
 ```
 
 ---
@@ -196,7 +196,7 @@ SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 # Resend (emails transaccionales)
 RESEND_API_KEY=re_...                         # key "sending only" (restringida)
 ADMIN_EMAIL=jaimecriales8@icloud.com
-NEXT_PUBLIC_APP_URL=https://geodatavoice-dashboard.vercel.app
+NEXT_PUBLIC_APP_URL=https://geodatavoice.grialtech.co
 ```
 
 ### Variables en Vercel (Production) — proyecto `geodatavoice-dashboard`

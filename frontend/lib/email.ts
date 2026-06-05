@@ -69,7 +69,7 @@ export async function emailAdminNuevoCliente(clienteNombre: string, clienteEmail
         <tr><td style="color:#ffffff;font-size:15px;padding-bottom:8px;">${clienteNombre}</td></tr>
         <tr><td style="color:#60a5fa;font-size:14px;">${clienteEmail}</td></tr>
       </table>
-      <a href="${process.env.NEXT_PUBLIC_APP_URL ?? "https://geodatavoice-dashboard-git-main-jaime-criales-projects.vercel.app"}/dashboard/clientes"
+      <a href="${process.env.NEXT_PUBLIC_APP_URL ?? "https://geodatavoice.grialtech.co"}/dashboard/clientes"
         style="display:block;background:#2563eb;color:#ffffff;text-decoration:none;text-align:center;padding:14px 24px;border-radius:10px;font-weight:600;font-size:15px;">
         Ir al panel de administración →
       </a>
@@ -89,7 +89,7 @@ export async function emailClienteActivado(clienteEmail: string, clienteNombre: 
         <h2 style="color:#ffffff;margin:0 0 8px;font-size:22px;">¡Tu cuenta está activa!</h2>
         <p style="color:#94a3b8;margin:0;font-size:15px;">Hola ${clienteNombre}, tu acceso a GeoDataVoice ha sido habilitado.</p>
       </div>
-      <a href="${process.env.NEXT_PUBLIC_APP_URL ?? "https://geodatavoice-dashboard-git-main-jaime-criales-projects.vercel.app"}/login"
+      <a href="${process.env.NEXT_PUBLIC_APP_URL ?? "https://geodatavoice.grialtech.co"}/login"
         style="display:block;background:#2563eb;color:#ffffff;text-decoration:none;text-align:center;padding:14px 24px;border-radius:10px;font-weight:600;font-size:15px;margin-bottom:20px;">
         Ingresar a mi panel →
       </a>
@@ -123,7 +123,7 @@ export async function emailPanelistaNuevaEncuesta(
       <div style="background:rgba(245,158,11,0.1);border-radius:10px;padding:16px;margin-bottom:24px;text-align:center;">
         <p style="color:#fbbf24;font-weight:600;margin:0;font-size:15px;">💰 Recibirás un pago por completarla</p>
       </div>
-      <a href="${process.env.NEXT_PUBLIC_APP_URL ?? "https://geodatavoice-dashboard-git-main-jaime-criales-projects.vercel.app"}/campo/panelista"
+      <a href="${process.env.NEXT_PUBLIC_APP_URL ?? "https://geodatavoice.grialtech.co"}/campo/panelista"
         style="display:block;background:#f59e0b;color:#ffffff;text-decoration:none;text-align:center;padding:14px 24px;border-radius:10px;font-weight:600;font-size:15px;">
         Responder encuesta ahora →
       </a>
