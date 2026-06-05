@@ -13,7 +13,7 @@ export default function LoginPage() {
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [activeUser, setActiveUser] = useState<{ email: string; name: string } | null>(null);
+  const [activeUser, setActiveUser] = useState<{ email: string; name: string; role: string } | null>(null);
   const [checkingSession, setCheckingSession] = useState(true);
 
   // Check if already logged in
@@ -24,6 +24,7 @@ export default function LoginPage() {
         setActiveUser({
           email: data.user.email ?? "",
           name: data.user.user_metadata?.full_name ?? data.user.email ?? "Usuario",
+          role: data.user.user_metadata?.role ?? "admin",
         });
       }
       setCheckingSession(false);
@@ -36,13 +37,20 @@ export default function LoginPage() {
     setLoading(true);
     setError("");
     const supabase = createClient();
-    const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password });
     if (authError) {
       setError("Credenciales incorrectas. Verifica tu email y contraseña.");
       setLoading(false);
       return;
     }
-    router.push("/dashboard");
+    const role = data.user?.user_metadata?.role ?? "admin";
+    const destino: Record<string, string> = {
+      admin:       "/dashboard",
+      cliente:     "/cliente",
+      panelista:   "/campo/panelista",
+      encuestador: "/campo/encuestador",
+    };
+    router.push(destino[role] ?? "/dashboard");
     router.refresh();
   }
 
@@ -80,9 +88,12 @@ export default function LoginPage() {
             <p className="font-semibold text-white">{activeUser.name}</p>
             <p className="text-xs text-blue-300 mb-4">{activeUser.email}</p>
             <div className="flex gap-2">
-              <button onClick={() => router.push("/dashboard")}
+              <button onClick={() => {
+                const destino: Record<string, string> = { admin: "/dashboard", cliente: "/cliente", panelista: "/campo/panelista", encuestador: "/campo/encuestador" };
+                router.push(destino[activeUser.role] ?? "/dashboard");
+              }}
                 className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-500 py-2.5 text-sm font-semibold text-white transition-colors">
-                Ir al dashboard <ArrowRight className="h-3.5 w-3.5" />
+                Continuar <ArrowRight className="h-3.5 w-3.5" />
               </button>
               <button onClick={handleLogout}
                 className="flex items-center gap-1.5 rounded-xl border border-white/20 hover:bg-white/10 px-3 py-2.5 text-sm text-white transition-colors">
