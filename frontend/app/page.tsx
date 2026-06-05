@@ -211,6 +211,58 @@ export default function LandingPage() {
               </Link>
             </div>
           </div>
+
+          {/* Encuestador — destacado */}
+          <div className="max-w-xl mx-auto mt-8">
+            <div className="rounded-2xl border-2 border-emerald-200 bg-emerald-50 p-8 flex flex-col gap-5 shadow-sm">
+              <div className="flex items-center gap-4">
+                <div className="h-14 w-14 rounded-2xl bg-emerald-600 flex items-center justify-center shrink-0 shadow-sm">
+                  <MapPin className="h-7 w-7 text-white" />
+                </div>
+                <div>
+                  <span className="text-xs font-bold text-emerald-600 uppercase tracking-wider">¿Quieres trabajar en campo?</span>
+                  <h3 className="font-extrabold text-slate-900 text-xl leading-tight">Sé encuestador territorial</h3>
+                </div>
+              </div>
+
+              <p className="text-slate-600 leading-relaxed">
+                Trabaja verificando y registrando personas en tu municipio desde tu celular.
+                Recibe <strong className="text-emerald-700">pago por cada panelista validado</strong> en Nequi o Daviplata.
+              </p>
+
+              <div className="grid grid-cols-3 gap-3 text-center">
+                {[
+                  { v: "Flexible", l: "tus propios horarios" },
+                  { v: "Por logro", l: "pago por persona" },
+                  { v: "Local", l: "en tu municipio" },
+                ].map(({ v, l }) => (
+                  <div key={l} className="rounded-xl bg-white border border-emerald-100 py-3 px-2">
+                    <p className="text-emerald-600 font-extrabold text-lg leading-none">{v}</p>
+                    <p className="text-xs text-slate-500 mt-1">{l}</p>
+                  </div>
+                ))}
+              </div>
+
+              <ul className="space-y-2">
+                {[
+                  "Registras personas puerta a puerta con tu celular",
+                  "Capturas GPS y consentimientos en el momento",
+                  "Verificas identidad con el documento físico",
+                  "Cobras por cada panelista validado exitosamente",
+                ].map(i => (
+                  <li key={i} className="flex items-center gap-2 text-sm text-slate-700">
+                    <CheckCircle className="h-4 w-4 text-emerald-500 shrink-0" />{i}
+                  </li>
+                ))}
+              </ul>
+
+              <Link href="/registro/encuestador"
+                className="flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 px-6 py-4 text-base font-bold text-white transition-colors shadow-md shadow-emerald-200">
+                Aplicar como encuestador <ArrowRight className="h-5 w-5" />
+              </Link>
+            </div>
+          </div>
+
         </div>
       </section>
 
