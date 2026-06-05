@@ -70,7 +70,7 @@ export default function LandingPage() {
 
           {/* Social proof strip */}
           <div className="mt-16 flex flex-wrap justify-center gap-8 text-sm text-slate-400">
-            {["Candidatos a alcaldías", "Gobernaciones", "Municipios medianos", "Gremios empresariales", "Entidades públicas"].map(s => (
+            {["Candidatos a entes territoriales", "Entes territoriales", "Gremios empresariales", "Entidades públicas"].map(s => (
               <div key={s} className="flex items-center gap-2">
                 <CheckCircle className="h-4 w-4 text-blue-400" />
                 {s}
@@ -126,7 +126,7 @@ export default function LandingPage() {
                 border: "border-violet-100",
                 num: "01",
                 title: "Cliente",
-                who: "Candidatos, alcaldías, gobernaciones, gremios",
+                who: "Candidatos a entes territoriales, gremios, empresas",
                 desc: "Contrata el servicio para medir su territorio. Recibe un dashboard con favorabilidad, sentimiento ciudadano y narrativas actualizadas después de cada ola.",
               },
               {
@@ -268,16 +268,12 @@ export default function LandingPage() {
           <div className="grid md:grid-cols-2 gap-4">
             {[
               {
-                icon: "🗳️", title: "Candidatos a alcaldía y gobernación",
+                icon: "🗳️", title: "Candidatos a entes territoriales",
                 items: ["Favorabilidad por polígono y segmento", "Razones de cambio de percepción", "Mensajes creíbles por zona", "Tracking quincenal durante campaña"],
               },
               {
-                icon: "🏛️", title: "Alcaldías y gobernaciones",
+                icon: "🏛️", title: "Entes territoriales",
                 items: ["Satisfacción con la gestión por sector", "Alertas tempranas por zona", "Percepción de programas y obras", "Tablero de gobernabilidad mensual"],
-              },
-              {
-                icon: "🏙️", title: "Municipios medianos",
-                items: ["Medición mensual sin encuesta presencial completa", "Suscripción de inteligencia territorial", "Comparación entre municipios del departamento"],
               },
               {
                 icon: "🏢", title: "Gremios y empresas",
@@ -329,15 +325,14 @@ export default function LandingPage() {
             </div>
           </div>
           <div className="rounded-2xl bg-slate-900 p-8 text-white">
-            <div className="text-sm font-semibold text-blue-400 mb-6 uppercase tracking-wider">Entregables del MVP</div>
+            <div className="text-sm font-semibold text-blue-400 mb-6 uppercase tracking-wider">¿Qué recibes?</div>
             <div className="space-y-4">
               {[
-                { label: "Panel activo validado", value: "500–1.000 personas" },
-                { label: "Territorio inicial", value: "Barranquilla + 2 municipios" },
-                { label: "Cadencia de medición", value: "Quincenal" },
+                { label: "Panel validado activo", value: "500–1.000 personas" },
+                { label: "Mediciones recurrentes", value: "Cada 2 semanas" },
                 { label: "Dashboard actualizado", value: "Después de cada ola" },
-                { label: "Audios procesados con IA", value: "Cada respuesta" },
-                { label: "Panel validado activo", value: "500–1.000", sub: "personas" },
+                { label: "Análisis de voz con IA", value: "Por cada respuesta" },
+                { label: "Informes ejecutivos", value: "Mensuales" },
               ].map(({ label, value }) => (
                 <div key={label} className="flex justify-between items-center text-sm border-b border-white/10 pb-3 last:border-0 last:pb-0">
                   <span className="text-slate-400">{label}</span>
