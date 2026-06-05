@@ -1,5 +1,5 @@
 # PROJECT_CONTEXT.md — GeoDataVoice
-> Actualizado: 2026-06-04 | 39 commits en rama `main`
+> Actualizado: 2026-06-05 | Producción: https://geodatavoice.grialtech.co
 
 ---
 
@@ -38,6 +38,8 @@ frontend/ (Next.js 16 — puerto 3010 local, Vercel en prod)
     /proyectos/nuevo   → Crear proyecto (tipo + propósito + fechas)
     /proyectos/[id]    → Detalle + lista de encuestas
     /proyectos/[id]/encuestas/nueva → Crear encuesta con preguntas + perfil_objetivo
+    /encuestas         → Lista global de encuestas de todos los proyectos del cliente
+    /resultados        → Tablero de resultados (placeholder — real es P1-01, depende de nlp_outputs)
 
   /campo/              → Vistas de campo (panelista + encuestador)
     /panelista         → Home panelista (encuestas pendientes, pagos) — datos mock
