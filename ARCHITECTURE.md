@@ -1,160 +1,220 @@
 # ARCHITECTURE.md — GeoDataVoice
-> Diagramas y flujos del sistema | 2026-06-04
+> Última actualización: 2026-06-05
 
 ---
 
-## Arquitectura de componentes
+## Arquitectura actual
+
+**Next.js (App Router) → Supabase directamente.**
+No hay backend intermedio. El directorio `backend/` (FastAPI) está **descontinuado** — no continuar desarrollo allí.
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                        USUARIOS FINALES                             │
-├────────────────────────┬───────────────────┬────────────────────────┤
-│   Cliente político /   │  Encuestador de   │  Par AGORA             │
-│   alcaldía / gremio    │  campo            │  (panelista activado)  │
-│   (Dashboard Web)      │  (PWA móvil)      │  (WhatsApp)            │
-└──────────┬─────────────┴─────────┬─────────┴──────────┬─────────────┘
-           │ HTTPS                 │ HTTPS               │ WhatsApp API
-           │ :3000                 │ :3001               │
-┌──────────▼───────────────────────▼─────────────────────▼────────────┐
-│                     FastAPI Backend  :8000                          │
-│                                                                     │
-│  /api/v1/                                                           │
-│  ├── clients          ← CRUD clientes contratantes                  │
-│  ├── projects         ← proyectos por cliente                       │
-│  ├── territories      ← municipios, zonas, polígonos GeoJSON        │
-│  ├── participants     ← pre-registro, KYC, OTP, perfil              │
-│  ├── field            ← visitas GPS, operadores, evidencia          │
-│  ├── consents         ← consentimientos versionados                 │
-│  ├── panel            ← cohortes, membresías, rotación              │
-│  ├── surveys          ← instrumentos, preguntas, envío              │
-│  ├── responses        ← respuestas cerradas y abiertas              │
-│  ├── audio            ← upload, status, pipeline trigger            │
-│  ├── analytics        ← indicadores agregados (por construir)       │
-│  ├── payments         ← aprobación y exportación CSV               │
-│  ├── peers            ← red AGORA: pares, tareas, evidencias        │
-│  └── messages         ← banco de contenidos con aprobación         │
-└──────┬────────────────────────────────────────────┬─────────────────┘
-       │                                            │
-       │ SQLAlchemy async                           │ Celery tasks
-       │                                            │
-┌──────▼──────────┐                    ┌────────────▼──────────────────┐
-│  PostgreSQL 16  │                    │  Redis 7 (broker + cache)     │
-│  + PostGIS 3.4  │                    └────────────┬──────────────────┘
-│                 │                                 │
-│  Tablas:        │                    ┌────────────▼──────────────────┐
-│  clients        │                    │  Celery Worker                │
-│  projects       │                    │                               │
-│  territories    │◄───────────────────│  process_audio():             │
-│  participants   │  persiste NLP      │    1. fetch audio from storage │
-│  panel_*        │                    │    2. Whisper STT → texto     │
-│  surveys        │                    │    3. GPT-4o-mini → JSON NLP  │
-│  responses      │                    │    4. persist NLPOutput       │
-│  audio_responses│                    │    5. update AudioResponse    │
-│  nlp_outputs    │                    │                               │
-│  payments       │                    │  send_whatsapp():             │
-│  peers          │                    │    envío de links/recordatorios│
-│  messages       │                    │                               │
-│  audit_logs     │                    │  process_payment_batch():     │
-└─────────────────┘                    │    exportar CSV Nequi         │
-                                       └───────────────────────────────┘
-
-Servicios externos:
-┌──────────────────┐  ┌──────────────┐  ┌─────────────────┐  ┌──────────────┐
-│  OpenAI          │  │  WhatsApp    │  │  KYC Provider   │  │  Supabase    │
-│  Whisper STT     │  │  Business    │  │  (Truora /      │  │  Storage     │
-│  GPT-4o-mini     │  │  API         │  │   Metamap)      │  │  (audios +   │
-│  NLP/sentimiento │  │  encuestas   │  │  identidad +    │  │   evidencias)│
-└──────────────────┘  └──────────────┘  │  residencia     │  └──────────────┘
-                                        └─────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│                       USUARIOS FINALES                       │
+├──────────────────┬──────────────────┬────────────────────────┤
+│  Admin / Cliente │   Encuestador    │      Panelista         │
+│  (Desktop web)   │  (Móvil — PWA)   │   (Móvil — PWA)        │
+└────────┬─────────┴────────┬─────────┴──────────┬─────────────┘
+         │                  │                     │
+         ▼                  ▼                     ▼
+┌─────────────────────────────────────────────────────────────┐
+│              frontend/  (Next.js 16 — App Router)           │
+│                                                             │
+│  /dashboard/*    Panel ADMIN (sidebar azul oscuro)          │
+│  /cliente/*      Panel CLIENTE (sidebar violeta)            │
+│  /campo/*        Encuestador + Panelista (mobile-first)     │
+│  /registro/*     Registro público (3 perfiles)              │
+│  /login          Supabase Auth                              │
+│                                                             │
+│  Rutas de datos: @supabase/ssr + TanStack React Query       │
+│  Lógica compleja: Supabase Edge Functions (Deno/TS)         │
+└──────────────────────────┬──────────────────────────────────┘
+                           │ supabase-js
+                           ▼
+┌─────────────────────────────────────────────────────────────┐
+│                       SUPABASE                              │
+│                                                             │
+│  PostgreSQL (tablas del dominio + RLS)                      │
+│  Auth (JWT + user_metadata.role)                            │
+│  Storage (bucket geodatavoice-audio — audios privados)      │
+│  Edge Functions (process-audio: Whisper + GPT-4o-mini)      │
+└──────────────────────────┬──────────────────────────────────┘
+                           │ HTTP (OpenAI SDK)
+                           ▼
+┌─────────────────────────────────────────────────────────────┐
+│  Servicios externos                                         │
+│  OpenAI Whisper-1 (STT) + GPT-4o-mini (NLP/sentimiento)    │
+│  Truora / Metamap (KYC — pendiente integrar)                │
+│  WhatsApp Business API (pendiente integrar)                 │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Flujo 1: Reclutamiento y validación de un panelista
+## Rutas del frontend
 
 ```
-Encuestador           PWA (field-app)         Backend              Proveedor KYC
-    │                       │                    │                       │
-    │── abre formulario ───►│                    │                       │
-    │── ingresa datos ──────│                    │                       │
-    │   (nombre, doc, cel,  │                    │                       │
-    │    foto, GPS)         │── POST /participants/pre-register ────────►│
-    │                       │                    │── crea Participant    │
-    │                       │                    │   status=PREREGISTERED│
-    │                       │◄─── 201 {id} ──────│                       │
-    │                       │                    │                       │
-    │                       │── POST /participants/{id}/kyc ────────────►│
-    │                       │                    │── llama API KYC ─────►│
-    │                       │                    │◄── webhook resultado ─│
-    │                       │                    │── actualiza kyc_status│
-    │                       │                    │   si approved →       │
-    │                       │                    │   status=VERIFIED     │
-    │                       │                    │                       │
-    │                       │── POST /participants/{id}/otp/send ────────│
-    │                       │                    │── envía SMS con OTP   │
-    │── recibe SMS OTP ─────│                    │                       │
-    │── ingresa OTP ────────│── POST /otp/verify ►│                       │
-    │                       │                    │── phone_verified=True │
-    │                       │                    │                       │
-    │                       │── POST /consents ──►│                       │
-    │                       │                    │── guarda consentimiento│
-    │                       │                    │   versionado          │
-    │                       │                    │                       │
-    │                       │── POST /panel/memberships ─────────────────│
-    │                       │                    │── asigna a cohorte    │
-    │                       │                    │   status=ACTIVE       │
-```
-
----
-
-## Flujo 2: Ciclo de medición (encuesta + audio)
-
-```
-Backend (scheduler)     WhatsApp API        Panelista           Workers
-      │                      │                  │                   │
-      │── POST /surveys/{id}/send               │                   │
-      │── genera link único por panelista       │                   │
-      │── POST mensaje ─────►│                  │                   │
-      │                      │── link encuesta ►│                   │
-      │                      │                  │── abre formulario │
-      │                      │                  │── responde preguntas
-      │                      │                  │── graba nota voz  │
-      │                      │◄── POST /responses (respuestas)      │
-      │                      │◄── POST /audio (archivo .ogg)        │
-      │                      │                  │                   │
-      │── guarda AudioResponse                  │                   │
-      │── status=pending      │                  │                   │
-      │── dispatch Celery task ────────────────────────────────────►│
-      │                                                             │── fetch audio
-      │                                                             │── Whisper STT
-      │                                                             │── GPT-4o-mini
-      │                                                             │── persist NLPOutput
-      │◄────────────────────────────────────────────────────────────│
-      │── AudioResponse status=processed        │                   │
-      │── genera pago pendiente (Payment)       │                   │
+frontend/app/
+├── page.tsx                              Landing comercial
+├── login/page.tsx                        Login → redirige por rol
+├── registro/
+│   ├── page.tsx                          Selector de perfil
+│   ├── cliente/page.tsx                  signUp + insert clients
+│   ├── panelista/page.tsx                signUp + insert participants (SHA-256)
+│   └── encuestador/page.tsx              signUp (⚠ falta insert field_operators)
+├── auth/
+│   ├── callback/route.ts                 Callback OAuth/email
+│   └── verificar-email/page.tsx
+├── dashboard/                            ROL: admin
+│   ├── layout.tsx                        Sidebar azul oscuro
+│   ├── page.tsx                          KPIs globales (Supabase)
+│   ├── clientes/page.tsx                 CRUD + activar/rechazar
+│   ├── panelistas/page.tsx               Lista + filtros + cambiar estado
+│   ├── encuestadores/page.tsx            CRUD + roles
+│   ├── proyectos/page.tsx                Lista de proyectos
+│   ├── pagos/page.tsx                    Configuración de tarifas
+│   └── configuracion/page.tsx
+├── cliente/                              ROL: cliente
+│   ├── layout.tsx                        Sidebar violeta
+│   ├── page.tsx                          Home cliente
+│   └── proyectos/
+│       ├── page.tsx
+│       ├── nuevo/page.tsx
+│       └── [id]/
+│           ├── page.tsx                  Detalle + encuestas
+│           └── encuestas/nueva/page.tsx  Crear encuesta + preguntas
+└── campo/                                ROL: panelista | encuestador
+    ├── registro/page.tsx                 Flujo GPS + consentimientos (encuestador)
+    ├── verificar-identidad/page.tsx      KYC (pendiente integrar)
+    ├── panelista/
+    │   ├── page.tsx                      Home panelista (⚠ datos mock)
+    │   ├── pagos/page.tsx                Historial de pagos (⚠ datos mock)
+    │   └── encuesta/[id]/page.tsx        Flujo encuesta + audio (⚠ DEMO_QUESTIONS)
+    └── encuestador/
+        ├── page.tsx                      Home encuestador (Supabase ✓)
+        └── registrar/page.tsx            Registrar panelista en campo
 ```
 
 ---
 
-## Flujo 3: Dashboard del cliente
+## Tablas en Supabase
+
+RLS desactivado en todas las tablas (MVP). Habilitar antes de producción real.
+
+| Tabla | Descripción |
+|---|---|
+| `clients` | Clientes contratantes. `status`: pending → active/inactive |
+| `projects` | Proyectos por cliente. `type`: favorability/satisfaction/pulse/custom |
+| `surveys` | Encuestas por proyecto. `perfil_objetivo`: panelista/encuestador/ambos. `status`: draft/sent/closed |
+| `questions` | Preguntas de encuesta. `type`: single_choice/multiple_choice/scale/open_text/audio |
+| `participants` | Panelistas. `document_hash` + `phone_hash` SHA-256. `status`: preregistered/verified/suspended |
+| `panel_memberships` | Participante ↔ proyecto ↔ cohorte |
+| `field_operators` | Encuestadores. `role`: encuestador/supervisor/coordinator. `status`: active/inactive |
+| `field_visits` | Registro GPS de visitas del encuestador (lat/lon/accuracy) |
+| `consents` | Consentimientos versionados (v1.0). `type`: PANEL/AUDIO/WHATSAPP/PAYMENTS/AGORA/POLITICAL |
+| `responses` | Respuestas de encuesta. `encuestador_id` si fue aplicada en campo |
+| `audio_responses` | Archivo de audio subido. `quality`: pending/transcribed/processed/error |
+| `nlp_outputs` | 9 variables IA: sentiment, emotion, intensity, main_topic, topics, narrative, summary, citizen_quote, opinion_driver |
+| `payments` | Pagos a panelistas. `status`: pending/approved/paid |
+| `payment_config` | Tarifa global: encuesta_cop / audio_cop / encuesta_campo_cop |
+| `client_payment_config` | Tarifa por cliente (override de la global) |
+
+---
+
+## Roles del sistema
+
+| Rol (`user_metadata.role`) | Panel | Registro |
+|---|---|---|
+| `admin` | `/dashboard` | Creado manualmente en Supabase |
+| `cliente` | `/cliente` | `/registro/cliente` → aprobación admin |
+| `encuestador` | `/campo/encuestador` | `/registro/encuestador` → aprobación coordinador |
+| `panelista` | `/campo/panelista` | `/registro/panelista` → confirma email |
+
+---
+
+## Flujo 1: Panelista responde encuesta
 
 ```
-Cliente                 Frontend (Next.js)         Backend API
-   │                          │                        │
-   │── abre dashboard ────────│                        │
-   │                          │── GET /analytics/projects/{id}
-   │                          │                        │── query PostgreSQL
-   │                          │                        │── agrega por polígono
-   │                          │                        │── aplica pesos
-   │                          │◄─── JSON {             │
-   │                          │   favorabilidad: 62%,  │
-   │                          │   sentimiento: {...},  │
-   │                          │   temas: [...],        │
-   │                          │   por_poligono: [...]  │
-   │                          │ }                      │
-   │◄── mapa + KPIs ──────────│                        │
-   │── filtra por zona ───────│── GET /analytics?zona= │
-   │◄── resultados filtrados ─│                        │
+Panelista          campo/panelista/page.tsx     Supabase         Edge Function
+    │                       │                      │                   │
+    │── login ─────────────►│                      │                   │
+    │                       │── query surveys ─────►│                   │
+    │                       │   (perfil=panelista/ambos, status=sent)   │
+    │◄── lista encuestas ───│◄─────────────────────│                   │
+    │── selecciona ─────────│                      │                   │
+    │                  encuesta/[id]/page.tsx       │                   │
+    │                       │── query questions ───►│                   │
+    │◄── preguntas reales ──│◄─────────────────────│                   │
+    │── responde + graba ───│                      │                   │
+    │                       │── insert responses ──►│                   │
+    │                       │── upload audio ───────► Storage           │
+    │                       │── insert audio_responses ►│               │
+    │                       │                      │── trigger ────────►│
+    │                       │                      │             Whisper STT
+    │                       │                      │             GPT-4o NLP
+    │                       │                      │◄── insert nlp_outputs
+    │                       │── insert payments ───►│                   │
+    │◄── confirmación ──────│                      │                   │
+```
+
+*(Pasos marcados con ⚠ en el árbol de rutas aún no están implementados)*
+
+---
+
+## Flujo 2: Encuestador registra panelista en campo
+
+```
+Encuestador       campo/encuestador/page.tsx     Supabase
+    │                       │                      │
+    │── login ─────────────►│                      │
+    │                       │── query field_operators (user_id) ──────►│
+    │                       │── query surveys (perfil=encuestador/ambos) ►│
+    │── "Registrar panelista" ──────────────────────────────────────────│
+    │              campo/encuestador/registrar/page.tsx                 │
+    │── datos + foto + GPS ─│                      │                   │
+    │                       │── insert participants ►│                  │
+    │                       │── insert field_visits ►│                  │
+    │                       │── insert consents ────►│                  │
+```
+
+---
+
+## Flujo 3: Cliente crea encuesta
+
+```
+Cliente            cliente/proyectos/[id]/encuestas/nueva/page.tsx     Supabase
+    │                                    │                                │
+    │── define nombre, ola, fechas ──────│                                │
+    │── perfil_objetivo: panelista/encuestador/ambos                      │
+    │── agrega preguntas (tipo + texto + opciones + audio_prompt)         │
+    │── "Publicar" ──────────────────────│── insert surveys ─────────────►│
+    │                                    │── insert questions (bulk) ─────►│
+    │                                    │── update surveys.status='sent' ►│
+```
+
+---
+
+## Procesamiento de audio (Edge Function — pendiente)
+
+```
+Supabase Trigger (insert en audio_responses)
+    │
+    ▼
+Edge Function: supabase/functions/process-audio/index.ts
+    │── fetch audio desde Storage (URL firmada)
+    │── OpenAI Whisper-1 → texto transcrito
+    │── GPT-4o-mini con prompt estructurado → JSON con:
+    │     sentiment (positivo/negativo/neutro/mixto)
+    │     emotion (satisfacción/frustración/esperanza/indiferencia/indignación)
+    │     intensity (1–5)
+    │     main_topic (seguridad/salud/educación/empleo/servicios/movilidad/otro)
+    │     topics (array)
+    │     narrative (resumen 2 frases)
+    │     summary (1 frase)
+    │     citizen_quote (frase literal más representativa)
+    │     opinion_driver (razón principal detrás de la opinión)
+    │── insert nlp_outputs (vinculado a audio_responses.id)
+    └── update audio_responses.quality = 'processed'
 ```
 
 ---
@@ -163,105 +223,52 @@ Cliente                 Frontend (Next.js)         Backend API
 
 ```
 clients ──< projects ──< surveys ──< questions
-                │                        │
-                │                ┌───────▼──────┐
-                │                │  responses   │
-                │                └───────┬──────┘
-                │                        │ 1:1
-                │                ┌───────▼──────────┐
-                │                │  audio_responses │
-                │                └───────┬──────────┘
-                │                        │ 1:1
-                │                ┌───────▼──────────┐
-                │                │   nlp_outputs    │
-                │                └──────────────────┘
-                │
-                ├──< panel_memberships >── participants
-                │           │                    │
-                │         cohorts          participant_profiles
-                │                                │
-                │                          identity_verifications
-                │                          consents
-                │                          payments
-                │
-territories ────┘ (participants.territory_id)
-    │
-    └── self-referential (parent_id): department > municipality > zone > polygon
-
-peers ── participants (1:1)
-peers ──< peer_tasks ──< peer_evidences
-peer_tasks ── messages (aprobación antes de activar)
+               │
+               ├──< panel_memberships >── participants
+               │                               │
+               │                         field_visits
+               │                         consents
+               │                         payments
+               │
+surveys ──< responses ──< audio_responses ──< nlp_outputs
+               │
+          field_operators (encuestador_id)
 ```
 
 ---
 
-## Seguridad y privacidad por diseño
+## Seguridad y privacidad
 
-```
-Capa de datos:
-┌─────────────────────────────────────────────────────┐
-│  Campo                │ Tratamiento                  │
-│──────────────────────────────────────────────────────│
-│  document_number      │ SHA-256 hash (irreversible)  │
-│  phone                │ SHA-256 hash (irreversible)  │
-│  name                 │ AES-256-GCM (pendiente)      │
-│  address              │ Texto plano (pendiente cifrar)│
-│  GPS coordinates      │ Precisión reducida en export │
-│  audio files          │ Supabase Storage privado     │
-│  nlp_outputs          │ Sin nombre — solo texto anon │
-│  dashboard data       │ Siempre agregado y anónimo   │
-└─────────────────────────────────────────────────────┘
+| Campo | Tratamiento actual |
+|---|---|
+| `document_hash` | SHA-256 (irreversible) |
+| `phone_hash` | SHA-256 (irreversible) |
+| `name` | Texto plano — **pendiente cifrar** (ver ADR-004) |
+| Audios | Supabase Storage privado (URLs firmadas con TTL) |
+| `nlp_outputs` | Sin datos personales — solo texto anónimo y métricas |
+| Dashboard | Siempre datos agregados, nunca nombres |
 
-Consentimientos requeridos antes de cada acción:
-- PANEL: antes de asignar al panel
-- AUDIO: antes de solicitar nota de voz
-- WHATSAPP: antes de enviar mensajes
-- PAYMENTS: antes de registrar cuenta de pago
-- AGORA: antes de activar como par (finalidad distinta)
-- POLITICAL: si el proyecto tiene finalidad electoral
-```
+**Consentimientos requeridos antes de cada acción:**
+`PANEL` | `AUDIO` | `WHATSAPP` | `PAYMENTS` | `AGORA` | `POLITICAL`
 
 ---
 
-## Estructura de carpetas objetivo (completa)
+## Configuración del entorno
 
+```bash
+# frontend/.env.local
+NEXT_PUBLIC_SUPABASE_URL=https://bsjiqatcqbjqmtytlgll.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+# supabase/functions/.env (para Edge Functions)
+OPENAI_API_KEY=sk-...
 ```
-GeoDataVoice/
-├── backend/
-│   ├── app/
-│   │   ├── main.py
-│   │   ├── core/
-│   │   │   ├── config.py
-│   │   │   ├── database.py
-│   │   │   ├── security.py          ← JWT, hashing (por crear)
-│   │   │   └── dependencies.py      ← get_current_user (por crear)
-│   │   ├── models/                  ← COMPLETO
-│   │   ├── schemas/                 ← Pydantic schemas (por crear)
-│   │   │   ├── participant.py
-│   │   │   ├── survey.py
-│   │   │   └── ...
-│   │   ├── api/v1/routes/           ← 2/12 implementados
-│   │   ├── services/
-│   │   │   ├── audio_processor.py   ← COMPLETO
-│   │   │   ├── kyc_service.py       ← por crear
-│   │   │   ├── whatsapp_service.py  ← por crear
-│   │   │   └── payment_service.py   ← por crear
-│   │   └── workers/
-│   │       ├── celery.py            ← por crear
-│   │       ├── audio_tasks.py       ← por crear
-│   │       └── payment_tasks.py     ← por crear
-│   ├── alembic/                     ← por configurar
-│   ├── tests/                       ← por crear
-│   ├── Dockerfile
-│   └── requirements.txt
-│
-├── frontend/                        ← Next.js dashboard (vacío)
-├── field-app/                       ← Next.js PWA (vacío)
-├── infra/
-│   └── docker-compose.yml
-│
-├── PROJECT_CONTEXT.md
-├── TASKS.md
-├── DECISIONS.md
-└── ARCHITECTURE.md
+
+```bash
+# Desarrollo local
+cd frontend && npm run dev -- --port 3010
+
+# Deploy (auto en push a main via Vercel)
+git push origin main
 ```

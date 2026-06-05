@@ -193,7 +193,29 @@ Producción Vercel: geodatavoice-dashboard-git-main-jaime-criales-projects.verce
 NEXT_PUBLIC_SUPABASE_URL=https://bsjiqatcqbjqmtytlgll.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+# Resend (emails transaccionales)
+RESEND_API_KEY=re_...                         # key "sending only" (restringida)
+ADMIN_EMAIL=jaimecriales8@icloud.com
+NEXT_PUBLIC_APP_URL=https://geodatavoice-dashboard.vercel.app
 ```
+
+### Variables en Vercel (Production) — proyecto `geodatavoice-dashboard`
+Scope: `jaime-criales-projects`. Las mismas 6 variables están en Production.
+`NEXT_PUBLIC_API_URL` que aparece es **legacy** del backend FastAPI descontinuado — ignorar.
+⚠️ Preview quedó pendiente (bug del CLI 54.9.1 con `--yes`); agregar por dashboard si se usan deploys de rama.
+
+### Emails — dos sistemas separados
+1. **API de Resend** (`frontend/lib/email.ts`, init lazy) → emails de negocio disparados por route handlers:
+   - `POST /api/email/cliente-activado` (admin activa cliente)
+   - `POST /api/email/nueva-encuesta` (cliente publica encuesta → notifica panelistas, batch de 10)
+   - `POST /api/email/pago-procesado` (admin aprueba pago)
+2. **SMTP de Resend en Supabase Auth** → emails de sistema (confirmar registro, recuperar
+   contraseña). Config: host `smtp.resend.com`, port `465`, user `resend`, pass = API key,
+   sender `geodatavoice@grialtech.co`.
+
+**Remitente (FROM):** `GeoDataVoice <geodatavoice@grialtech.co>`.
+El subdominio `geodatavoice.grialtech.co` **NO está verificado** en Resend (requiere plan
+superior). Solo el dominio raíz `grialtech.co` está verificado. DNS en GoDaddy (`ns45/ns46.domaincontrol.com`).
 
 ### Comandos
 ```bash
@@ -205,6 +227,9 @@ cd frontend && npm run build
 
 # Deploy (auto en push a main via Vercel)
 git push origin main
+
+# Vercel CLI (Node vía nvm — cargar primero: source ~/.nvm/nvm.sh)
+npx vercel env ls production
 ```
 
 ---

@@ -66,6 +66,18 @@ export default function ClientesPage() {
   async function setStatus(id: string, status: string) {
     const supabase = createClient();
     await supabase.from("clients").update({ status }).eq("id", id);
+    // Enviar email de activación al cliente
+    if (status === "active") {
+      try {
+        await fetch("/api/email/cliente-activado", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ clienteId: id }),
+        });
+      } catch (e) {
+        console.error("[setStatus] Error enviando email de activación:", e);
+      }
+    }
     await load();
   }
 
