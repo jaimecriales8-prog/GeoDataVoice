@@ -102,8 +102,9 @@ export default function RegistroPanelistaPage() {
       });
     }
 
-    setEmail(form.email);
+    setEmail(form.email || form.email);
     setStep("done");
+    // Supabase enviará el email con el link → /auth/callback → /campo/verificar-identidad
     setLoading(false);
   }
 

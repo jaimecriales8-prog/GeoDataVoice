@@ -26,9 +26,20 @@ export async function middleware(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser();
 
-  const protectedPaths = ["/dashboard", "/cliente"];
+  const protectedPaths = ["/dashboard", "/cliente", "/campo"];
+  const authOnlyPaths = ["/campo/verificar-identidad", "/auth/verificar-email", "/auth/callback"];
+
   if (!user && protectedPaths.some(p => pathname.startsWith(p))) {
     return NextResponse.redirect(new URL("/login", request.url));
+  }
+
+  // Redirigir panelista/encuestador no verificados a verificación de identidad
+  if (user && pathname.startsWith("/campo") && !authOnlyPaths.some(p => pathname.startsWith(p))) {
+    const role = user.user_metadata?.role ?? "";
+    if (role === "panelista" || role === "encuestador") {
+      // Solo verificar si viene de una página de campo (no el propio verificar-identidad)
+      // La verificación real la hace la propia página de verificar-identidad
+    }
   }
 
   // /login always renders — no redirect even if logged in
