@@ -181,6 +181,28 @@
 
 ---
 
+## ADR-012: KYC con AutenTIC (Veriff Colombia), patrón replicado de CertiLaboral
+**Estado:** Vigente  
+**Fecha:** 2026-06-05
+
+**Contexto:** Los panelistas aportan datos sensibles y deben verificar identidad (Ley 1581/2012). CertiLaboral ya resolvió esto con AutenTIC (revendedor de Veriff en Colombia). Se decidió replicar el mismo patrón en GeoDataVoice en vez de integrar Truora/Metamap desde cero.
+
+**Decisión:** Página `/campo/verificar-identidad` con **doble modo**, idéntico a CertiLaboral:
+- **Simulación** (sin API key): captura cámara → `POST /api/identidad/simular` (service client).
+- **Real** (con `NEXT_PUBLIC_AUTENTIC_API_KEY`): SDK Veriff + `POST /api/identidad/webhook` (HMAC).
+
+**Diferencias respecto a CertiLaboral:**
+- Tabla `participants` (no `perfiles`); campos `kyc_status` + `status` (no `identidad_verificada`).
+- Vínculo `participants.id === auth.users.id` (CertiLaboral usa `perfiles.user_id`).
+- Solo aplica a **panelistas**; los encuestadores se activan por aprobación del admin.
+- Variables `AUTENTIC_*` (CertiLaboral usa `VERIFF_*`); mismo SDK (`cdn.veriff.me`).
+
+**Razones:** Reutilizar un patrón ya probado en producción reduce riesgo. El modo simulación permite operar el MVP sin credenciales reales mientras se contrata AutenTIC.
+
+**Pendiente:** credenciales reales de AutenTIC y gate en middleware (P1-11b, P1-11c).
+
+---
+
 ## Decisiones Pendientes (antes de producción)
 
 | # | Decisión | Opciones | Urgencia |

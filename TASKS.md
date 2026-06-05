@@ -56,8 +56,10 @@
 - [ ] **P1-10** Página de configuración de tarifas en dashboard admin — conectar a `payment_config`
 
 ### Verificación de identidad
-- [ ] **P1-11** Integrar Truora o Metamap para KYC digital en `/campo/verificar-identidad`
-- [ ] **P1-12** Webhook de resultado KYC → actualizar `status` de participante a `verified`
+- [x] **P1-11** KYC con **AutenTIC** (Veriff Colombia) en `/campo/verificar-identidad` — doble modo (simulación + SDK real), igual que CertiLaboral
+- [x] **P1-12** Webhook `/api/identidad/webhook` (HMAC) → marca `participants.kyc_status=approved, status=verified`
+- [ ] **P1-11b** Conseguir credenciales reales de AutenTIC y cargarlas (`NEXT_PUBLIC_AUTENTIC_API_KEY`, `AUTENTIC_SECRET_KEY`) en `.env.local` + Vercel; configurar URL del webhook en el panel de AutenTIC
+- [ ] **P1-11c** Gate en middleware: bloquear `/campo/panelista` si `kyc_status != approved` (ver P0-01)
 
 ---
 

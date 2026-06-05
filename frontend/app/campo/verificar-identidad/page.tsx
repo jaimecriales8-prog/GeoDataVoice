@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import Script from "next/script";
 import { createClient } from "@/lib/supabase";
 import {
   Shield, CheckCircle2, Loader2, AlertCircle,
@@ -11,6 +12,13 @@ import {
 type Paso = "frente" | "reverso" | "selfie" | "procesando" | "aprobado" | "declinado";
 
 const AUTENTIC_API_KEY = process.env.NEXT_PUBLIC_AUTENTIC_API_KEY;
+
+declare global {
+  interface Window {
+    Veriff: (c: object) => { setParams: (p: object) => void; mount: (o: object) => void };
+    veriffSDK: { createVeriffFrame: (o: object) => void };
+  }
+}
 
 // ── Componente cámara ─────────────────────────────────────────────────────────
 function CamaraCaptura({
@@ -170,22 +178,17 @@ function VerificacionConCamara({ userId, role }: { userId: string; role: string 
     if (cual === "frente") { setPaso("reverso"); return; }
     if (cual === "reverso") { setPaso("selfie"); return; }
 
-    // selfie → procesar
+    // selfie → procesar vía route handler seguro (service client en el servidor)
     setPaso("procesando");
     await new Promise(r => setTimeout(r, 3000));
 
     try {
-      const supabase = createClient();
-      // Actualizar estado KYC en la tabla correspondiente
-      if (role === "panelista") {
-        await supabase.from("participants")
-          .update({ kyc_status: "approved", status: "verified", phone_verified: true })
-          .eq("id", userId);
-      } else if (role === "encuestador") {
-        await supabase.from("field_operators")
-          .update({ status: "active" })
-          .eq("user_id", userId);
-      }
+      const res = await fetch("/api/identidad/simular", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ aprobado: true }),
+      });
+      if (!res.ok) { setPaso("declinado"); return; }
       setPaso("aprobado");
       const destino = role === "panelista" ? "/campo/panelista" : "/campo/encuestador";
       setTimeout(() => router.push(destino), 2500);
@@ -316,8 +319,14 @@ export default function VerificarIdentidadPage() {
   const router = useRouter();
   const [userId, setUserId] = useState<string | null>(null);
   const [role, setRole] = useState<string>("panelista");
+  const [nombre, setNombre] = useState(" ");
+  const [apellido, setApellido] = useState(" ");
   const [loading, setLoading] = useState(true);
   const [yaVerificado, setYaVerificado] = useState(false);
+  const [sdkListo, setSdkListo] = useState(false);
+
+  // ¿Modo AutenTIC real? Solo si hay API key Y el usuario es panelista.
+  const modoAutentic = !!AUTENTIC_API_KEY;
 
   useEffect(() => {
     const load = async () => {
@@ -328,6 +337,10 @@ export default function VerificarIdentidadPage() {
       const userRole = user.user_metadata?.role ?? "panelista";
       setRole(userRole);
       setUserId(user.id);
+
+      const partes = (user.user_metadata?.full_name ?? "").trim().split(" ");
+      setNombre(partes[0] || " ");
+      setApellido(partes.slice(1).join(" ") || " ");
 
       // Verificar si la verificación de identidad está activa en la config
       const { data: cfg } = await supabase
@@ -365,6 +378,44 @@ export default function VerificarIdentidadPage() {
     };
     load();
   }, [router]);
+
+  // ── Montaje del SDK de AutenTIC (Veriff Colombia) ──────────────────────────
+  useEffect(() => {
+    if (!sdkListo || !modoAutentic || loading || !userId || !AUTENTIC_API_KEY) return;
+    if (role !== "panelista") return; // KYC AutenTIC solo para panelistas
+
+    const veriff = window.Veriff({
+      host: "https://stationapi.veriff.com",
+      apiKey: AUTENTIC_API_KEY,
+      parentId: "autentic-root",
+      onSession: (_e: unknown, r: { verification: { url: string } }) => {
+        window.veriffSDK.createVeriffFrame({
+          url: r.verification.url,
+          onEvent: (msg: string) => {
+            if (msg === "FINISHED") {
+              setYaVerificado(true); // pantalla de espera mientras llega el webhook
+              let n = 0;
+              const poll = setInterval(async () => {
+                n++;
+                const supabase = createClient();
+                const { data: p } = await supabase
+                  .from("participants").select("kyc_status").eq("id", userId).single();
+                if (p?.kyc_status === "approved") {
+                  clearInterval(poll);
+                  router.push("/campo/panelista");
+                } else if (n >= 36) {
+                  clearInterval(poll);
+                  router.push("/campo/panelista");
+                }
+              }, 5000); // 5s × 36 = 3 min
+            }
+          },
+        });
+      },
+    });
+    veriff.setParams({ person: { givenName: nombre, lastName: apellido }, vendorData: userId });
+    veriff.mount({ submitBtnText: "Verificar mi identidad", loadingText: "Cargando..." });
+  }, [sdkListo, modoAutentic, loading, userId, role, nombre, apellido, router]);
 
   if (loading) return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-center justify-center">
@@ -415,7 +466,19 @@ export default function VerificarIdentidadPage() {
         </div>
 
         {/* Flujo de verificación */}
-        {userId && <VerificacionConCamara userId={userId} role={role} />}
+        {userId && modoAutentic && role === "panelista" ? (
+          <div id="autentic-root" className="bg-white rounded-2xl overflow-hidden min-h-[80px]" />
+        ) : userId ? (
+          <VerificacionConCamara userId={userId} role={role} />
+        ) : null}
+
+        {/* SDK de AutenTIC (Veriff Colombia) — solo en modo real */}
+        {modoAutentic && (
+          <>
+            <Script src="https://cdn.veriff.me/sdk/js/1.5/veriff.min.js" strategy="afterInteractive" />
+            <Script src="https://cdn.veriff.me/incontext/js/v1/veriff.js" strategy="afterInteractive" onLoad={() => setSdkListo(true)} />
+          </>
+        )}
 
         <p className="text-center text-xs text-blue-400/50">
           Verificación de identidad · Tecnología AutenTIC · Datos bajo estándares de seguridad colombianos

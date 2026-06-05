@@ -217,6 +217,18 @@ Scope: `jaime-criales-projects`. Las mismas 6 variables están en Production.
 El subdominio `geodatavoice.grialtech.co` **NO está verificado** en Resend (requiere plan
 superior). Solo el dominio raíz `grialtech.co` está verificado. DNS en GoDaddy (`ns45/ns46.domaincontrol.com`).
 
+### KYC / Verificación de identidad (AutenTIC — igual que CertiLaboral)
+Página `frontend/app/campo/verificar-identidad/page.tsx`. **Doble modo:**
+- **Simulación** (sin `NEXT_PUBLIC_AUTENTIC_API_KEY`): captura frente/reverso/selfie con cámara
+  real → `POST /api/identidad/simular` marca `participants.kyc_status=approved, status=verified`.
+- **AutenTIC real** (con API key): SDK Veriff (cdn.veriff.me) → webhook
+  `POST /api/identidad/webhook` (HMAC `AUTENTIC_SECRET_KEY`) marca verificado por `vendorData`.
+
+Solo aplica a **panelistas** (`platform_config.identity_verification.required_for=["panelista"]`).
+Vínculo: `participants.id === auth.users.id`. Route handlers usan `lib/supabase-service.ts`.
+Variables AutenTIC: comentadas en `.env.local` → modo simulación activo.
+**Pendiente:** gate en middleware para forzar verificación antes de `/campo/panelista` (P0-01).
+
 ### Comandos
 ```bash
 # Desarrollo local
