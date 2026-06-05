@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
+import Link from "next/link";
 import { MapPin, Loader2, Eye, EyeOff, LogOut, ArrowRight } from "lucide-react";
 
 export default function LoginPage() {
@@ -144,7 +145,17 @@ export default function LoginPage() {
           </form>
         </div>
 
-        <p className="text-center text-xs text-slate-600 mt-6">
+        {/* Registrarse */}
+        <div className="mt-5 text-center">
+          <p className="text-sm text-slate-500">
+            ¿No tienes cuenta?{" "}
+            <Link href="/registro" className="text-blue-400 hover:text-blue-300 font-medium transition-colors">
+              Registrarse
+            </Link>
+          </p>
+        </div>
+
+        <p className="text-center text-xs text-slate-600 mt-4">
           GeoDataVoice © 2026 ·{" "}
           <a href="/" className="hover:text-slate-400 transition-colors">Volver al inicio</a>
         </p>
