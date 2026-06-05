@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase";
-import { BarChart3, Plus, Search, ArrowRight } from "lucide-react";
+import { BarChart3, Search, ArrowRight } from "lucide-react";
 import Link from "next/link";
 
 type Proyecto = {
@@ -65,10 +65,7 @@ export default function ProyectosPage() {
           <h1 className="text-2xl font-bold text-white">Proyectos</h1>
           <p className="text-slate-400 text-sm mt-1">{proyectos.filter(p => p.status === "active").length} activos</p>
         </div>
-        <Link href="/dashboard/proyectos/nuevo"
-          className="flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors">
-          <Plus className="h-4 w-4" /> Nuevo proyecto
-        </Link>
+        <p className="text-xs text-slate-500">Los proyectos los crea cada cliente desde su panel</p>
       </div>
 
       <div className="relative mb-6">
