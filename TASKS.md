@@ -12,7 +12,7 @@
 ## P0 — Crítico (bloqueantes para primer uso real)
 
 ### Bugs activos
-- [ ] **B2** Insert en `field_operators` al registrar encuestador — `frontend/app/registro/encuestador/page.tsx:42` solo hace `signUp`, no inserta en la tabla
+- [x] **B2** Insert en `field_operators` al registrar encuestador — agregado `field_operators.user_id`; el registro inserta el operador vinculado; el home del encuestador ya consulta por `user_id`.
 - [x] **B3** Panelista conectado a encuestas reales — home carga surveys (status sent/ready, no respondidas) + pagos reales
 - [x] **B4** Flujo de encuesta real — carga preguntas por survey_id, guarda en `responses` + audio en Storage + `audio_responses`. Probado end-to-end (3 respuestas + 3 audios).
 
@@ -74,7 +74,7 @@
 
 ## P2 — Post-validación
 
-- [ ] **P2-01** RLS policies en todas las tablas (actualmente desactivado — MVP)
+- [~] **P2-01** RLS policies en todas las tablas (desactivado — MVP). PARCIAL: guard de ownership client-side en tableros de resultados (cliente solo ve sus proyectos; admin todo). FALTA: RLS real a nivel BD en las 15 tablas con políticas por rol (panelista/encuestador/cliente/admin) + probar cada flujo. Tarea dedicada (riesgosa, no apurar).
 - [ ] **P2-02** Cifrado AES-256-GCM para `name` de participantes (Supabase Vault) — ver ADR-004
 - [ ] **P2-03** OTP SMS para verificación de celular de panelistas
 - [ ] **P2-04** AGORA — módulo de pares: `peers`, `peer_tasks`, `peer_evidences`, banco de mensajes con aprobación
