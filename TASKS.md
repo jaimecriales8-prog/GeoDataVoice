@@ -45,9 +45,14 @@
 - [ ] **P1-03** Exportar resultados CSV/PDF desde panel cliente
 
 ### Encuestador — flujo campo completo
-- [x] **P1-04** Flujo encuestador aplica encuesta a panelista — `campo/encuestador/registrar` (datos→identidad→consentimientos→GPS→encuesta). Arreglados bugs `name`/`audio_prompt`.
-- [x] **P1-05** Registro GPS de visita en `field_visits`
-- [x] **Reclutamiento con bono** — código de reclutador por encuestador (`field_operators.recruiter_code`); `participants.recruited_by` (auto en campo, o por código en auto-registro + prefill `?ref=`); control en `dashboard/encuestadores` (conteo) y `dashboard/pagos` (bono = reclutados × `payment_config.bono_reclutamiento_cop`).
+- [x] **P1-04** "Encuestar en campo" — selección de encuesta OBLIGATORIA → datos + perfil socioeconómico → identidad (condicional) → consentimientos → GPS → encuesta. Guarda en `responses` con `encuestador_id` (columna agregada; sin ella fallaba). Si la persona ya existe (documento), reutiliza su registro (no bloquea). Paga `encuesta_campo_cop`.
+- [x] **P1-05** GPS de visita en `field_visits` (operator_id).
+- [x] **Encuestar ≠ Reclutar** — reclutar = auto-registro del panelista DESDE SU CELULAR con código del encuestador → bono. Encuestar no genera bono.
+- [x] **Reclutamiento con bono** — `field_operators.recruiter_code`; `participants.recruited_by` (por código en auto-registro + prefill `?ref=`); control en `dashboard/encuestadores` (conteo) y `dashboard/pagos` (bono = reclutados × `payment_config.bono_reclutamiento_cop`). Código visible en home encuestador + pantalla de éxito.
+- [x] **Reuso de datos (claim)** — `claim_field_participant`: encuestado que se vuelve panelista (mismo documento) reutiliza registro + verificación + historial. Prefill por documento.
+- [x] **Toggle validación identidad en calle** — admin global (`platform_config.field_identity_verification`) + cliente por proyecto (`projects.field_identity_required`).
+- [x] **Demografía del encuestado** — estrato, edad, nivel estudios, actividad(multi), estado civil, hijos, régimen salud, SISBEN, vivienda, grupo étnico, antigüedad barrio, subsidios, internet, registrado para votar.
+- [ ] **P1-04b** Segmentar tableros de resultados por demografía (favorabilidad por estrato/régimen/etc.).
 
 ### Notificaciones y emails
 - [x] **P1-06** Email de activación al cliente cuando admin aprueba su cuenta — `/api/email/cliente-activado` + integrado en `dashboard/clientes`
