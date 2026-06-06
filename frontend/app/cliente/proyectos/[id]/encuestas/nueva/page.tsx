@@ -17,7 +17,9 @@ type Pregunta = {
   text: string;
   required: boolean;
   options: string[];
-  audio_prompt: string;
+  tracking_key: string;        // código para comparar la misma pregunta entre olas
+  favorability: boolean;       // marcar como pregunta de favorabilidad
+  favorable_values: string[];  // opciones que cuentan como "positivas" (top-box)
 };
 
 const TIPOS_PREGUNTA: { value: TipoPregunta; label: string; desc: string }[] = [
@@ -45,7 +47,7 @@ export default function NuevaEncuesta({ params }: { params: Promise<{ id: string
   const [closesAt, setClosesAt] = useState("");
   const [perfil, setPerfil] = useState<PerfilObjetivo>("panelista");
   const [preguntas, setPreguntas] = useState<Pregunta[]>([
-    { id: uid(), type: "single_choice", text: "", required: true, options: ["", ""], audio_prompt: "" },
+    { id: uid(), type: "single_choice", text: "", required: true, options: ["", ""], tracking_key: "", favorability: false, favorable_values: [] },
   ]);
   const [expandida, setExpandida] = useState<string | null>(preguntas[0].id);
   const [saving, setSaving] = useState(false);
@@ -54,7 +56,7 @@ export default function NuevaEncuesta({ params }: { params: Promise<{ id: string
   // ── Preguntas ────────────────────────────────────────────────
 
   function addPregunta() {
-    const nueva: Pregunta = { id: uid(), type: "single_choice", text: "", required: true, options: ["", ""], audio_prompt: "" };
+    const nueva: Pregunta = { id: uid(), type: "single_choice", text: "", required: true, options: ["", ""], tracking_key: "", favorability: false, favorable_values: [] };
     setPreguntas(prev => [...prev, nueva]);
     setExpandida(nueva.id);
   }
@@ -124,7 +126,9 @@ export default function NuevaEncuesta({ params }: { params: Promise<{ id: string
       options: ["single_choice", "multiple_choice", "scale"].includes(p.type)
         ? { choices: p.options.filter(o => o.trim()) }
         : null,
-      audio_prompt: p.audio_prompt.trim() || null,
+      tracking_key: p.tracking_key.trim() || null,
+      favorability: p.favorability,
+      favorable_values: p.favorability && p.favorable_values.length > 0 ? p.favorable_values : null,
     }));
 
     const { error: qErr } = await supabase.from("questions").insert(preguntasRows);
@@ -286,14 +290,43 @@ export default function NuevaEncuesta({ params }: { params: Promise<{ id: string
                     </div>
                   )}
 
-                  {/* Prompt de audio — para preguntas que no son solo audio */}
-                  {p.type !== "audio" && (
-                    <Field label="Prompt de nota de voz (opcional)">
-                      <input value={p.audio_prompt}
-                        onChange={e => updatePregunta(p.id, { audio_prompt: e.target.value })}
-                        placeholder="Ej: ¿Por qué diste esa respuesta? Cuéntanos con tus palabras."
-                        className={inputCls} />
-                    </Field>
+                  {/* Seguimiento entre olas + favorabilidad (solo preguntas cerradas) */}
+                  {["single_choice", "multiple_choice", "scale"].includes(p.type) && (
+                    <div className="rounded-xl border border-white/5 bg-white/[0.02] p-3 space-y-3">
+                      <Field label="Código de seguimiento (opcional)">
+                        <input value={p.tracking_key}
+                          onChange={e => updatePregunta(p.id, { tracking_key: e.target.value.toUpperCase().replace(/\s+/g, "_") })}
+                          placeholder="Ej: FAV_ALCALDE — para comparar esta pregunta entre olas"
+                          className={inputCls} />
+                      </Field>
+
+                      <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
+                        <input type="checkbox" checked={p.favorability}
+                          onChange={e => updatePregunta(p.id, { favorability: e.target.checked, favorable_values: [] })}
+                          className="h-4 w-4 rounded accent-violet-500" />
+                        Es una pregunta de favorabilidad / aprobación
+                      </label>
+
+                      {p.favorability && (
+                        <div>
+                          <p className="text-xs text-slate-500 mb-2">Marca las opciones que cuentan como <span className="text-emerald-400">positivas</span> (favorabilidad = % de estas):</p>
+                          <div className="flex flex-wrap gap-2">
+                            {p.options.filter(o => o.trim()).map((opt, oi) => {
+                              const sel = p.favorable_values.includes(opt);
+                              return (
+                                <button key={oi} type="button"
+                                  onClick={() => updatePregunta(p.id, {
+                                    favorable_values: sel ? p.favorable_values.filter(v => v !== opt) : [...p.favorable_values, opt],
+                                  })}
+                                  className={`rounded-lg px-3 py-1.5 text-xs border transition-colors ${sel ? "border-emerald-400 bg-emerald-500/15 text-emerald-300" : "border-white/10 text-slate-400 hover:text-white"}`}>
+                                  {opt}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
               )}

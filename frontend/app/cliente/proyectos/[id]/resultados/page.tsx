@@ -3,15 +3,15 @@
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase";
-import { fetchResultados, Resultados } from "@/lib/resultados";
-import ResultadosView from "@/components/resultados-view";
+import { fetchResultadosProyecto, ResultadosProyecto } from "@/lib/resultados";
+import ResultadosProyectoView from "@/components/resultados-proyecto-view";
 import { ArrowLeft, Loader2, BarChart3 } from "lucide-react";
 
-export default function ResultadosProyecto({ params }: { params: Promise<{ id: string }> }) {
+export default function ResultadosProyectoPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const [nombre, setNombre] = useState("");
   const [numEncuestas, setNumEncuestas] = useState(0);
-  const [res, setRes] = useState<Resultados | null>(null);
+  const [data, setData] = useState<ResultadosProyecto | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -22,10 +22,10 @@ export default function ResultadosProyecto({ params }: { params: Promise<{ id: s
       setNombre(proyecto?.name ?? "Proyecto");
 
       const { data: surveys } = await supabase
-        .from("surveys").select("id").eq("project_id", id);
-      const ids = (surveys ?? []).map(s => s.id);
-      setNumEncuestas(ids.length);
-      setRes(await fetchResultados(ids));
+        .from("surveys").select("id, wave").eq("project_id", id);
+      const lista = (surveys ?? []).map(s => ({ id: s.id, wave: s.wave ?? 1 }));
+      setNumEncuestas(lista.length);
+      setData(await fetchResultadosProyecto(lista));
       setLoading(false);
     })();
   }, [id]);
@@ -44,10 +44,10 @@ export default function ResultadosProyecto({ params }: { params: Promise<{ id: s
         <h1 className="text-2xl font-bold text-white">Resultados — {nombre}</h1>
       </div>
       <p className="text-slate-400 text-sm mb-8">
-        Agregado de {numEncuestas} encuesta{numEncuestas === 1 ? "" : "s"} del proyecto
+        {numEncuestas} encuesta{numEncuestas === 1 ? "" : "s"} · evolución por ola + indicadores
       </p>
 
-      {res && <ResultadosView r={res} />}
+      {data && <ResultadosProyectoView data={data} />}
     </div>
   );
 }

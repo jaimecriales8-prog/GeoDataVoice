@@ -148,3 +148,133 @@ export async function fetchResultados(surveyIds: string[]): Promise<Resultados> 
     citas,
   };
 }
+
+// ── Resultados a nivel PROYECTO: foto + evolución por ola + indicadores ──────────
+
+export type SerieOla = {
+  wave: number;
+  total: number;            // nlp analizados en la ola
+  positivo: number; negativo: number; neutral: number; mixto: number; // % 0-100
+  favorabilidad: number | null; // % positivo en preguntas de favorabilidad de la ola
+};
+
+export type IndicadorOla = { wave: number; favorablePct: number | null; total: number; distribucion: Distribucion };
+export type Indicador = {
+  key: string;
+  text: string;
+  esFavorabilidad: boolean;
+  olas: IndicadorOla[];
+};
+
+export type ResultadosProyecto = {
+  agregado: Resultados;
+  porOla: SerieOla[];
+  indicadores: Indicador[];
+};
+
+export async function fetchResultadosProyecto(surveys: { id: string; wave: number }[]): Promise<ResultadosProyecto> {
+  const ids = surveys.map(s => s.id);
+  const agregado = await fetchResultados(ids);
+  if (ids.length === 0) return { agregado, porOla: [], indicadores: [] };
+
+  const supabase = createClient();
+  const waveOf = new Map(surveys.map(s => [s.id, s.wave]));
+
+  const { data: questions } = await supabase
+    .from("questions")
+    .select("id, survey_id, text, type, tracking_key, favorability, favorable_values")
+    .in("survey_id", ids);
+  const { data: responses } = await supabase
+    .from("responses")
+    .select("id, survey_id, question_id, value")
+    .in("survey_id", ids);
+
+  const qs = questions ?? [];
+  const resp = responses ?? [];
+  const respById = new Map(resp.map(r => [r.id, r]));
+
+  // sentimiento por ola (audio → response → survey.wave)
+  const porOlaMap = new Map<number, { pos: number; neg: number; neu: number; mix: number; total: number }>();
+  const responseIds = resp.map(r => r.id);
+  if (responseIds.length > 0) {
+    const { data: audioRows } = await supabase
+      .from("audio_responses").select("id, response_id").in("response_id", responseIds);
+    const audioToResp = new Map((audioRows ?? []).map(a => [a.id, a.response_id]));
+    const audioIds = (audioRows ?? []).map(a => a.id);
+    if (audioIds.length > 0) {
+      const { data: nlp } = await supabase
+        .from("nlp_outputs").select("audio_id, sentiment").in("audio_id", audioIds);
+      for (const n of nlp ?? []) {
+        const rId = audioToResp.get(n.audio_id);
+        const r = rId ? respById.get(rId) : undefined;
+        const wave = r ? waveOf.get(r.survey_id) : undefined;
+        if (wave == null) continue;
+        const b = porOlaMap.get(wave) ?? { pos: 0, neg: 0, neu: 0, mix: 0, total: 0 };
+        if (n.sentiment === "positivo") b.pos++;
+        else if (n.sentiment === "negativo") b.neg++;
+        else if (n.sentiment === "mixto") b.mix++;
+        else b.neu++;
+        b.total++;
+        porOlaMap.set(wave, b);
+      }
+    }
+  }
+
+  // favorabilidad por ola (preguntas favorability con favorable_values)
+  const favQ = qs.filter(q => q.favorability && Array.isArray(q.favorable_values));
+  const favByWave = new Map<number, { fav: number; total: number }>();
+  for (const q of favQ) {
+    const wave = waveOf.get(q.survey_id);
+    if (wave == null) continue;
+    const positivos: string[] = q.favorable_values ?? [];
+    const rs = resp.filter(r => r.question_id === q.id);
+    const b = favByWave.get(wave) ?? { fav: 0, total: 0 };
+    for (const r of rs) { b.total++; if (positivos.includes(r.value)) b.fav++; }
+    favByWave.set(wave, b);
+  }
+
+  const porOla: SerieOla[] = surveys
+    .map(s => s.wave)
+    .filter((w, i, a) => a.indexOf(w) === i)
+    .sort((a, b) => a - b)
+    .map(wave => {
+      const b = porOlaMap.get(wave) ?? { pos: 0, neg: 0, neu: 0, mix: 0, total: 0 };
+      const t = b.total || 1;
+      const f = favByWave.get(wave);
+      return {
+        wave,
+        total: b.total,
+        positivo: Math.round((b.pos / t) * 100),
+        negativo: Math.round((b.neg / t) * 100),
+        neutral: Math.round((b.neu / t) * 100),
+        mixto: Math.round((b.mix / t) * 100),
+        favorabilidad: f && f.total > 0 ? Math.round((f.fav / f.total) * 100) : null,
+      };
+    });
+
+  // indicadores de seguimiento (agrupar por tracking_key)
+  const porKey = new Map<string, typeof qs>();
+  for (const q of qs) {
+    if (!q.tracking_key) continue;
+    const arr = porKey.get(q.tracking_key) ?? [];
+    arr.push(q);
+    porKey.set(q.tracking_key, arr);
+  }
+  const indicadores: Indicador[] = [...porKey.entries()].map(([key, preguntas]) => {
+    const esFav = preguntas.some(q => q.favorability);
+    const olas: IndicadorOla[] = preguntas
+      .map(q => {
+        const wave = waveOf.get(q.survey_id) ?? 0;
+        const rs = resp.filter(r => r.question_id === q.id);
+        const positivos: string[] = q.favorable_values ?? [];
+        const fav = q.favorability && positivos.length
+          ? Math.round((rs.filter(r => positivos.includes(r.value)).length / (rs.length || 1)) * 100)
+          : null;
+        return { wave, total: rs.length, favorablePct: fav, distribucion: contar(rs.map(r => r.value)) };
+      })
+      .sort((a, b) => a.wave - b.wave);
+    return { key, text: preguntas[0].text, esFavorabilidad: esFav, olas };
+  });
+
+  return { agregado, porOla, indicadores };
+}
