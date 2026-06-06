@@ -81,7 +81,7 @@ export default function PanelistaHome() {
   const pendientes = surveys.length;
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-slate-50 max-w-md mx-auto relative shadow-xl">
       <div className="bg-gradient-to-br from-blue-700 to-blue-900 px-5 pt-12 pb-8 text-white">
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -188,7 +188,7 @@ export default function PanelistaHome() {
       </div>
 
       {/* Bottom nav */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-6 py-3 grid grid-cols-2 gap-1">
+      <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-white border-t border-slate-200 px-6 py-3 grid grid-cols-2 gap-1 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         {[
           { icon: ClipboardList, label: "Encuestas", href: "/campo/panelista", active: true },
           { icon: Wallet, label: "Pagos", href: "/campo/panelista/pagos", active: false },
