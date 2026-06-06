@@ -174,7 +174,7 @@ function RegistrarPanelistaContent() {
     });
     if (surveyId) {
       const supabase = createClient();
-      supabase.from("surveys").select("name, questions(id, type, text, options, order, audio_prompt)")
+      supabase.from("surveys").select("name, questions(id, type, text, options, order)")
         .eq("id", surveyId).single().then(({ data }) => {
           if (data) setSurvey({ name: data.name, questions: (data.questions as any[]).sort((a, b) => a.order - b.order) });
         });
@@ -216,7 +216,7 @@ function RegistrarPanelistaContent() {
         id: newId,
         document_hash: docHash,
         phone_hash: phoneHash,
-        name: form.nombre,
+        name_encrypted: form.nombre,
         gender: form.genero || null,
         birth_year: form.anio ? parseInt(form.anio) : null,
         status: "verified",
@@ -224,6 +224,7 @@ function RegistrarPanelistaContent() {
         phone_verified: false,
       });
       if (e?.code === "23505") { setError("Esta persona ya está registrada."); setProcesandoId(false); setStep("datos"); return; }
+      if (e) { setError("Error al registrar al panelista. Intenta de nuevo."); setProcesandoId(false); setStep("datos"); return; }
       setParticipantId(newId);
       setProcesandoId(false);
       setStep("consentimientos");
