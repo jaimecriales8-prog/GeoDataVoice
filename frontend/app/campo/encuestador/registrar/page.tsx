@@ -250,7 +250,18 @@ function RegistrarPanelistaContent() {
         kyc_status: conIdentidad ? "approved" : "pending",
         phone_verified: false,
       });
-      if (e?.code === "23505") { setError("Esta persona ya está registrada."); setProcesandoId(false); setStep("datos"); return; }
+      if (e?.code === "23505") {
+        // La persona ya existe → reutilizar su registro para aplicarle la encuesta
+        const { data: existente } = await supabase
+          .from("participants").select("id").eq("document_hash", docHash).maybeSingle();
+        if (existente) {
+          setParticipantId(existente.id);
+          setProcesandoId(false);
+          setStep("consentimientos");
+          return;
+        }
+        setError("Esta persona ya está registrada, pero no se pudo recuperar su registro."); setProcesandoId(false); setStep("datos"); return;
+      }
       if (e) { setError("Error al registrar a la persona. Intenta de nuevo."); setProcesandoId(false); setStep("datos"); return; }
       setParticipantId(newId);
       setProcesandoId(false);
