@@ -30,6 +30,7 @@ export default function EncuestadorHome() {
   const [surveys, setSurveys] = useState<Survey[]>([]);
   const [stats, setStats] = useState<DayStats>({ registrados: 0, verificados: 0, encuestas: 0 });
   const [mes, setMes] = useState({ reclutados: 0, encuestas: 0, ganadoReclutamiento: 0, ganadoEncuestas: 0 });
+  const [codigo, setCodigo] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [hora, setHora] = useState("");
 
@@ -45,11 +46,11 @@ export default function EncuestadorHome() {
       // Obtener operador de campo
       const { data: op } = await supabase
         .from("field_operators")
-        .select("id")
+        .select("id, recruiter_code")
         .eq("user_id", data.user.id)
         .maybeSingle();
 
-      if (op) setOperadorId(op.id);
+      if (op) { setOperadorId(op.id); setCodigo(op.recruiter_code); }
 
       // Encuestas asignadas a encuestadores
       const { data: sv } = await supabase
@@ -182,14 +183,31 @@ export default function EncuestadorHome() {
               <UserPlus className="h-7 w-7 text-white" />
             </div>
             <div className="flex-1">
-              <p className="font-bold text-white text-lg">Registrar panelista</p>
+              <p className="font-bold text-white text-lg">Encuestar en campo</p>
               <p className="text-emerald-200 text-sm mt-0.5">
-                Datos · Verificación de identidad · Consentimientos · GPS
+                Datos · Identidad · Consentimientos · GPS · Encuesta
               </p>
             </div>
             <ChevronRight className="h-5 w-5 text-emerald-200 shrink-0" />
           </div>
         </Link>
+
+        {/* Código de reclutador */}
+        {codigo && (
+          <section className="rounded-2xl border border-amber-400/20 bg-amber-500/5 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex-1">
+                <p className="text-xs text-amber-300 font-semibold uppercase tracking-wide mb-0.5">Tu código de reclutador</p>
+                <p className="text-xs text-amber-200/70 leading-relaxed">
+                  Para que alguien sea panelista, que se registre <strong>desde su celular</strong> con este código. Así ganas tu bono.
+                </p>
+              </div>
+              <div className="rounded-xl bg-amber-500/15 px-3 py-2 text-center shrink-0">
+                <p className="text-xl font-bold text-white font-mono tracking-wider">{codigo}</p>
+              </div>
+            </div>
+          </section>
+        )}
 
         {/* Encuestas para aplicar */}
         <section>

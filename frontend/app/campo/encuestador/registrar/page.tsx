@@ -136,6 +136,7 @@ function RegistrarPanelistaContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [operadorId, setOperadorId] = useState<string | null>(null);
+  const [codigoReclutador, setCodigoReclutador] = useState<string | null>(null);
   const [participantId, setParticipantId] = useState<string | null>(null);
 
   // Datos básicos
@@ -169,8 +170,8 @@ function RegistrarPanelistaContent() {
     const supabase = createClient();
     supabase.auth.getUser().then(async ({ data }) => {
       if (!data.user) return;
-      const { data: op } = await supabase.from("field_operators").select("id").eq("user_id", data.user.id).maybeSingle();
-      if (op) setOperadorId(op.id);
+      const { data: op } = await supabase.from("field_operators").select("id, recruiter_code").eq("user_id", data.user.id).maybeSingle();
+      if (op) { setOperadorId(op.id); setCodigoReclutador(op.recruiter_code); }
     });
     if (surveyId) {
       const supabase = createClient();
@@ -222,7 +223,6 @@ function RegistrarPanelistaContent() {
         status: "verified",
         kyc_status: "approved",
         phone_verified: false,
-        recruited_by: operadorId,
       });
       if (e?.code === "23505") { setError("Esta persona ya está registrada."); setProcesandoId(false); setStep("datos"); return; }
       if (e) { setError("Error al registrar al panelista. Intenta de nuevo."); setProcesandoId(false); setStep("datos"); return; }
@@ -346,7 +346,7 @@ function RegistrarPanelistaContent() {
           <ArrowLeft className="h-5 w-5" />
         </button>
         <div className="flex-1">
-          <p className="text-xs text-emerald-300 uppercase tracking-wide font-semibold">Registro en campo</p>
+          <p className="text-xs text-emerald-300 uppercase tracking-wide font-semibold">Encuesta en campo</p>
           <p className="text-xs text-emerald-200">Paso {stepIdx + 1} de {PASOS.length}</p>
         </div>
         {/* Indicadores de paso */}
@@ -364,7 +364,7 @@ function RegistrarPanelistaContent() {
         {/* DATOS */}
         {step === "datos" && (
           <div className="space-y-4">
-            <SectionTitle icon={User} title="Datos del panelista" />
+            <SectionTitle icon={User} title="Datos de la persona" />
             <Field label="Nombre completo *"><input value={form.nombre} onChange={e => update("nombre", e.target.value)} placeholder="Como aparece en la cédula" className={inputCls} /></Field>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Cédula *"><input value={form.documento} onChange={e => update("documento", e.target.value)} placeholder="Número" inputMode="numeric" className={inputCls} /></Field>
@@ -541,19 +541,32 @@ function RegistrarPanelistaContent() {
             <div className="h-20 w-20 rounded-full bg-emerald-500/20 flex items-center justify-center">
               <CheckCircle2 className="h-10 w-10 text-emerald-400" />
             </div>
-            <h2 className="text-xl font-bold text-white">¡Registro completado!</h2>
+            <h2 className="text-xl font-bold text-white">¡Encuesta completada!</h2>
             <p className="text-slate-400 text-sm max-w-xs">
-              {form.nombre} ha sido registrado{surveyId ? " y la encuesta fue aplicada" : ""} correctamente.
+              La encuesta a {form.nombre} fue registrada correctamente.
             </p>
-            {participantId && (
-              <p className="text-xs text-slate-600 font-mono bg-slate-800 px-3 py-1.5 rounded-lg">
-                ID: {participantId.slice(0, 8)}…
-              </p>
+
+            {/* Invitación a volverse panelista (reclutamiento con código) */}
+            {codigoReclutador && (
+              <div className="w-full max-w-xs rounded-2xl border border-amber-400/30 bg-amber-500/10 p-4 text-left">
+                <p className="text-sm font-semibold text-amber-200 mb-1">¿Quiere ser panelista y ganar por más encuestas?</p>
+                <p className="text-xs text-amber-200/80 leading-relaxed mb-3">
+                  Que se registre <strong>desde su propio celular</strong> con tu código. Así cuenta para tu bono de reclutamiento.
+                </p>
+                <div className="rounded-xl bg-amber-500/15 px-3 py-2 text-center">
+                  <p className="text-[10px] text-amber-300 uppercase tracking-wide">Tu código</p>
+                  <p className="text-2xl font-bold text-white font-mono tracking-wider">{codigoReclutador}</p>
+                </div>
+                <p className="text-[11px] text-amber-200/60 mt-2 break-all">
+                  geodatavoice.grialtech.co/registro/panelista?ref={codigoReclutador}
+                </p>
+              </div>
             )}
+
             <div className="flex gap-3 w-full max-w-xs pt-2">
               <button onClick={() => { setStep("datos"); setForm({ nombre:"",documento:"",telefono:"",municipio:"",barrio:"",genero:"",anio:"" }); setFotos({}); setConsents({panel:false,datos:false}); setGps(null); setParticipantId(null); setAnswers({}); setQIdx(0); setAudioUrl(null); }}
                 className="flex-1 rounded-xl bg-emerald-600 hover:bg-emerald-500 py-3 text-white font-semibold text-sm">
-                Registrar otra persona
+                Encuestar a otra persona
               </button>
               <button onClick={() => router.push("/campo/encuestador")}
                 className="flex-1 rounded-xl border border-white/20 hover:bg-white/5 py-3 text-white text-sm">
