@@ -22,13 +22,23 @@ export default function ResultadosEncuesta({ params }: { params: Promise<{ id: s
   const [res, setRes] = useState<Resultados | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [denegado, setDenegado] = useState(false);
 
   useEffect(() => {
     (async () => {
       const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
       const { data: survey } = await supabase
-        .from("surveys").select("name, status, wave").eq("id", eid).maybeSingle();
+        .from("surveys").select("name, status, wave, project_id").eq("id", eid).maybeSingle();
       if (!survey) { setNotFound(true); setLoading(false); return; }
+
+      // Ownership: la encuesta pertenece a un proyecto del cliente logueado
+      const { data: proyecto } = await supabase
+        .from("projects").select("client_id").eq("id", survey.project_id).maybeSingle();
+      const role = user?.user_metadata?.role;
+      if (role !== "admin" && proyecto?.client_id !== user?.id) {
+        setDenegado(true); setLoading(false); return;
+      }
       setNombre(survey.name);
       setStatus(survey.status);
       setWave(survey.wave);
@@ -45,6 +55,13 @@ export default function ResultadosEncuesta({ params }: { params: Promise<{ id: s
     <div className="p-8">
       <p className="text-slate-400">Encuesta no encontrada.</p>
       <Link href={`/cliente/proyectos/${id}`} className="text-violet-400 text-sm mt-2 inline-block">← Volver al proyecto</Link>
+    </div>
+  );
+
+  if (denegado) return (
+    <div className="p-8">
+      <p className="text-slate-400">No tienes acceso a los resultados de esta encuesta.</p>
+      <Link href="/cliente/proyectos" className="text-violet-400 text-sm mt-2 inline-block">← Mis proyectos</Link>
     </div>
   );
 

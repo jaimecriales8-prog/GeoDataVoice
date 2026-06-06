@@ -39,7 +39,7 @@ export default function RegistroEncuestadorPage() {
     setLoading(true);
     setError("");
     const supabase = createClient();
-    const { error: authError } = await supabase.auth.signUp({
+    const { data: authData, error: authError } = await supabase.auth.signUp({
       email: form.email,
       password: form.password,
       options: {
@@ -61,6 +61,25 @@ export default function RegistroEncuestadorPage() {
         ? "Este email ya está registrado." : "Error al crear la cuenta.");
       setLoading(false); return;
     }
+
+    // Insertar en field_operators (vinculado al usuario por user_id)
+    if (authData.user) {
+      const { error: opErr } = await supabase.from("field_operators").insert({
+        id: crypto.randomUUID(),
+        user_id: authData.user.id,
+        name: form.full_name,
+        document: form.documento,
+        phone: form.phone,
+        role: "encuestador",
+        status: "active",
+      });
+      if (opErr) {
+        setError("Error al registrar tus datos de campo. Contacta soporte.");
+        console.error("[registro/encuestador] insert field_operators:", opErr);
+        setLoading(false); return;
+      }
+    }
+
     setStep("done");
     setLoading(false);
   }
