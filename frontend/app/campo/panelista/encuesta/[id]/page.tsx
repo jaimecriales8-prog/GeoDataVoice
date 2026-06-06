@@ -56,7 +56,7 @@ export default function EncuestaPage({ params }: { params: Promise<{ id: string 
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
-  const [resumen, setResumen] = useState({ respuestas: 0, audios: 0 });
+  const [resumen, setResumen] = useState({ respuestas: 0, audios: 0, audiosIntentados: 0, fallos: [] as string[] });
 
   const mediaRef = useRef<MediaRecorder | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -167,7 +167,8 @@ export default function EncuestaPage({ params }: { params: Promise<{ id: string 
     setSubmitError(null);
     const supabase = createClient();
 
-    let respuestasOk = 0, audiosOk = 0;
+    let respuestasOk = 0, audiosOk = 0, audiosIntentados = 0;
+    const fallos: string[] = [];
     try {
       for (const q of questions) {
         const value = answers[q.id] ?? "";
@@ -188,26 +189,34 @@ export default function EncuestaPage({ params }: { params: Promise<{ id: string 
         // Subir audio si existe (vía route handler con service role)
         const blob = audioBlobs.current[q.id];
         if (blob) {
-          const ext = extFromMime(audioMimes.current[q.id] || "audio/webm");
-          const fd = new FormData();
-          fd.append("file", blob, `${q.id}.${ext}`);
-          fd.append("surveyId", surveyId);
-          fd.append("questionId", q.id);
-          const up = await fetch("/api/audio/upload", { method: "POST", body: fd });
-          if (up.ok) {
+          audiosIntentados++;
+          try {
+            const ext = extFromMime(audioMimes.current[q.id] || "audio/webm");
+            const fd = new FormData();
+            fd.append("file", blob, `${q.id}.${ext}`);
+            fd.append("surveyId", surveyId);
+            fd.append("questionId", q.id);
+            const up = await fetch("/api/audio/upload", { method: "POST", body: fd });
+            if (!up.ok) {
+              const err = await up.json().catch(() => ({}));
+              throw new Error(err.error || `subida falló (HTTP ${up.status})`);
+            }
             const { path } = await up.json();
-            await supabase.from("audio_responses").insert({
+            const { error: aErr } = await supabase.from("audio_responses").insert({
               id: crypto.randomUUID(),
               response_id: responseId,
               audio_url: path,
               duration_seconds: audioDurations.current[q.id] ?? null,
               quality: "pending",
             });
+            if (aErr) throw new Error(aErr.message);
             audiosOk++;
+          } catch (audioErr) {
+            fallos.push(`Pregunta ${questions.indexOf(q) + 1}: ${audioErr instanceof Error ? audioErr.message : "error"}`);
           }
         }
       }
-      setResumen({ respuestas: respuestasOk, audios: audiosOk });
+      setResumen({ respuestas: respuestasOk, audios: audiosOk, audiosIntentados, fallos });
       setDone(true);
     } catch (e) {
       setSubmitError(e instanceof Error ? e.message : "Error al guardar tus respuestas.");
@@ -287,9 +296,22 @@ export default function EncuestaPage({ params }: { params: Promise<{ id: string 
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-slate-500">Notas de voz enviadas</span>
-            <span className="font-bold text-slate-800">{resumen.audios}</span>
+            <span className="font-bold text-slate-800">
+              {resumen.audios}{resumen.audiosIntentados > 0 ? `/${resumen.audiosIntentados}` : ""}
+            </span>
           </div>
         </div>
+
+        {resumen.fallos.length > 0 && (
+          <div className="w-full max-w-xs rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 mb-6 text-left">
+            <p className="text-amber-700 font-semibold text-xs mb-1 flex items-center gap-1.5">
+              <AlertCircle className="h-3.5 w-3.5" /> Algunas notas de voz no se subieron
+            </p>
+            <p className="text-amber-600 text-xs">
+              Tus respuestas sí quedaron guardadas. {resumen.fallos.length} nota(s) de voz fallaron al subir.
+            </p>
+          </div>
+        )}
 
         <button onClick={() => router.push("/campo/panelista")}
           className="rounded-xl bg-blue-600 hover:bg-blue-700 px-7 py-3.5 text-white font-semibold transition-colors">
