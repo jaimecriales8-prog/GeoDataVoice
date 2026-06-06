@@ -347,8 +347,11 @@ function RegistrarPanelistaContent() {
           question_id: qId,
           encuestador_id: operadorId,
           value: val,
+          quality: "complete",
+          responded_at: new Date().toISOString(),
         }));
-        if (rows.length > 0) await supabase.from("responses").insert(rows);
+        const { error: rErr } = await supabase.from("responses").insert(rows);
+        if (rErr) { setError("Error al guardar la encuesta: " + rErr.message); setSubmitting(false); return; }
       }
       setSubmitting(false);
       setStep("exito");
