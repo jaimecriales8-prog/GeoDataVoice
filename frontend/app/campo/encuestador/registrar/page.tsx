@@ -145,7 +145,9 @@ function RegistrarPanelistaContent() {
   const [loadingDisp, setLoadingDisp] = useState(true);
 
   // Datos básicos
-  const [form, setForm] = useState({ nombre: "", documento: "", telefono: "", municipio: "", barrio: "", genero: "", anio: "" });
+  const [form, setForm] = useState({ nombre: "", documento: "", telefono: "", municipio: "", barrio: "", genero: "", edad: "", estrato: "", nivel_estudios: "", estado_civil: "", num_hijos: "" });
+  const [actividades, setActividades] = useState<string[]>([]);
+  const [tieneHijos, setTieneHijos] = useState(false);
 
   // Identidad
   const [fotoActual, setFotoActual] = useState<FotoTipo>("frente");
@@ -245,7 +247,12 @@ function RegistrarPanelistaContent() {
         phone_hash: phoneHash,
         name_encrypted: form.nombre,
         gender: form.genero || null,
-        birth_year: form.anio ? parseInt(form.anio) : null,
+        birth_year: form.edad ? new Date().getFullYear() - parseInt(form.edad) : null,
+        estrato: form.estrato ? parseInt(form.estrato) : null,
+        nivel_estudios: form.nivel_estudios || null,
+        actividades: actividades.length > 0 ? actividades : null,
+        estado_civil: form.estado_civil || null,
+        num_hijos: tieneHijos ? (parseInt(form.num_hijos) || 0) : 0,
         status: conIdentidad ? "verified" : "preregistered",
         kyc_status: conIdentidad ? "approved" : "pending",
         phone_verified: false,
@@ -464,10 +471,68 @@ function RegistrarPanelistaContent() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Género"><select value={form.genero} onChange={e => update("genero", e.target.value)} className={inputCls}><option value="">Sin respuesta</option><option value="female">Mujer</option><option value="male">Hombre</option><option value="other">Otro</option></select></Field>
-              <Field label="Año nacimiento"><input value={form.anio} onChange={e => update("anio", e.target.value)} placeholder="Ej: 1985" inputMode="numeric" className={inputCls} /></Field>
+              <Field label="Edad"><input value={form.edad} onChange={e => update("edad", e.target.value)} placeholder="Ej: 38" inputMode="numeric" className={inputCls} /></Field>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Estrato">
+                <select value={form.estrato} onChange={e => update("estrato", e.target.value)} className={inputCls}>
+                  <option value="">Sin respuesta</option>
+                  {[1,2,3,4,5,6].map(n => <option key={n} value={n}>{n}</option>)}
+                </select>
+              </Field>
+              <Field label="Estado civil">
+                <select value={form.estado_civil} onChange={e => update("estado_civil", e.target.value)} className={inputCls}>
+                  <option value="">Sin respuesta</option>
+                  <option value="soltero">Soltero/a</option>
+                  <option value="casado">Casado/a</option>
+                  <option value="union_libre">Unión libre</option>
+                  <option value="separado">Separado/a</option>
+                  <option value="divorciado">Divorciado/a</option>
+                  <option value="viudo">Viudo/a</option>
+                </select>
+              </Field>
+            </div>
+            <Field label="Nivel de estudios">
+              <select value={form.nivel_estudios} onChange={e => update("nivel_estudios", e.target.value)} className={inputCls}>
+                <option value="">Sin respuesta</option>
+                <option value="bachiller">Bachiller</option>
+                <option value="tecnico_tecnologo">Técnico / Tecnólogo</option>
+                <option value="profesional">Profesional</option>
+                <option value="posgrado">Posgrado</option>
+              </select>
+            </Field>
+            <Field label="Actividad (puede elegir varias)">
+              <div className="flex flex-wrap gap-2">
+                {[["estudiante","Estudiante"],["empleado","Empleado"],["independiente","Independiente"],["desempleado","Desempleado"]].map(([v, l]) => {
+                  const sel = actividades.includes(v);
+                  return (
+                    <button key={v} type="button"
+                      onClick={() => setActividades(prev => sel ? prev.filter(a => a !== v) : [...prev, v])}
+                      className={`rounded-lg px-3 py-1.5 text-xs border transition-colors ${sel ? "border-emerald-400 bg-emerald-500/15 text-emerald-300" : "border-white/10 text-slate-400"}`}>
+                      {l}
+                    </button>
+                  );
+                })}
+              </div>
+            </Field>
+            <div className="rounded-xl border border-white/5 bg-white/[0.02] p-3">
+              <label className="flex items-center justify-between cursor-pointer">
+                <span className="text-sm text-slate-300">¿Tiene hijos?</span>
+                <button type="button" onClick={() => { setTieneHijos(v => !v); if (tieneHijos) update("num_hijos", ""); }}
+                  className={`relative w-11 h-6 rounded-full transition-colors ${tieneHijos ? "bg-emerald-600" : "bg-slate-600"}`}>
+                  <div className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${tieneHijos ? "translate-x-5" : "translate-x-0.5"}`} />
+                </button>
+              </label>
+              {tieneHijos && (
+                <div className="mt-3">
+                  <Field label="¿Cuántos hijos?">
+                    <input value={form.num_hijos} onChange={e => update("num_hijos", e.target.value)} placeholder="Ej: 2" inputMode="numeric" className={inputCls} />
+                  </Field>
+                </div>
+              )}
             </div>
             {error && <ErrorBox msg={error} />}
-            <PrimaryBtn onClick={handleDatos} label="Continuar a verificación de identidad" loading={false} />
+            <PrimaryBtn onClick={handleDatos} label="Continuar" loading={false} />
           </div>
         )}
 
@@ -652,7 +717,7 @@ function RegistrarPanelistaContent() {
             )}
 
             <div className="flex gap-3 w-full max-w-xs pt-2">
-              <button onClick={() => { setStep("datos"); setForm({ nombre:"",documento:"",telefono:"",municipio:"",barrio:"",genero:"",anio:"" }); setFotos({}); setConsents({panel:false,datos:false}); setGps(null); setParticipantId(null); setAnswers({}); setQIdx(0); setAudioUrl(null); }}
+              <button onClick={() => { setStep("datos"); setForm({ nombre:"",documento:"",telefono:"",municipio:"",barrio:"",genero:"",edad:"",estrato:"",nivel_estudios:"",estado_civil:"",num_hijos:"" }); setActividades([]); setTieneHijos(false); setFotos({}); setConsents({panel:false,datos:false}); setGps(null); setParticipantId(null); setAnswers({}); setQIdx(0); setAudioUrl(null); }}
                 className="flex-1 rounded-xl bg-emerald-600 hover:bg-emerald-500 py-3 text-white font-semibold text-sm">
                 Encuestar a otra persona
               </button>
