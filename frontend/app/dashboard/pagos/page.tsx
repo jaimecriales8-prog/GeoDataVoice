@@ -9,8 +9,11 @@ type TarifaGlobal = {
   encuesta_cop: number;
   audio_cop: number;
   encuesta_campo_cop: number;
+  bono_reclutamiento_cop: number;
   activo: boolean;
 };
+
+type BonoEncuestador = { id: string; name: string; recruiter_code: string | null; reclutados: number };
 
 type TarifaCliente = {
   client_id: string;
@@ -21,7 +24,8 @@ type TarifaCliente = {
 };
 
 export default function PagosPage() {
-  const [global, setGlobal] = useState<TarifaGlobal>({ encuesta_cop: 3000, audio_cop: 2000, encuesta_campo_cop: 3000, activo: true });
+  const [global, setGlobal] = useState<TarifaGlobal>({ encuesta_cop: 3000, audio_cop: 2000, encuesta_campo_cop: 3000, bono_reclutamiento_cop: 0, activo: true });
+  const [bonos, setBonos] = useState<BonoEncuestador[]>([]);
   const [clientes, setClientes] = useState<TarifaCliente[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -42,7 +46,16 @@ export default function PagosPage() {
       .limit(1)
       .maybeSingle();
 
-    if (gData) setGlobal(gData);
+    if (gData) setGlobal({ bono_reclutamiento_cop: 0, ...gData });
+
+    // Bonos por reclutamiento: encuestadores + conteo de panelistas reclutados
+    const { data: ops } = await supabase
+      .from("field_operators").select("id, name, recruiter_code").order("name");
+    const { data: parts } = await supabase
+      .from("participants").select("recruited_by").not("recruited_by", "is", null);
+    const counts = new Map<string, number>();
+    (parts ?? []).forEach(p => { if (p.recruited_by) counts.set(p.recruited_by, (counts.get(p.recruited_by) ?? 0) + 1); });
+    setBonos((ops ?? []).map(o => ({ id: o.id, name: o.name, recruiter_code: o.recruiter_code, reclutados: counts.get(o.id) ?? 0 })));
 
     // Clientes con sus tarifas personalizadas
     const { data: cData } = await supabase
@@ -87,6 +100,7 @@ export default function PagosPage() {
         encuesta_cop: global.encuesta_cop,
         audio_cop: global.audio_cop,
         encuesta_campo_cop: global.encuesta_campo_cop,
+        bono_reclutamiento_cop: global.bono_reclutamiento_cop,
         activo: global.activo,
       }).eq("id", global.id);
     } else {
@@ -94,6 +108,7 @@ export default function PagosPage() {
         encuesta_cop: global.encuesta_cop,
         audio_cop: global.audio_cop,
         encuesta_campo_cop: global.encuesta_campo_cop,
+        bono_reclutamiento_cop: global.bono_reclutamiento_cop,
         activo: global.activo,
       });
     }
@@ -145,11 +160,12 @@ export default function PagosPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-6">
           {[
             { key: "encuesta_cop", label: "Encuesta web", desc: "Panelista responde desde la web" },
             { key: "audio_cop", label: "Nota de voz", desc: "Por cada audio procesado" },
             { key: "encuesta_campo_cop", label: "Encuesta en campo", desc: "Encuestador con panelista" },
+            { key: "bono_reclutamiento_cop", label: "Bono reclutamiento", desc: "Por cada panelista reclutado" },
           ].map(({ key, label, desc }) => (
             <div key={key} className="rounded-xl bg-slate-800 p-4">
               <label className="block text-xs font-medium text-slate-400 mb-0.5">{label}</label>
@@ -185,6 +201,42 @@ export default function PagosPage() {
             {saved ? "¡Guardado!" : saving ? "Guardando..." : "Guardar tarifas"}
           </button>
         </div>
+      </div>
+
+      {/* Bonos por reclutamiento */}
+      <div className="rounded-2xl border border-white/5 bg-slate-900 overflow-hidden mb-6">
+        <div className="px-6 py-4 border-b border-white/5">
+          <h2 className="text-sm font-semibold text-white">Bonos por reclutamiento</h2>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Panelistas reclutados × ${global.bono_reclutamiento_cop.toLocaleString("es-CO")} por panelista
+          </p>
+        </div>
+        {bonos.filter(b => b.reclutados > 0).length === 0 ? (
+          <div className="p-8 text-center text-sm text-slate-500">Aún no hay reclutamientos registrados.</div>
+        ) : (
+          <table className="w-full">
+            <thead><tr className="border-b border-white/5">
+              <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Encuestador</th>
+              <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Código</th>
+              <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Reclutados</th>
+              <th className="text-right px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Bono a pagar</th>
+            </tr></thead>
+            <tbody className="divide-y divide-white/5">
+              {bonos.filter(b => b.reclutados > 0).map(b => (
+                <tr key={b.id} className="hover:bg-white/[0.02]">
+                  <td className="px-5 py-4 text-sm text-white">{b.name}</td>
+                  <td className="px-5 py-4">
+                    {b.recruiter_code ? <span className="font-mono text-xs text-blue-300 bg-blue-500/10 px-2 py-0.5 rounded">{b.recruiter_code}</span> : <span className="text-xs text-slate-600">—</span>}
+                  </td>
+                  <td className="px-5 py-4 text-sm text-slate-300">{b.reclutados}</td>
+                  <td className="px-5 py-4 text-right text-sm font-bold text-emerald-400">
+                    ${(b.reclutados * global.bono_reclutamiento_cop).toLocaleString("es-CO")}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
 
       {/* Tarifas por cliente */}

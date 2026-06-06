@@ -12,6 +12,8 @@ type Encuestador = {
   role: string;
   status: string;
   created_at: string;
+  recruiter_code: string | null;
+  reclutados: number;
 };
 
 const ROLES: Record<string, string> = {
@@ -37,7 +39,17 @@ export default function EncuestadoresPage() {
       .from("field_operators")
       .select("*")
       .order("created_at", { ascending: false });
-    setEncuestadores(data ?? []);
+    const ops = data ?? [];
+
+    // Conteo de panelistas reclutados por cada encuestador (para el bono)
+    const { data: parts } = await supabase
+      .from("participants").select("recruited_by").not("recruited_by", "is", null);
+    const counts = new Map<string, number>();
+    (parts ?? []).forEach(p => {
+      if (p.recruited_by) counts.set(p.recruited_by, (counts.get(p.recruited_by) ?? 0) + 1);
+    });
+
+    setEncuestadores(ops.map(o => ({ ...o, reclutados: counts.get(o.id) ?? 0 })));
     setLoading(false);
   }
 
@@ -45,6 +57,8 @@ export default function EncuestadoresPage() {
     if (!form.name || !form.document) { setError("Nombre y documento son obligatorios."); return; }
     setSaving(true); setError("");
     const supabase = createClient();
+    const letras = ((form.name.replace(/[^A-Za-z]/g, "").toUpperCase()) + "GD").slice(0, 2);
+    const code = `${letras}-${Math.floor(1000 + Math.random() * 9000)}`;
     const { error: e } = await supabase.from("field_operators").insert({
       id: crypto.randomUUID(),
       name: form.name,
@@ -52,6 +66,7 @@ export default function EncuestadoresPage() {
       phone: form.phone || null,
       role: form.role,
       status: "active",
+      recruiter_code: code,
     });
     if (e) { setError(e.message); setSaving(false); return; }
     setShowForm(false);
@@ -147,7 +162,8 @@ export default function EncuestadoresPage() {
               <tr className="border-b border-white/5">
                 <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Encuestador</th>
                 <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Documento</th>
-                <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Rol</th>
+                <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Código</th>
+                <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Reclutados</th>
                 <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Estado</th>
                 <th className="px-5 py-3 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">Acción</th>
               </tr>
@@ -167,7 +183,15 @@ export default function EncuestadoresPage() {
                     </div>
                   </td>
                   <td className="px-5 py-4 text-xs text-slate-400">{e.document}</td>
-                  <td className="px-5 py-4 text-xs text-slate-400">{ROLES[e.role] ?? e.role}</td>
+                  <td className="px-5 py-4">
+                    {e.recruiter_code
+                      ? <span className="font-mono text-xs text-blue-300 bg-blue-500/10 px-2 py-0.5 rounded">{e.recruiter_code}</span>
+                      : <span className="text-xs text-slate-600">—</span>}
+                  </td>
+                  <td className="px-5 py-4">
+                    <span className="text-sm font-bold text-white">{e.reclutados}</span>
+                    <span className="text-xs text-slate-500"> panelista{e.reclutados === 1 ? "" : "s"}</span>
+                  </td>
                   <td className="px-5 py-4">
                     <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
                       e.status === "active" ? "bg-emerald-500/20 text-emerald-400" : "bg-slate-700 text-slate-400"

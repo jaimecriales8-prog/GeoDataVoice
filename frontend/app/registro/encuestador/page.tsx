@@ -5,6 +5,12 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import { MapPin, Loader2, Eye, EyeOff, ArrowLeft, CheckCircle } from "lucide-react";
 
+function generarCodigo(nombre: string): string {
+  const letras = ((nombre.replace(/[^A-Za-z]/g, "").toUpperCase()) + "GD").slice(0, 2);
+  const num = Math.floor(1000 + Math.random() * 9000);
+  return `${letras}-${num}`;
+}
+
 export default function RegistroEncuestadorPage() {
   const router = useRouter();
   const [step, setStep] = useState<"form" | "done">("form");
@@ -12,6 +18,7 @@ export default function RegistroEncuestadorPage() {
   const [error, setError] = useState("");
   const [showPass, setShowPass] = useState(false);
   const [showPass2, setShowPass2] = useState(false);
+  const [codigo, setCodigo] = useState("");
 
   const [form, setForm] = useState({
     full_name: "",
@@ -64,6 +71,7 @@ export default function RegistroEncuestadorPage() {
 
     // Insertar en field_operators (vinculado al usuario por user_id)
     if (authData.user) {
+      const code = generarCodigo(form.full_name);
       const { error: opErr } = await supabase.from("field_operators").insert({
         id: crypto.randomUUID(),
         user_id: authData.user.id,
@@ -72,12 +80,14 @@ export default function RegistroEncuestadorPage() {
         phone: form.phone,
         role: "encuestador",
         status: "active",
+        recruiter_code: code,
       });
       if (opErr) {
         setError("Error al registrar tus datos de campo. Contacta soporte.");
         console.error("[registro/encuestador] insert field_operators:", opErr);
         setLoading(false); return;
       }
+      setCodigo(code);
     }
 
     setStep("done");
@@ -91,10 +101,21 @@ export default function RegistroEncuestadorPage() {
           <div className="h-20 w-20 rounded-full bg-emerald-500/20 flex items-center justify-center mx-auto mb-5">
             <CheckCircle className="h-10 w-10 text-emerald-400" />
           </div>
-          <h1 className="text-2xl font-bold text-white mb-3">¡Solicitud enviada!</h1>
-          <p className="text-slate-300 mb-6">
-            Recibirás una llamada o mensaje del coordinador de campo para confirmar tu disponibilidad y asignarte un territorio.
+          <h1 className="text-2xl font-bold text-white mb-3">¡Listo, ya eres encuestador!</h1>
+          <p className="text-slate-300 mb-5">
+            Recibirás un mensaje del coordinador para confirmar tu territorio.
           </p>
+
+          {codigo && (
+            <div className="rounded-2xl border border-emerald-400/30 bg-emerald-500/10 p-5 mb-6">
+              <p className="text-xs text-emerald-300 uppercase tracking-wide mb-1">Tu código de reclutador</p>
+              <p className="text-3xl font-bold text-white font-mono tracking-wider">{codigo}</p>
+              <p className="text-xs text-emerald-200/70 mt-2 leading-relaxed">
+                Compártelo con cada persona que registres. Cuando se inscriban con tu código,
+                cuentan para tu <strong>bono por reclutamiento</strong>.
+              </p>
+            </div>
+          )}
           <button onClick={() => router.push("/")}
             className="rounded-xl bg-emerald-600 hover:bg-emerald-700 px-7 py-3 text-white font-semibold transition-colors">
             Volver al inicio

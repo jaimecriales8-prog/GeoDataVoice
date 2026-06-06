@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import { Mic, Loader2, ArrowLeft, CheckCircle, Phone, MapPin, User, Lock, Eye, EyeOff, Mail } from "lucide-react";
@@ -32,11 +32,18 @@ export default function RegistroPanelistaPage() {
     email: "",
     password: "",
     password2: "",
+    recruiter_code: "",
   });
 
   function update(field: string, value: string) {
     setForm(prev => ({ ...prev, [field]: value }));
   }
+
+  // Prefill del código de reclutador desde ?ref=CODIGO (link de referido)
+  useEffect(() => {
+    const ref = new URLSearchParams(window.location.search).get("ref");
+    if (ref) setForm(prev => ({ ...prev, recruiter_code: ref.toUpperCase() }));
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -90,6 +97,16 @@ export default function RegistroPanelistaPage() {
         sha256(form.phone),
       ]);
 
+      // Resolver el código de reclutador → field_operators.id (para el bono)
+      let recruitedBy: string | null = null;
+      if (form.recruiter_code.trim()) {
+        const { data: op } = await supabase
+          .from("field_operators").select("id")
+          .eq("recruiter_code", form.recruiter_code.trim().toUpperCase())
+          .maybeSingle();
+        recruitedBy = op?.id ?? null;
+      }
+
       // name_encrypted: por ahora texto plano (cifrado AES pendiente — ver ADR-005)
       const { error: insertError } = await supabase.from("participants").insert({
         id: authData.user.id,
@@ -101,6 +118,7 @@ export default function RegistroPanelistaPage() {
         status: "preregistered",
         kyc_status: "pending",
         phone_verified: false,
+        recruited_by: recruitedBy,
       });
 
       if (insertError) {
@@ -237,6 +255,21 @@ export default function RegistroPanelistaPage() {
                     placeholder="Tu barrio" className={inputCls} />
                 </Field>
               </div>
+            </div>
+
+            {/* Reclutador */}
+            <div className="border-t border-white/10 pt-3">
+              <div className="flex items-center gap-2 mb-3">
+                <User className="h-4 w-4 text-amber-400" />
+                <p className="text-xs text-amber-300 font-semibold uppercase tracking-wide">¿Quién te registró?</p>
+              </div>
+              <Field label="Código de reclutador (opcional)">
+                <input value={form.recruiter_code}
+                  onChange={e => update("recruiter_code", e.target.value.toUpperCase())}
+                  placeholder="Ej: JC-4821 — te lo da tu encuestador"
+                  className={`${inputCls} font-mono tracking-wider`} />
+              </Field>
+              <p className="text-[11px] text-slate-500 mt-1.5">Si un encuestador te ayudó, escribe su código para que reciba su bono.</p>
             </div>
 
             {/* Contacto y pagos */}

@@ -222,6 +222,7 @@ function RegistrarPanelistaContent() {
         status: "verified",
         kyc_status: "approved",
         phone_verified: false,
+        recruited_by: operadorId,
       });
       if (e?.code === "23505") { setError("Esta persona ya está registrada."); setProcesandoId(false); setStep("datos"); return; }
       if (e) { setError("Error al registrar al panelista. Intenta de nuevo."); setProcesandoId(false); setStep("datos"); return; }
