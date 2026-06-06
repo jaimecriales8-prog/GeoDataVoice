@@ -428,6 +428,7 @@ function RegistrarPanelistaContent() {
               </div>
             ) : (
               <CamaraCaptura
+                key={fotoActual}
                 instruccion={fotoConfig[fotoActual].instruccion}
                 onCaptura={handleFoto}
                 modo={fotoConfig[fotoActual].modo}
