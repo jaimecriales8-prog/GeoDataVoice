@@ -154,6 +154,7 @@ Deno.serve(async (req) => {
 
     // 5. Guardar resultados
     const { error: insErr } = await supabase.from("nlp_outputs").insert({
+      id: crypto.randomUUID(),
       audio_id: audioId,
       sentiment: nlp.sentiment,
       emotion: nlp.emotion,

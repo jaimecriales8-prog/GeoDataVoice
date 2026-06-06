@@ -27,7 +27,7 @@
 - [x] **P0-06** Bucket `geodatavoice-audio` creado (privado, sin filtro de mime — Safari manda mp4)
 
 ### Supabase Edge Functions
-- [ ] **P0-07** Edge Function `process-audio` — Whisper-1 (transcripción) + GPT-4o-mini (NLP) → insertar en `nlp_outputs`; disparar desde trigger en `audio_responses` (quality=pending). YA hay audios reales esperando procesamiento.
+- [x] **P0-07** Edge Function `process-audio` — Whisper-1 (transcripción) + **Claude `claude-opus-4-8`** (NLP, no GPT) → `nlp_outputs`. Desplegada, con trigger automático (pg_net) en INSERT de `audio_responses` quality=pending. Probada end-to-end (capta sarcasmo). Modelo configurable vía secret `CLAUDE_MODEL`.
 
 ---
 
