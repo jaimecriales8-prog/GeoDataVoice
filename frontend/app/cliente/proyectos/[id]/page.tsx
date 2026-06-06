@@ -8,6 +8,7 @@ import { ArrowLeft, Plus, ClipboardList, Users, Mic, MapPin, ChevronRight, Clock
 type Proyecto = {
   id: string; name: string; type: string; purpose: string; status: string;
   start_date: string | null; end_date: string | null;
+  field_identity_required: boolean | null;
 };
 
 type Encuesta = {
@@ -36,20 +37,32 @@ export default function ProyectoDetalle({ params }: { params: Promise<{ id: stri
   const [encuestas, setEncuestas] = useState<Encuesta[]>([]);
   const [loading, setLoading] = useState(true);
   const [panelSize, setPanelSize] = useState(0);
+  const [identityGlobal, setIdentityGlobal] = useState(true);
 
   useEffect(() => { load(); }, [id]);
 
   async function load() {
     const supabase = createClient();
-    const [{ data: p }, { data: e }, { count }] = await Promise.all([
+    const [{ data: p }, { data: e }, { count }, { data: cfg }] = await Promise.all([
       supabase.from("projects").select("*").eq("id", id).single(),
       supabase.from("surveys").select("*").eq("project_id", id).order("created_at", { ascending: false }),
       supabase.from("panel_memberships").select("id", { count: "exact", head: true }).eq("project_id", id).eq("status", "active"),
+      supabase.from("platform_config").select("value").eq("key", "field_identity_verification").maybeSingle(),
     ]);
     setProyecto(p);
     setEncuestas(e ?? []);
     setPanelSize(count ?? 0);
+    setIdentityGlobal(((cfg?.value as { enabled?: boolean } | null)?.enabled) ?? true);
     setLoading(false);
+  }
+
+  async function toggleFieldIdentity() {
+    if (!proyecto) return;
+    const efectivo = proyecto.field_identity_required ?? identityGlobal;
+    const nuevo = !efectivo;
+    setProyecto({ ...proyecto, field_identity_required: nuevo });
+    const supabase = createClient();
+    await supabase.from("projects").update({ field_identity_required: nuevo }).eq("id", id);
   }
 
   if (loading) return (
@@ -106,6 +119,29 @@ export default function ProyectoDetalle({ params }: { params: Promise<{ id: stri
           <p className="text-xs text-slate-500 mt-0.5">de medición</p>
         </div>
       </div>
+
+      {/* Validación de identidad en encuestas de calle */}
+      {proyecto && (
+        <div className="rounded-2xl border border-white/5 bg-slate-900 p-5 mb-8 flex items-center justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className="h-9 w-9 rounded-xl bg-emerald-500/20 flex items-center justify-center shrink-0">
+              <MapPin className="h-4 w-4 text-emerald-400" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-white">Validar identidad en encuestas de calle</p>
+              <p className="text-xs text-slate-500 mt-0.5 max-w-md">
+                Si está activo, el encuestador fotografía cédula + rostro al encuestar en campo para este proyecto.
+                {proyecto.field_identity_required === null && <span className="text-slate-600"> (usando el default global)</span>}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={toggleFieldIdentity}
+            className={`relative w-12 h-6 rounded-full transition-colors shrink-0 ${(proyecto.field_identity_required ?? identityGlobal) ? "bg-emerald-600" : "bg-slate-600"}`}>
+            <div className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${(proyecto.field_identity_required ?? identityGlobal) ? "translate-x-6" : "translate-x-0.5"}`} />
+          </button>
+        </div>
+      )}
 
       {/* Encuestas */}
       <div className="rounded-2xl border border-white/5 bg-slate-900 overflow-hidden">

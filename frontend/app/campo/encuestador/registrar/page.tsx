@@ -137,6 +137,7 @@ function RegistrarPanelistaContent() {
   const [error, setError] = useState("");
   const [operadorId, setOperadorId] = useState<string | null>(null);
   const [codigoReclutador, setCodigoReclutador] = useState<string | null>(null);
+  const [identityRequired, setIdentityRequired] = useState(true);
   const [participantId, setParticipantId] = useState<string | null>(null);
 
   // Datos básicos
@@ -175,9 +176,19 @@ function RegistrarPanelistaContent() {
     });
     if (surveyId) {
       const supabase = createClient();
-      supabase.from("surveys").select("name, questions(id, type, text, options, order)")
-        .eq("id", surveyId).single().then(({ data }) => {
-          if (data) setSurvey({ name: data.name, questions: (data.questions as any[]).sort((a, b) => a.order - b.order) });
+      supabase.from("surveys").select("name, project_id, questions(id, type, text, options, order)")
+        .eq("id", surveyId).single().then(async ({ data }) => {
+          if (data) {
+            setSurvey({ name: data.name, questions: (data.questions as any[]).sort((a, b) => a.order - b.order) });
+            // Setting efectivo: override del proyecto > default global
+            const { data: proy } = await supabase
+              .from("projects").select("field_identity_required").eq("id", data.project_id).maybeSingle();
+            const { data: cfg } = await supabase
+              .from("platform_config").select("value").eq("key", "field_identity_verification").maybeSingle();
+            const global = (cfg?.value as { enabled?: boolean } | null)?.enabled ?? true;
+            const proyVal = proy?.field_identity_required;
+            setIdentityRequired(proyVal === null || proyVal === undefined ? global : proyVal);
+          }
         });
     }
   }, [surveyId]);
@@ -192,8 +203,13 @@ function RegistrarPanelistaContent() {
     if (!/^\d{7,12}$/.test(form.documento)) { setError("Documento inválido."); return; }
     if (!/^3\d{9}$/.test(form.telefono)) { setError("Celular colombiano inválido."); return; }
     setError("");
-    setStep("identidad");
-    setFotoActual("frente");
+    if (identityRequired) {
+      setStep("identidad");
+      setFotoActual("frente");
+    } else {
+      // Sin validación de identidad → crear directamente y pasar a consentimientos
+      crearParticipante(false);
+    }
   }
 
   // ── STEP 2: Identidad ─────────────────────────────────────────────────────
@@ -202,13 +218,12 @@ function RegistrarPanelistaContent() {
     setFotos(nuevasFotos);
     if (fotoActual === "frente") { setFotoActual("reverso"); return; }
     if (fotoActual === "reverso") { setFotoActual("rostro"); return; }
-    // Todas las fotos → procesar y crear panelista
-    procesarIdentidad(nuevasFotos);
+    crearParticipante(true);
   }
 
-  async function procesarIdentidad(todasFotos: typeof fotos) {
+  async function crearParticipante(conIdentidad: boolean) {
     setProcesandoId(true);
-    await new Promise(r => setTimeout(r, 2500));
+    if (conIdentidad) await new Promise(r => setTimeout(r, 2500));
     try {
       const supabase = createClient();
       const [docHash, phoneHash] = await Promise.all([sha256(form.documento), sha256(form.telefono)]);
@@ -220,12 +235,12 @@ function RegistrarPanelistaContent() {
         name_encrypted: form.nombre,
         gender: form.genero || null,
         birth_year: form.anio ? parseInt(form.anio) : null,
-        status: "verified",
-        kyc_status: "approved",
+        status: conIdentidad ? "verified" : "preregistered",
+        kyc_status: conIdentidad ? "approved" : "pending",
         phone_verified: false,
       });
       if (e?.code === "23505") { setError("Esta persona ya está registrada."); setProcesandoId(false); setStep("datos"); return; }
-      if (e) { setError("Error al registrar al panelista. Intenta de nuevo."); setProcesandoId(false); setStep("datos"); return; }
+      if (e) { setError("Error al registrar a la persona. Intenta de nuevo."); setProcesandoId(false); setStep("datos"); return; }
       setParticipantId(newId);
       setProcesandoId(false);
       setStep("consentimientos");
@@ -324,7 +339,7 @@ function RegistrarPanelistaContent() {
   // ── PASOS ─────────────────────────────────────────────────────────────────
   const PASOS: { id: Step; label: string; icon: React.ElementType }[] = [
     { id: "datos", label: "Datos", icon: User },
-    { id: "identidad", label: "Identidad", icon: Shield },
+    ...(identityRequired ? [{ id: "identidad" as Step, label: "Identidad", icon: Shield }] : []),
     { id: "consentimientos", label: "Consentimiento", icon: CheckCircle },
     { id: "gps", label: "GPS", icon: Navigation },
     ...(surveyId ? [{ id: "encuesta" as Step, label: "Encuesta", icon: ClipboardList }] : []),

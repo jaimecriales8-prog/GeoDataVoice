@@ -14,6 +14,7 @@ export default function ConfiguracionPage() {
     enabled: true,
     required_for: ["panelista", "encuestador"],
   });
+  const [fieldIdentity, setFieldIdentity] = useState({ enabled: true });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -23,22 +24,22 @@ export default function ConfiguracionPage() {
   async function load() {
     const supabase = createClient();
     const { data } = await supabase
-      .from("platform_config")
-      .select("value")
-      .eq("key", "identity_verification")
-      .maybeSingle();
-    if (data?.value) setIdentity(data.value as IdentityConfig);
+      .from("platform_config").select("key, value")
+      .in("key", ["identity_verification", "field_identity_verification"]);
+    (data ?? []).forEach(row => {
+      if (row.key === "identity_verification" && row.value) setIdentity(row.value as IdentityConfig);
+      if (row.key === "field_identity_verification" && row.value) setFieldIdentity(row.value as { enabled: boolean });
+    });
     setLoading(false);
   }
 
   async function guardar() {
     setSaving(true);
     const supabase = createClient();
-    await supabase.from("platform_config").upsert({
-      key: "identity_verification",
-      value: identity,
-      updated_at: new Date().toISOString(),
-    }, { onConflict: "key" });
+    await supabase.from("platform_config").upsert([
+      { key: "identity_verification", value: identity, updated_at: new Date().toISOString() },
+      { key: "field_identity_verification", value: fieldIdentity, updated_at: new Date().toISOString() },
+    ], { onConflict: "key" });
     setSaving(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
@@ -134,6 +135,36 @@ export default function ConfiguracionPage() {
                 </p>
               </div>
             )}
+          </div>
+
+          {/* Validación de identidad en encuestas de calle */}
+          <div className="rounded-2xl border border-white/5 bg-slate-900 p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="h-10 w-10 rounded-xl bg-emerald-500/20 flex items-center justify-center">
+                <Shield className="h-5 w-5 text-emerald-400" />
+              </div>
+              <div>
+                <h2 className="text-sm font-semibold text-white">Validación de identidad en encuestas de calle</h2>
+                <p className="text-xs text-slate-500">Si el encuestador debe fotografiar cédula + rostro al encuestar en campo</p>
+              </div>
+            </div>
+            <div className="flex items-center justify-between rounded-xl bg-white/5 px-5 py-4">
+              <div>
+                <p className="text-sm font-medium text-white">
+                  {fieldIdentity.enabled ? "Validación activa (global)" : "Validación desactivada (global)"}
+                </p>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  {fieldIdentity.enabled
+                    ? "Default: las encuestas de calle piden identidad. Cada cliente puede sobrescribirlo por proyecto."
+                    : "Default: las encuestas de calle NO piden identidad. Cada cliente puede sobrescribirlo por proyecto."}
+                </p>
+              </div>
+              <button
+                onClick={() => setFieldIdentity(prev => ({ enabled: !prev.enabled }))}
+                className={`relative w-12 h-6 rounded-full transition-colors shrink-0 ${fieldIdentity.enabled ? "bg-emerald-600" : "bg-slate-600"}`}>
+                <div className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${fieldIdentity.enabled ? "translate-x-6" : "translate-x-0.5"}`} />
+              </button>
+            </div>
           </div>
 
           {/* Botón guardar */}
