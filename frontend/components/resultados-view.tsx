@@ -1,16 +1,20 @@
 "use client";
 
-import { Resultados, Distribucion, SENTIMENT_COLOR } from "@/lib/resultados";
+import { Resultados, Distribucion, SENTIMENT_COLOR, SENTIMENT_LABELS } from "@/lib/resultados";
 import { MessageSquareQuote, Users, ClipboardCheck, Mic, Activity } from "lucide-react";
+import {
+  PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip,
+} from "recharts";
+
+const SENTIMENT_HEX: Record<string, string> = {
+  positivo: "#10b981", negativo: "#ef4444", neutral: "#94a3b8", mixto: "#f59e0b",
+};
 
 function Barras({ data, colorClass, colorMap }: {
-  data: Distribucion;
-  colorClass?: string;
-  colorMap?: Record<string, string>;
+  data: Distribucion; colorClass?: string; colorMap?: Record<string, string>;
 }) {
   const total = data.reduce((s, d) => s + d.count, 0);
   if (total === 0) return <p className="text-sm text-slate-500">Sin datos aún.</p>;
-  // colorMap usa la clave original (label ya viene traducida en sentimiento)
   return (
     <div className="space-y-2.5">
       {data.map(d => {
@@ -19,7 +23,7 @@ function Barras({ data, colorClass, colorMap }: {
         return (
           <div key={d.label}>
             <div className="flex justify-between text-xs mb-1">
-              <span className="text-slate-300">{d.label}</span>
+              <span className="text-slate-300 capitalize">{d.label}</span>
               <span className="text-slate-400 font-medium">{d.count} · {pct}%</span>
             </div>
             <div className="h-2.5 rounded-full bg-white/5 overflow-hidden">
@@ -43,6 +47,61 @@ function Card({ title, icon: Icon, children }: { title: string; icon?: React.Ele
   );
 }
 
+function SentimentDonut({ data }: { data: Distribucion }) {
+  const total = data.reduce((s, d) => s + d.count, 0);
+  if (total === 0) return <p className="text-sm text-slate-500">Sin datos aún.</p>;
+  const chart = data.map(d => ({
+    name: SENTIMENT_LABELS[d.label] ?? d.label, raw: d.label, value: d.count,
+  }));
+  return (
+    <div className="flex items-center gap-4">
+      <div className="h-40 w-40 shrink-0 relative">
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <Pie data={chart} dataKey="value" nameKey="name" innerRadius={48} outerRadius={70} paddingAngle={2} stroke="none">
+              {chart.map((e) => <Cell key={e.raw} fill={SENTIMENT_HEX[e.raw] ?? "#94a3b8"} />)}
+            </Pie>
+            <Tooltip contentStyle={{ background: "#0f172a", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, fontSize: 12 }} />
+          </PieChart>
+        </ResponsiveContainer>
+        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+          <span className="text-xl font-bold text-white">{total}</span>
+          <span className="text-[10px] text-slate-500">análisis</span>
+        </div>
+      </div>
+      <div className="flex-1 space-y-2">
+        {chart.map(e => {
+          const pct = Math.round((e.value / total) * 100);
+          return (
+            <div key={e.raw} className="flex items-center gap-2 text-xs">
+              <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: SENTIMENT_HEX[e.raw] ?? "#94a3b8" }} />
+              <span className="text-slate-300 flex-1">{e.name}</span>
+              <span className="text-slate-400 font-medium">{e.value} · {pct}%</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function TopicsBar({ data }: { data: Distribucion }) {
+  if (data.length === 0) return <p className="text-sm text-slate-500">Sin datos aún.</p>;
+  const chart = data.slice(0, 6);
+  return (
+    <div style={{ height: Math.max(chart.length * 38, 80) }}>
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={chart} layout="vertical" margin={{ left: 0, right: 16, top: 0, bottom: 0 }}>
+          <XAxis type="number" hide />
+          <YAxis type="category" dataKey="label" width={110} tick={{ fill: "#cbd5e1", fontSize: 12 }} axisLine={false} tickLine={false} />
+          <Tooltip cursor={{ fill: "rgba(255,255,255,0.04)" }} contentStyle={{ background: "#0f172a", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, fontSize: 12 }} />
+          <Bar dataKey="count" fill="#8b5cf6" radius={[0, 6, 6, 0]} barSize={18} />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
 export default function ResultadosView({ r }: { r: Resultados }) {
   if (r.respuestas === 0) {
     return (
@@ -53,12 +112,6 @@ export default function ResultadosView({ r }: { r: Resultados }) {
       </div>
     );
   }
-
-  // sentimiento usa colores por tipo (la label ya viene traducida → mapear por original no aplica; uso heurística)
-  const sentColor: Record<string, string> = {
-    positivo: SENTIMENT_COLOR.positivo, negativo: SENTIMENT_COLOR.negativo,
-    neutral: SENTIMENT_COLOR.neutral, mixto: SENTIMENT_COLOR.mixto,
-  };
 
   return (
     <div className="space-y-6">
@@ -81,16 +134,10 @@ export default function ResultadosView({ r }: { r: Resultados }) {
       {/* Análisis de voz (IA) */}
       {(r.sentimiento.length > 0 || r.temas.length > 0) && (
         <div className="grid lg:grid-cols-2 gap-4">
-          <Card title="Sentimiento" icon={Activity}>
-            <Barras data={r.sentimiento} colorMap={sentColor} />
-          </Card>
-          <Card title="Temas dominantes" icon={Activity}>
-            <Barras data={r.temas} colorClass="bg-violet-500" />
-          </Card>
+          <Card title="Sentimiento" icon={Activity}><SentimentDonut data={r.sentimiento} /></Card>
+          <Card title="Temas dominantes" icon={Activity}><TopicsBar data={r.temas} /></Card>
           {r.emociones.length > 0 && (
-            <Card title="Emociones" icon={Activity}>
-              <Barras data={r.emociones} colorClass="bg-blue-500" />
-            </Card>
+            <Card title="Emociones" icon={Activity}><Barras data={r.emociones} colorClass="bg-blue-500" /></Card>
           )}
           {r.citas.length > 0 && (
             <Card title="Voces ciudadanas" icon={MessageSquareQuote}>

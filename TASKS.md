@@ -34,8 +34,8 @@
 ## P1 — Demo con clientes (semanas 3–6)
 
 ### Dashboard resultados cliente
-- [x] **Fix 404 sidebar cliente** — creadas `/cliente/encuestas` (lista global de encuestas de los proyectos del cliente) y `/cliente/resultados` (placeholder "en preparación"). El sidebar enlazaba a rutas inexistentes.
-- [ ] **P1-01** Tablero de resultados real en `/cliente/resultados` — favorabilidad, sentimiento, temas dominantes consultando `nlp_outputs` (hoy es placeholder)
+- [x] **Fix 404 sidebar cliente** — creadas `/cliente/encuestas` y `/cliente/resultados`.
+- [x] **P1-01** Tableros de resultados — **por encuesta** (`/cliente/proyectos/[id]/encuestas/[eid]`) y **por proyecto** (`/cliente/proyectos/[id]/resultados`). KPIs + sentimiento (donut recharts) + temas (barras recharts) + emociones + voces ciudadanas + distribución por pregunta. Helper `lib/resultados.ts` agrega respuestas + `nlp_outputs`. ⚠ aún sin verificar ownership del proyecto vs cliente logueado (cierra con RLS, P2-01).
 - [ ] **P1-02** Encuesta detalle — `/cliente/proyectos/[id]/encuestas/[eid]` con estadísticas por pregunta y listado de respuestas
 - [ ] **P1-03** Exportar resultados CSV/PDF desde panel cliente
 
