@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   UserPlus, ClipboardList, MapPin, CheckCircle,
-  ChevronRight, Clock, LogOut, TrendingUp
+  ChevronRight, Clock, LogOut, TrendingUp, Wallet
 } from "lucide-react";
 
 type Survey = {
@@ -29,6 +29,7 @@ export default function EncuestadorHome() {
   const [nombre, setNombre] = useState("");
   const [surveys, setSurveys] = useState<Survey[]>([]);
   const [stats, setStats] = useState<DayStats>({ registrados: 0, verificados: 0, encuestas: 0 });
+  const [mes, setMes] = useState({ reclutados: 0, encuestas: 0, ganadoReclutamiento: 0, ganadoEncuestas: 0 });
   const [loading, setLoading] = useState(true);
   const [hora, setHora] = useState("");
 
@@ -80,6 +81,30 @@ export default function EncuestadorHome() {
           verificados: regCount ?? 0,
           encuestas: encCount ?? 0,
         });
+
+        // Ganancias del mes (devengado): reclutamiento + encuestas en campo
+        const mesInicio = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
+        const { data: cfg } = await supabase
+          .from("payment_config").select("encuesta_campo_cop, bono_reclutamiento_cop")
+          .order("created_at", { ascending: false }).limit(1).maybeSingle();
+        const campoCop = cfg?.encuesta_campo_cop ?? 0;
+        const bonoCop = cfg?.bono_reclutamiento_cop ?? 0;
+
+        const { count: reclutadosMes } = await supabase
+          .from("participants").select("id", { count: "exact", head: true })
+          .eq("recruited_by", op.id).gte("created_at", mesInicio);
+
+        const { data: respMes } = await supabase
+          .from("responses").select("participant_id, survey_id")
+          .eq("encuestador_id", op.id).gte("responded_at", mesInicio);
+        const encuestasMes = new Set((respMes ?? []).map(r => `${r.participant_id}|${r.survey_id}`)).size;
+
+        setMes({
+          reclutados: reclutadosMes ?? 0,
+          encuestas: encuestasMes,
+          ganadoReclutamiento: (reclutadosMes ?? 0) * bonoCop,
+          ganadoEncuestas: encuestasMes * campoCop,
+        });
       }
 
       setLoading(false);
@@ -126,6 +151,29 @@ export default function EncuestadorHome() {
       </div>
 
       <div className="px-5 py-6 space-y-6">
+
+        {/* Ganado este mes (devengado) */}
+        <section className="rounded-2xl bg-gradient-to-br from-emerald-800 to-emerald-950 border border-emerald-500/20 p-5 text-white">
+          <div className="flex items-center gap-2 mb-3">
+            <Wallet className="h-4 w-4 text-emerald-300" />
+            <h2 className="font-bold text-sm">Ganado este mes</h2>
+          </div>
+          <p className="text-3xl font-bold mb-3">
+            ${(mes.ganadoReclutamiento + mes.ganadoEncuestas).toLocaleString("es-CO")}
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-xl bg-white/5 p-3">
+              <p className="text-xs text-emerald-300">Reclutamiento</p>
+              <p className="font-bold">${mes.ganadoReclutamiento.toLocaleString("es-CO")}</p>
+              <p className="text-[11px] text-emerald-200/70">{mes.reclutados} panelista{mes.reclutados === 1 ? "" : "s"}</p>
+            </div>
+            <div className="rounded-xl bg-white/5 p-3">
+              <p className="text-xs text-emerald-300">Encuestas en campo</p>
+              <p className="font-bold">${mes.ganadoEncuestas.toLocaleString("es-CO")}</p>
+              <p className="text-[11px] text-emerald-200/70">{mes.encuestas} aplicada{mes.encuestas === 1 ? "" : "s"}</p>
+            </div>
+          </div>
+        </section>
 
         {/* Acción principal */}
         <Link href="/campo/encuestador/registrar">

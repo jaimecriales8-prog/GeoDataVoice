@@ -21,7 +21,7 @@ export default function PanelistaHome() {
   const [loading, setLoading] = useState(true);
   const [surveys, setSurveys] = useState<Survey[]>([]);
   const [totalGanado, setTotalGanado] = useState(0);
-  const [pendientePago, setPendientePago] = useState(0);
+  const [ganadoMes, setGanadoMes] = useState(0);
   const [respondidas, setRespondidas] = useState(0);
 
   useEffect(() => {
@@ -43,7 +43,7 @@ export default function PanelistaHome() {
       // 2. Respuestas previas del panelista (para excluir encuestas ya respondidas)
       const { data: misResp } = await supabase
         .from("responses")
-        .select("survey_id")
+        .select("id, survey_id, responded_at")
         .eq("participant_id", user.id);
       const respondidasIds = new Set((misResp ?? []).map(r => r.survey_id));
       setRespondidas(respondidasIds.size);
@@ -61,18 +61,30 @@ export default function PanelistaHome() {
       );
       setSurveys(conPreguntas);
 
-      // 4. Pagos del panelista
-      const { data: pagos } = await supabase
-        .from("payments")
-        .select("amount, status")
-        .eq("participant_id", user.id);
-      let ganado = 0, porCobrar = 0;
-      (pagos ?? []).forEach(p => {
-        if (p.status === "paid") ganado += p.amount ?? 0;
-        else porCobrar += p.amount ?? 0;
-      });
-      setTotalGanado(ganado);
-      setPendientePago(porCobrar);
+      // 4. Ganado (devengado): encuestas respondidas × tarifa + audios × tarifa
+      const { data: cfg } = await supabase
+        .from("payment_config").select("encuesta_cop, audio_cop")
+        .order("created_at", { ascending: false }).limit(1).maybeSingle();
+      const encuestaCop = cfg?.encuesta_cop ?? 0;
+      const audioCop = cfg?.audio_cop ?? 0;
+
+      const rows = misResp ?? [];
+      const mesInicio = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+      const surveysTotal = new Set(rows.map(r => r.survey_id)).size;
+      const surveysMes = new Set(rows.filter(r => new Date(r.responded_at) >= mesInicio).map(r => r.survey_id)).size;
+
+      // audios del panelista (vía sus responses)
+      let audiosTotal = 0, audiosMes = 0;
+      if (rows.length > 0) {
+        const { data: audioRows } = await supabase
+          .from("audio_responses").select("response_id, created_at")
+          .in("response_id", rows.map(r => r.id));
+        audiosTotal = (audioRows ?? []).length;
+        audiosMes = (audioRows ?? []).filter(a => a.created_at && new Date(a.created_at) >= mesInicio).length;
+      }
+
+      setTotalGanado(surveysTotal * encuestaCop + audiosTotal * audioCop);
+      setGanadoMes(surveysMes * encuestaCop + audiosMes * audioCop);
 
       setLoading(false);
     });
@@ -96,8 +108,8 @@ export default function PanelistaHome() {
         <div className="grid grid-cols-3 gap-3">
           {[
             { label: "Encuestas\npendientes", value: loading ? "—" : pendientes, color: "text-yellow-300" },
-            { label: "Total\nganado", value: loading ? "—" : `$${totalGanado.toLocaleString("es-CO")}`, color: "text-emerald-300" },
-            { label: "Por\ncobrar", value: loading ? "—" : `$${pendientePago.toLocaleString("es-CO")}`, color: "text-blue-200" },
+            { label: "Ganado\neste mes", value: loading ? "—" : `$${ganadoMes.toLocaleString("es-CO")}`, color: "text-emerald-300" },
+            { label: "Total\nganado", value: loading ? "—" : `$${totalGanado.toLocaleString("es-CO")}`, color: "text-blue-200" },
           ].map(({ label, value, color }) => (
             <div key={label} className="rounded-2xl bg-white/10 p-3 text-center">
               <div className={`text-lg font-bold ${color}`}>{value}</div>
