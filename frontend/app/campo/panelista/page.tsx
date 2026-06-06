@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { createClient } from "@/lib/supabase";
 import {
   Mic, ClipboardList, Wallet, Bell, ChevronRight,
-  CheckCircle, Clock, Star, TrendingUp
+  CheckCircle, Clock, Star, TrendingUp, Loader2
 } from "lucide-react";
 
 type Survey = {
@@ -12,32 +13,72 @@ type Survey = {
   name: string;
   wave: number;
   closes_at: string | null;
-  status: string;
+  preguntas: number;
 };
-
-// Mock data — conectar a Supabase cuando las tablas estén creadas
-const MOCK_SURVEYS: Survey[] = [
-  { id: "s1", name: "Pulso ciudadano — Junio 2026", wave: 3, closes_at: "2026-06-10", status: "pending" },
-  { id: "s2", name: "Satisfacción servicios públicos", wave: 2, closes_at: "2026-06-07", status: "pending" },
-];
-
-const MOCK_PAYMENTS = [
-  { id: "p1", concept: "Encuesta Ola 2", amount: 3000, status: "paid", date: "2026-05-28" },
-  { id: "p2", concept: "Audio Ola 2", amount: 2000, status: "paid", date: "2026-05-28" },
-  { id: "p3", concept: "Encuesta Ola 3", amount: 3000, status: "pending", date: "—" },
-];
 
 export default function PanelistaHome() {
   const [hora, setHora] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [surveys, setSurveys] = useState<Survey[]>([]);
+  const [totalGanado, setTotalGanado] = useState(0);
+  const [pendientePago, setPendientePago] = useState(0);
+  const [respondidas, setRespondidas] = useState(0);
 
   useEffect(() => {
     const h = new Date().getHours();
     setHora(h < 12 ? "Buenos días" : h < 18 ? "Buenas tardes" : "Buenas noches");
+
+    const supabase = createClient();
+    supabase.auth.getUser().then(async ({ data }) => {
+      const user = data.user;
+      if (!user) { setLoading(false); return; }
+
+      // 1. Encuestas activas
+      const { data: activas } = await supabase
+        .from("surveys")
+        .select("id, name, wave, closes_at")
+        .in("status", ["sent", "ready"])
+        .order("created_at", { ascending: false });
+
+      // 2. Respuestas previas del panelista (para excluir encuestas ya respondidas)
+      const { data: misResp } = await supabase
+        .from("responses")
+        .select("survey_id")
+        .eq("participant_id", user.id);
+      const respondidasIds = new Set((misResp ?? []).map(r => r.survey_id));
+      setRespondidas(respondidasIds.size);
+
+      // 3. Conteo de preguntas por encuesta pendiente
+      const pendientes = (activas ?? []).filter(s => !respondidasIds.has(s.id));
+      const conPreguntas: Survey[] = await Promise.all(
+        pendientes.map(async (s) => {
+          const { count } = await supabase
+            .from("questions")
+            .select("id", { count: "exact", head: true })
+            .eq("survey_id", s.id);
+          return { ...s, preguntas: count ?? 0 };
+        })
+      );
+      setSurveys(conPreguntas);
+
+      // 4. Pagos del panelista
+      const { data: pagos } = await supabase
+        .from("payments")
+        .select("amount, status")
+        .eq("participant_id", user.id);
+      let ganado = 0, porCobrar = 0;
+      (pagos ?? []).forEach(p => {
+        if (p.status === "paid") ganado += p.amount ?? 0;
+        else porCobrar += p.amount ?? 0;
+      });
+      setTotalGanado(ganado);
+      setPendientePago(porCobrar);
+
+      setLoading(false);
+    });
   }, []);
 
-  const pendientes = MOCK_SURVEYS.filter(s => s.status === "pending").length;
-  const totalGanado = MOCK_PAYMENTS.filter(p => p.status === "paid").reduce((s, p) => s + p.amount, 0);
-  const pendientePago = MOCK_PAYMENTS.filter(p => p.status === "pending").reduce((s, p) => s + p.amount, 0);
+  const pendientes = surveys.length;
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -54,9 +95,9 @@ export default function PanelistaHome() {
 
         <div className="grid grid-cols-3 gap-3">
           {[
-            { label: "Encuestas\npendientes", value: pendientes, color: "text-yellow-300" },
-            { label: "Total\nganado", value: `$${totalGanado.toLocaleString()}`, color: "text-emerald-300" },
-            { label: "Por\ncobrar", value: `$${pendientePago.toLocaleString()}`, color: "text-blue-200" },
+            { label: "Encuestas\npendientes", value: loading ? "—" : pendientes, color: "text-yellow-300" },
+            { label: "Total\nganado", value: loading ? "—" : `$${totalGanado.toLocaleString("es-CO")}`, color: "text-emerald-300" },
+            { label: "Por\ncobrar", value: loading ? "—" : `$${pendientePago.toLocaleString("es-CO")}`, color: "text-blue-200" },
           ].map(({ label, value, color }) => (
             <div key={label} className="rounded-2xl bg-white/10 p-3 text-center">
               <div className={`text-lg font-bold ${color}`}>{value}</div>
@@ -80,15 +121,19 @@ export default function PanelistaHome() {
             )}
           </div>
 
-          {MOCK_SURVEYS.length === 0 ? (
+          {loading ? (
+            <div className="space-y-3">
+              {[1, 2].map(n => <div key={n} className="h-20 animate-pulse rounded-2xl bg-white border border-slate-100" />)}
+            </div>
+          ) : surveys.length === 0 ? (
             <div className="rounded-2xl bg-white border border-slate-200 p-6 text-center">
               <CheckCircle className="h-8 w-8 text-emerald-400 mx-auto mb-2" />
               <p className="text-sm font-medium text-slate-700">¡Al día!</p>
-              <p className="text-xs text-slate-500 mt-1">No tienes encuestas pendientes.</p>
+              <p className="text-xs text-slate-500 mt-1">No tienes encuestas pendientes por ahora.</p>
             </div>
           ) : (
             <div className="space-y-3">
-              {MOCK_SURVEYS.map(survey => (
+              {surveys.map(survey => (
                 <Link key={survey.id} href={`/campo/panelista/encuesta/${survey.id}`}>
                   <div className="rounded-2xl bg-white border border-slate-200 p-4 flex items-center gap-4 active:bg-slate-50 transition-colors shadow-sm">
                     <div className="h-12 w-12 rounded-xl bg-blue-100 flex items-center justify-center shrink-0">
@@ -97,7 +142,7 @@ export default function PanelistaHome() {
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-slate-800 text-sm leading-tight">{survey.name}</p>
                       <div className="flex items-center gap-3 mt-1">
-                        <span className="text-xs text-slate-500">Ola {survey.wave}</span>
+                        <span className="text-xs text-slate-500">Ola {survey.wave} · {survey.preguntas} pregunta{survey.preguntas === 1 ? "" : "s"}</span>
                         {survey.closes_at && (
                           <span className="flex items-center gap-1 text-xs text-amber-600">
                             <Clock className="h-3 w-3" />
@@ -131,49 +176,21 @@ export default function PanelistaHome() {
                 <p className="text-xs text-slate-500">Ver historial</p>
               </div>
             </Link>
-            <Link href="/campo/panelista/encuesta/demo">
-              <div className="rounded-2xl bg-white border border-slate-200 p-5 flex flex-col items-center gap-2 text-center active:bg-slate-50 transition-colors shadow-sm">
-                <div className="h-12 w-12 rounded-xl bg-violet-100 flex items-center justify-center">
-                  <Mic className="h-6 w-6 text-violet-600" />
-                </div>
-                <p className="text-sm font-semibold text-slate-800">Encuesta demo</p>
-                <p className="text-xs text-slate-500">Probar flujo</p>
+            <div className="rounded-2xl bg-white border border-slate-200 p-5 flex flex-col items-center gap-2 text-center shadow-sm">
+              <div className="h-12 w-12 rounded-xl bg-violet-100 flex items-center justify-center">
+                <TrendingUp className="h-6 w-6 text-violet-600" />
               </div>
-            </Link>
-          </div>
-        </section>
-
-        <section className="rounded-2xl bg-gradient-to-r from-blue-600 to-blue-800 p-5 text-white">
-          <div className="flex items-center gap-2 mb-4">
-            <TrendingUp className="h-4 w-4 text-blue-200" />
-            <h2 className="font-bold text-sm">Mi progreso en el panel</h2>
-          </div>
-          <div className="space-y-3">
-            {[
-              { label: "Encuestas respondidas", value: 8, total: 10 },
-              { label: "Audios enviados", value: 6, total: 10 },
-              { label: "Pagos recibidos", value: 5, total: 6 },
-            ].map(({ label, value, total }) => (
-              <div key={label}>
-                <div className="flex justify-between text-xs mb-1">
-                  <span className="text-blue-200">{label}</span>
-                  <span className="font-semibold">{value}/{total}</span>
-                </div>
-                <div className="h-2 rounded-full bg-white/20 overflow-hidden">
-                  <div className="h-full bg-white rounded-full transition-all"
-                    style={{ width: `${(value / total) * 100}%` }} />
-                </div>
-              </div>
-            ))}
+              <p className="text-sm font-semibold text-slate-800">{respondidas}</p>
+              <p className="text-xs text-slate-500">Encuestas respondidas</p>
+            </div>
           </div>
         </section>
       </div>
 
       {/* Bottom nav */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-6 py-3 grid grid-cols-3 gap-1">
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-6 py-3 grid grid-cols-2 gap-1">
         {[
           { icon: ClipboardList, label: "Encuestas", href: "/campo/panelista", active: true },
-          { icon: Mic, label: "Audio", href: "/campo/panelista/encuesta/demo", active: false },
           { icon: Wallet, label: "Pagos", href: "/campo/panelista/pagos", active: false },
         ].map(({ icon: Icon, label, href, active }) => (
           <Link key={label} href={href}
@@ -184,6 +201,7 @@ export default function PanelistaHome() {
         ))}
       </div>
       <div className="h-20" />
+      {loading && <Loader2 className="hidden" />}
     </div>
   );
 }

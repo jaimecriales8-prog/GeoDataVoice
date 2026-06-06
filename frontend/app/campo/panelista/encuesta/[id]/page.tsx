@@ -1,69 +1,81 @@
 "use client";
 
-import { useState, useRef, use, useEffect } from "react";
+import { useState, useRef, use, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase";
 import {
   ArrowLeft, ArrowRight, Mic, Square, CheckCircle,
-  Loader2, Send, Volume2
+  Loader2, Send, Volume2, AlertCircle
 } from "lucide-react";
 
-const DEMO_QUESTIONS = [
-  {
-    id: "q1",
-    type: "single_choice",
-    text: "¿Qué tan satisfecho estás con los servicios públicos en tu barrio?",
-    options: ["Muy satisfecho", "Satisfecho", "Insatisfecho", "Muy insatisfecho"],
-    audio_prompt: "¿Por qué calificaste así los servicios públicos?",
-  },
-  {
-    id: "q2",
-    type: "scale",
-    text: "Del 1 al 5, ¿cómo calificarías la gestión del alcalde en los últimos 3 meses?",
-    options: ["1 — Muy mala", "2 — Mala", "3 — Regular", "4 — Buena", "5 — Excelente"],
-    audio_prompt: "Cuéntanos qué cosas concretas influyeron en tu calificación.",
-  },
-  {
-    id: "q3",
-    type: "single_choice",
-    text: "¿Cuál es el problema más urgente en tu comunidad?",
-    options: ["Seguridad", "Empleo", "Salud", "Educación", "Servicios públicos", "Movilidad"],
-    audio_prompt: "Explícanos con tus palabras por qué ese problema te afecta más.",
-  },
-  {
-    id: "q4",
-    type: "single_choice",
-    text: "¿Recomendarías a tus vecinos participar en este tipo de encuestas?",
-    options: ["Sí, definitivamente", "Sí, probablemente", "No lo sé", "No creo"],
-    audio_prompt: "¿Qué cambiarías o mejorarías de esta experiencia?",
-  },
-];
+type Question = {
+  id: string;
+  type: string;
+  text: string;
+  options: { choices?: string[] } | null;
+  required: boolean;
+  order: number;
+};
 
 type StepState = "answering" | "recording";
 
 export default function EncuestaPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
+  const { id: surveyId } = use(params);
   const router = useRouter();
+
+  const [userId, setUserId] = useState<string | null>(null);
+  const [surveyName, setSurveyName] = useState("");
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const [step, setStep] = useState(0);
   const [substep, setSubstep] = useState<StepState>("answering");
   const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [audios, setAudios] = useState<Record<string, string | null>>({});
+  const [audioUrls, setAudioUrls] = useState<Record<string, string | null>>({});
 
   const [recording, setRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
 
   const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  const [resumen, setResumen] = useState({ respuestas: 0, audios: 0 });
 
   const mediaRef = useRef<MediaRecorder | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const chunksRef = useRef<BlobPart[]>([]);
+  const audioBlobs = useRef<Record<string, Blob>>({});
+  const audioDurations = useRef<Record<string, number>>({});
 
-  const questions = DEMO_QUESTIONS;
+  // ── Cargar encuesta + preguntas reales ───────────────────────────────────
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(async ({ data }) => {
+      if (!data.user) { router.push("/login"); return; }
+      setUserId(data.user.id);
+
+      const { data: survey } = await supabase
+        .from("surveys").select("id, name").eq("id", surveyId).maybeSingle();
+      if (!survey) { setLoadError("Esta encuesta no existe o ya no está disponible."); setLoading(false); return; }
+      setSurveyName(survey.name);
+
+      const { data: qs } = await supabase
+        .from("questions")
+        .select("id, type, text, options, required, order")
+        .eq("survey_id", surveyId)
+        .order("order", { ascending: true });
+
+      if (!qs || qs.length === 0) { setLoadError("Esta encuesta aún no tiene preguntas."); setLoading(false); return; }
+      setQuestions(qs as Question[]);
+      setLoading(false);
+    });
+  }, [surveyId, router]);
+
   const current = questions[step];
   const isLastQuestion = step === questions.length - 1;
-  const totalSteps = questions.length * 2;
+  const totalSteps = Math.max(questions.length * 2, 1);
   const currentStepNum = step * 2 + (substep === "recording" ? 1 : 0) + 1;
   const progress = (currentStepNum / totalSteps) * 100;
 
@@ -75,14 +87,15 @@ export default function EncuestaPage({ params }: { params: Promise<{ id: string 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       chunksRef.current = [];
-      const qid = current.id; // fijar la pregunta de esta grabación (evita closure stale)
+      const qid = current.id;
       const mr = new MediaRecorder(stream);
       mr.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data); };
       mr.onstop = () => {
         const blob = new Blob(chunksRef.current, { type: "audio/webm" });
         const url = URL.createObjectURL(blob);
+        audioBlobs.current[qid] = blob;
         setAudioUrl(url);
-        setAudios(prev => ({ ...prev, [qid]: url }));
+        setAudioUrls(prev => ({ ...prev, [qid]: url }));
         stream.getTracks().forEach(t => t.stop());
       };
       mr.start();
@@ -90,8 +103,10 @@ export default function EncuestaPage({ params }: { params: Promise<{ id: string 
       setRecording(true);
       setRecordingTime(0);
       timerRef.current = setInterval(() => setRecordingTime(t => {
-        if (t >= 119) { stopRecording(); return t; }
-        return t + 1;
+        const next = t + 1;
+        audioDurations.current[current.id] = next;
+        if (next >= 120) { stopRecording(); return 120; }
+        return next;
       }), 1000);
     } catch {
       alert("No se pudo acceder al micrófono. Verifica los permisos del navegador.");
@@ -99,51 +114,101 @@ export default function EncuestaPage({ params }: { params: Promise<{ id: string 
   }
 
   function stopRecording() {
-    if (mediaRef.current && mediaRef.current.state !== "inactive") {
-      mediaRef.current.stop();
-    }
+    if (mediaRef.current && mediaRef.current.state !== "inactive") mediaRef.current.stop();
     mediaRef.current = null;
     setRecording(false);
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
   }
 
-  // Detiene y descarta cualquier grabación en curso (al navegar entre preguntas)
-  function cancelRecording() {
+  const cancelRecording = useCallback(() => {
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
     if (mediaRef.current && mediaRef.current.state !== "inactive") {
-      mediaRef.current.onstop = null; // no guardar el blob descartado
+      mediaRef.current.onstop = null;
       mediaRef.current.stream?.getTracks().forEach(t => t.stop());
       mediaRef.current.stop();
     }
     mediaRef.current = null;
     setRecording(false);
     setRecordingTime(0);
-  }
+  }, []);
 
-  // Limpieza al desmontar el componente
-  useEffect(() => () => cancelRecording(), []);
+  useEffect(() => () => cancelRecording(), [cancelRecording]);
 
   function resetAudio() {
+    delete audioBlobs.current[current.id];
+    delete audioDurations.current[current.id];
     setAudioUrl(null);
-    setAudios(prev => ({ ...prev, [current.id]: null }));
+    setAudioUrls(prev => ({ ...prev, [current.id]: null }));
+  }
+
+  // ── Guardar todo en Supabase ─────────────────────────────────────────────
+  async function submitEncuesta() {
+    if (!userId) return;
+    setSubmitting(true);
+    setSubmitError(null);
+    const supabase = createClient();
+
+    let respuestasOk = 0, audiosOk = 0;
+    try {
+      for (const q of questions) {
+        const value = answers[q.id] ?? "";
+        const responseId = crypto.randomUUID();
+
+        const { error: rErr } = await supabase.from("responses").insert({
+          id: responseId,
+          participant_id: userId,
+          survey_id: surveyId,
+          question_id: q.id,
+          value,
+          quality: "complete",
+          responded_at: new Date().toISOString(),
+        });
+        if (rErr) throw new Error(`Respuesta: ${rErr.message}`);
+        respuestasOk++;
+
+        // Subir audio si existe (vía route handler con service role)
+        const blob = audioBlobs.current[q.id];
+        if (blob) {
+          const fd = new FormData();
+          fd.append("file", blob, `${q.id}.webm`);
+          fd.append("surveyId", surveyId);
+          fd.append("questionId", q.id);
+          const up = await fetch("/api/audio/upload", { method: "POST", body: fd });
+          if (up.ok) {
+            const { path } = await up.json();
+            await supabase.from("audio_responses").insert({
+              id: crypto.randomUUID(),
+              response_id: responseId,
+              audio_url: path,
+              duration_seconds: audioDurations.current[q.id] ?? null,
+              quality: "pending",
+            });
+            audiosOk++;
+          }
+        }
+      }
+      setResumen({ respuestas: respuestasOk, audios: audiosOk });
+      setDone(true);
+    } catch (e) {
+      setSubmitError(e instanceof Error ? e.message : "Error al guardar tus respuestas.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   async function handleNext() {
-    if (recording) return; // no avanzar mientras se graba (debe detener primero)
+    if (recording) return;
     if (substep === "answering") {
       setSubstep("recording");
-      setAudioUrl(audios[current.id] || null);
+      setAudioUrl(audioUrls[current.id] || null);
     } else {
       cancelRecording();
       if (isLastQuestion) {
-        setSubmitting(true);
-        await new Promise(r => setTimeout(r, 1800));
-        setSubmitting(false);
-        setDone(true);
+        await submitEncuesta();
       } else {
         setStep(s => s + 1);
         setSubstep("answering");
-        setAudioUrl(audios[questions[step + 1]?.id] || null);
+        setAudioUrl(audioUrls[questions[step + 1]?.id] || null);
       }
     }
   }
@@ -155,13 +220,36 @@ export default function EncuestaPage({ params }: { params: Promise<{ id: string 
     } else if (step > 0) {
       setStep(s => s - 1);
       setSubstep("recording");
-      setAudioUrl(audios[questions[step - 1]?.id] || null);
+      setAudioUrl(audioUrls[questions[step - 1]?.id] || null);
     } else {
       router.back();
     }
   }
 
-  const canContinue = substep === "answering" ? !!answers[current.id] : !recording;
+  const canContinue = substep === "answering" ? !!answers[current?.id] : !recording;
+
+  // ── Estados de carga / error ─────────────────────────────────────────────
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <Loader2 className="h-8 w-8 text-blue-600 animate-spin" />
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center px-6 text-center">
+        <AlertCircle className="h-12 w-12 text-amber-500 mb-4" />
+        <h1 className="text-xl font-bold text-slate-900 mb-2">No se pudo abrir la encuesta</h1>
+        <p className="text-slate-600 mb-6 text-sm">{loadError}</p>
+        <button onClick={() => router.push("/campo/panelista")}
+          className="rounded-xl bg-blue-600 hover:bg-blue-700 px-7 py-3 text-white font-semibold transition-colors">
+          Volver al inicio
+        </button>
+      </div>
+    );
+  }
 
   if (done) {
     return (
@@ -170,27 +258,17 @@ export default function EncuestaPage({ params }: { params: Promise<{ id: string 
           <CheckCircle className="h-10 w-10 text-emerald-500" />
         </div>
         <h1 className="text-2xl font-bold text-slate-900 mb-2">¡Gracias!</h1>
-        <p className="text-slate-600 mb-2">Tu respuesta fue registrada correctamente.</p>
+        <p className="text-slate-600 mb-6">Tus respuestas fueron guardadas correctamente.</p>
 
         <div className="w-full max-w-xs rounded-2xl bg-white border border-slate-200 p-5 mb-6 space-y-3">
           <div className="flex justify-between text-sm">
             <span className="text-slate-500">Preguntas respondidas</span>
-            <span className="font-bold text-slate-800">{Object.keys(answers).length}/{questions.length}</span>
+            <span className="font-bold text-slate-800">{resumen.respuestas}/{questions.length}</span>
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-slate-500">Notas de voz enviadas</span>
-            <span className="font-bold text-slate-800">
-              {Object.values(audios).filter(Boolean).length}/{questions.length}
-            </span>
+            <span className="font-bold text-slate-800">{resumen.audios}</span>
           </div>
-          <div className="border-t border-slate-100 pt-3 flex justify-between text-sm">
-            <span className="text-slate-500">Incentivo</span>
-            <span className="font-bold text-emerald-600">+$3.000 COP</span>
-          </div>
-        </div>
-
-        <div className="rounded-xl bg-emerald-50 border border-emerald-200 px-5 py-3 mb-8 w-full max-w-xs">
-          <p className="text-emerald-700 font-semibold text-sm">Se acreditará en tu Nequi en 48h</p>
         </div>
 
         <button onClick={() => router.push("/campo/panelista")}
@@ -210,9 +288,9 @@ export default function EncuestaPage({ params }: { params: Promise<{ id: string 
         <div className="flex-1">
           <div className="flex justify-between text-xs text-slate-500 mb-1.5">
             <span>
-              {substep === "answering" ? `Pregunta ${step + 1} de ${questions.length}` : "Nota de voz"}
+              {substep === "answering" ? `Pregunta ${step + 1} de ${questions.length}` : "Nota de voz (opcional)"}
             </span>
-            <span className="font-semibold text-blue-600">+$3.000 al finalizar</span>
+            <span className="font-semibold text-blue-600 truncate ml-2">{surveyName}</span>
           </div>
           <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
             <div className="h-full bg-blue-600 rounded-full transition-all duration-500"
@@ -221,7 +299,7 @@ export default function EncuestaPage({ params }: { params: Promise<{ id: string 
         </div>
       </div>
 
-      {substep === "answering" && (
+      {substep === "answering" && current && (
         <div className="flex-1 flex flex-col px-5 py-8">
           <span className="text-xs font-semibold text-blue-600 uppercase tracking-wider mb-2">
             Pregunta {step + 1}
@@ -229,7 +307,7 @@ export default function EncuestaPage({ params }: { params: Promise<{ id: string 
           <h2 className="text-xl font-bold text-slate-900 leading-snug mb-8">{current.text}</h2>
 
           <div className="space-y-3 flex-1">
-            {current.options.map(opt => (
+            {(current.options?.choices ?? []).map(opt => (
               <button key={opt} onClick={() => selectAnswer(opt)}
                 className={`w-full text-left rounded-2xl border-2 px-5 py-4 text-sm font-medium transition-all active:scale-[0.98] ${
                   answers[current.id] === opt
@@ -250,7 +328,7 @@ export default function EncuestaPage({ params }: { params: Promise<{ id: string 
         </div>
       )}
 
-      {substep === "recording" && (
+      {substep === "recording" && current && (
         <div className="flex-1 flex flex-col px-5 py-6">
           <div className="rounded-2xl bg-blue-50 border border-blue-100 px-4 py-3 mb-6">
             <p className="text-xs text-blue-500 font-medium mb-0.5">Tu respuesta</p>
@@ -260,9 +338,11 @@ export default function EncuestaPage({ params }: { params: Promise<{ id: string 
           <div className="mb-6">
             <div className="flex items-center gap-2 mb-2">
               <Volume2 className="h-4 w-4 text-slate-500" />
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Ahora cuéntanos</span>
+              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Cuéntanos más (opcional)</span>
             </div>
-            <h2 className="text-xl font-bold text-slate-900 leading-snug">{current.audio_prompt}</h2>
+            <h2 className="text-lg font-bold text-slate-900 leading-snug">
+              ¿Quieres ampliar tu respuesta con una nota de voz?
+            </h2>
             <p className="text-sm text-slate-500 mt-2">
               Habla con naturalidad. Máximo 2 minutos. Puedes omitir si no quieres grabar.
             </p>
@@ -290,13 +370,11 @@ export default function EncuestaPage({ params }: { params: Promise<{ id: string 
                     </>
                   )}
                 </button>
-
                 {recording && (
                   <div className="flex items-center gap-1 h-8">
                     {[...Array(12)].map((_, i) => (
                       <div key={i} className="w-1.5 bg-red-400 rounded-full animate-pulse"
-                        style={{ height: `${Math.sin(i * 0.8) * 12 + 16}px`, animationDuration: `${0.4 + i * 0.07}s` }}
-                      />
+                        style={{ height: `${Math.sin(i * 0.8) * 12 + 16}px`, animationDuration: `${0.4 + i * 0.07}s` }} />
                     ))}
                   </div>
                 )}
@@ -321,10 +399,15 @@ export default function EncuestaPage({ params }: { params: Promise<{ id: string 
       )}
 
       <div className="px-5 py-5 bg-white border-t border-slate-100 space-y-2">
+        {submitError && (
+          <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-2.5 text-sm text-red-600 flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 shrink-0" /> {submitError}
+          </div>
+        )}
         <button onClick={handleNext} disabled={!canContinue || submitting}
           className="w-full flex items-center justify-center gap-2 rounded-2xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:opacity-40 py-4 text-white font-semibold text-base transition-colors">
           {submitting ? (
-            <><Loader2 className="h-5 w-5 animate-spin" />Enviando...</>
+            <><Loader2 className="h-5 w-5 animate-spin" />Guardando...</>
           ) : substep === "answering" ? (
             <>Continuar <ArrowRight className="h-5 w-5" /></>
           ) : isLastQuestion ? (
@@ -335,7 +418,7 @@ export default function EncuestaPage({ params }: { params: Promise<{ id: string 
         </button>
 
         {substep === "recording" && !audioUrl && !recording && (
-          <button onClick={handleNext}
+          <button onClick={handleNext} disabled={submitting}
             className="w-full py-3 text-sm text-slate-400 hover:text-slate-600 transition-colors">
             Omitir nota de voz
           </button>
