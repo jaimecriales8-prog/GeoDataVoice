@@ -191,7 +191,8 @@ function VerificacionConCamara({ userId, role }: { userId: string; role: string 
       if (!res.ok) { setPaso("declinado"); return; }
       setPaso("aprobado");
       const destino = role === "panelista" ? "/campo/panelista" : "/campo/encuestador";
-      setTimeout(() => router.push(destino), 2500);
+      // Recarga dura para que el middleware re-evalúe el kyc_status ya aprobado
+      setTimeout(() => { window.location.href = destino; }, 2000);
     } catch {
       setPaso("declinado");
     }
@@ -369,7 +370,7 @@ export default function VerificarIdentidadPage() {
           .maybeSingle();
         if (data?.kyc_status === "approved") {
           setYaVerificado(true);
-          setTimeout(() => router.push("/campo/panelista"), 1500);
+          setTimeout(() => { window.location.href = "/campo/panelista"; }, 1500);
           return;
         }
       }
@@ -402,10 +403,10 @@ export default function VerificarIdentidadPage() {
                   .from("participants").select("kyc_status").eq("id", userId).single();
                 if (p?.kyc_status === "approved") {
                   clearInterval(poll);
-                  router.push("/campo/panelista");
+                  window.location.href = "/campo/panelista";
                 } else if (n >= 36) {
                   clearInterval(poll);
-                  router.push("/campo/panelista");
+                  window.location.href = "/campo/panelista";
                 }
               }, 5000); // 5s × 36 = 3 min
             }
