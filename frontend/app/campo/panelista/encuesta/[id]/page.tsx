@@ -310,6 +310,9 @@ export default function EncuestaPage({ params }: { params: Promise<{ id: string 
             <p className="text-amber-600 text-xs">
               Tus respuestas sí quedaron guardadas. {resumen.fallos.length} nota(s) de voz fallaron al subir.
             </p>
+            {resumen.fallos[0] && (
+              <p className="text-amber-500 text-[11px] mt-1 break-words">Detalle: {resumen.fallos[0]}</p>
+            )}
           </div>
         )}
 
