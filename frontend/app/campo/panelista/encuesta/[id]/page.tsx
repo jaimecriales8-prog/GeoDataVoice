@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, use } from "react";
+import { useState, useRef, use, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft, ArrowRight, Mic, Square, CheckCircle,
@@ -75,13 +75,14 @@ export default function EncuestaPage({ params }: { params: Promise<{ id: string 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       chunksRef.current = [];
+      const qid = current.id; // fijar la pregunta de esta grabación (evita closure stale)
       const mr = new MediaRecorder(stream);
       mr.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data); };
       mr.onstop = () => {
         const blob = new Blob(chunksRef.current, { type: "audio/webm" });
         const url = URL.createObjectURL(blob);
         setAudioUrl(url);
-        setAudios(prev => ({ ...prev, [current.id]: url }));
+        setAudios(prev => ({ ...prev, [qid]: url }));
         stream.getTracks().forEach(t => t.stop());
       };
       mr.start();
@@ -98,10 +99,29 @@ export default function EncuestaPage({ params }: { params: Promise<{ id: string 
   }
 
   function stopRecording() {
-    mediaRef.current?.stop();
+    if (mediaRef.current && mediaRef.current.state !== "inactive") {
+      mediaRef.current.stop();
+    }
+    mediaRef.current = null;
     setRecording(false);
-    if (timerRef.current) clearInterval(timerRef.current);
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
   }
+
+  // Detiene y descarta cualquier grabación en curso (al navegar entre preguntas)
+  function cancelRecording() {
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+    if (mediaRef.current && mediaRef.current.state !== "inactive") {
+      mediaRef.current.onstop = null; // no guardar el blob descartado
+      mediaRef.current.stream?.getTracks().forEach(t => t.stop());
+      mediaRef.current.stop();
+    }
+    mediaRef.current = null;
+    setRecording(false);
+    setRecordingTime(0);
+  }
+
+  // Limpieza al desmontar el componente
+  useEffect(() => () => cancelRecording(), []);
 
   function resetAudio() {
     setAudioUrl(null);
@@ -109,10 +129,12 @@ export default function EncuestaPage({ params }: { params: Promise<{ id: string 
   }
 
   async function handleNext() {
+    if (recording) return; // no avanzar mientras se graba (debe detener primero)
     if (substep === "answering") {
       setSubstep("recording");
       setAudioUrl(audios[current.id] || null);
     } else {
+      cancelRecording();
       if (isLastQuestion) {
         setSubmitting(true);
         await new Promise(r => setTimeout(r, 1800));
@@ -127,6 +149,7 @@ export default function EncuestaPage({ params }: { params: Promise<{ id: string 
   }
 
   function handleBack() {
+    cancelRecording();
     if (substep === "recording") {
       setSubstep("answering");
     } else if (step > 0) {
@@ -138,7 +161,7 @@ export default function EncuestaPage({ params }: { params: Promise<{ id: string 
     }
   }
 
-  const canContinue = substep === "answering" ? !!answers[current.id] : true;
+  const canContinue = substep === "answering" ? !!answers[current.id] : !recording;
 
   if (done) {
     return (
