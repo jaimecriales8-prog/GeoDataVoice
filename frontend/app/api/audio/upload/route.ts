@@ -30,13 +30,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Faltan campos (file, surveyId, questionId)" }, { status: 400 });
   }
 
-  const path = `${user.id}/${surveyId}/${questionId}.webm`;
+  // Extensión y contentType reales (Safari graba mp4, Chrome webm)
+  const ext = (file.name.split(".").pop() || "webm").toLowerCase();
+  const contentType = file.type || "audio/webm";
+  const path = `${user.id}/${surveyId}/${questionId}.${ext}`;
   const bytes = new Uint8Array(await file.arrayBuffer());
 
   const service = createServiceClient();
   const { error } = await service.storage
     .from("geodatavoice-audio")
-    .upload(path, bytes, { contentType: "audio/webm", upsert: true });
+    .upload(path, bytes, { contentType, upsert: true });
 
   if (error) {
     console.error("[audio/upload]", error);

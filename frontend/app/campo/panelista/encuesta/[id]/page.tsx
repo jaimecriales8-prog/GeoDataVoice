@@ -19,6 +19,21 @@ type Question = {
 
 type StepState = "answering" | "recording";
 
+// Elige un formato de audio soportado por el navegador (Safari usa mp4, Chrome webm)
+function pickAudioMime(): string {
+  const candidates = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg"];
+  if (typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported) {
+    for (const c of candidates) if (MediaRecorder.isTypeSupported(c)) return c;
+  }
+  return "";
+}
+function extFromMime(mime: string): string {
+  if (mime.includes("mp4")) return "mp4";
+  if (mime.includes("ogg")) return "ogg";
+  if (mime.includes("mpeg")) return "mp3";
+  return "webm";
+}
+
 export default function EncuestaPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: surveyId } = use(params);
   const router = useRouter();
@@ -47,6 +62,7 @@ export default function EncuestaPage({ params }: { params: Promise<{ id: string 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const chunksRef = useRef<BlobPart[]>([]);
   const audioBlobs = useRef<Record<string, Blob>>({});
+  const audioMimes = useRef<Record<string, string>>({});
   const audioDurations = useRef<Record<string, number>>({});
 
   // ── Cargar encuesta + preguntas reales ───────────────────────────────────
@@ -88,12 +104,15 @@ export default function EncuestaPage({ params }: { params: Promise<{ id: string 
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       chunksRef.current = [];
       const qid = current.id;
-      const mr = new MediaRecorder(stream);
+      const mime = pickAudioMime();
+      const mr = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
       mr.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data); };
       mr.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+        const type = mr.mimeType || mime || "audio/webm";
+        const blob = new Blob(chunksRef.current, { type });
         const url = URL.createObjectURL(blob);
         audioBlobs.current[qid] = blob;
+        audioMimes.current[qid] = type;
         setAudioUrl(url);
         setAudioUrls(prev => ({ ...prev, [qid]: url }));
         stream.getTracks().forEach(t => t.stop());
@@ -169,8 +188,9 @@ export default function EncuestaPage({ params }: { params: Promise<{ id: string 
         // Subir audio si existe (vía route handler con service role)
         const blob = audioBlobs.current[q.id];
         if (blob) {
+          const ext = extFromMime(audioMimes.current[q.id] || "audio/webm");
           const fd = new FormData();
-          fd.append("file", blob, `${q.id}.webm`);
+          fd.append("file", blob, `${q.id}.${ext}`);
           fd.append("surveyId", surveyId);
           fd.append("questionId", q.id);
           const up = await fetch("/api/audio/upload", { method: "POST", body: fd });
