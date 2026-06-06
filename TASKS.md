@@ -58,9 +58,9 @@
 - [ ] **P1-06e** Agregar variables de email a Preview en Vercel (hoy solo en Production)
 
 ### Pagos a panelistas
-- [ ] **P1-08** Vista `/campo/panelista/pagos` conectada a tabla `payments` (actualmente usa mock)
-- [ ] **P1-09** Lógica de creación de `payments` al completar encuesta/audio (actualmente el mensaje "+$3.000" es hardcodeado)
-- [ ] **P1-10** Página de configuración de tarifas en dashboard admin — conectar a `payment_config`
+- [x] **Ganancias devengadas en vivo** — home panelista ("ganado este mes" + "total" = encuestas × `encuesta_cop` + audios × `audio_cop`); home encuestador ("ganado este mes" = reclutados × bono + encuestas campo × `encuesta_campo_cop`). Calculado desde la actividad, no desde `payments`.
+- [x] **P1-10** Configuración de tarifas en `dashboard/pagos` conectada a `payment_config` (incl. bono reclutamiento)
+- [ ] **P1-08/09** Dispersión real de pagos: registrar cada pago en `payments` (Nequi/Daviplata) para distinguir devengado vs pagado vs por cobrar. Hoy se muestra solo lo devengado.
 
 ### Verificación de identidad
 - [x] **P1-11** KYC con **AutenTIC** (Veriff Colombia) en `/campo/verificar-identidad` — doble modo (simulación + SDK real), igual que CertiLaboral
