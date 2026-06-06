@@ -6,10 +6,10 @@ import { createClient } from "@/lib/supabase";
 import {
   ArrowLeft, ArrowRight, MapPin, User, Phone, CheckCircle,
   AlertCircle, Loader2, Navigation, Camera, RefreshCw, CheckCircle2,
-  Shield, ClipboardList, Mic, Square, Volume2, Send
+  Shield, ClipboardList, Mic, Square, Volume2, Send, ChevronRight
 } from "lucide-react";
 
-type Step = "datos" | "identidad" | "consentimientos" | "gps" | "encuesta" | "exito";
+type Step = "seleccion" | "datos" | "identidad" | "consentimientos" | "gps" | "encuesta" | "exito";
 type FotoTipo = "frente" | "reverso" | "rostro";
 
 async function sha256(text: string): Promise<string> {
@@ -130,15 +130,19 @@ function CamaraCaptura({ instruccion, onCaptura, modo = "environment" }: {
 function RegistrarPanelistaContent() {
   const router = useRouter();
   const params = useSearchParams();
-  const surveyId = params.get("survey_id");
+  const [surveyId, setSurveyId] = useState<string | null>(params.get("survey_id"));
 
-  const [step, setStep] = useState<Step>("datos");
+  const [step, setStep] = useState<Step>(params.get("survey_id") ? "datos" : "seleccion");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [operadorId, setOperadorId] = useState<string | null>(null);
   const [codigoReclutador, setCodigoReclutador] = useState<string | null>(null);
   const [identityRequired, setIdentityRequired] = useState(true);
   const [participantId, setParticipantId] = useState<string | null>(null);
+
+  // Encuestas disponibles para aplicar (cuando se entra sin una seleccionada)
+  const [disponibles, setDisponibles] = useState<{ id: string; name: string; wave: number }[]>([]);
+  const [loadingDisp, setLoadingDisp] = useState(true);
 
   // Datos básicos
   const [form, setForm] = useState({ nombre: "", documento: "", telefono: "", municipio: "", barrio: "", genero: "", anio: "" });
@@ -174,6 +178,13 @@ function RegistrarPanelistaContent() {
       const { data: op } = await supabase.from("field_operators").select("id, recruiter_code").eq("user_id", data.user.id).maybeSingle();
       if (op) { setOperadorId(op.id); setCodigoReclutador(op.recruiter_code); }
     });
+    // Encuestas disponibles para aplicar en campo
+    createClient().from("surveys")
+      .select("id, name, wave")
+      .in("perfil_objetivo", ["encuestador", "ambos"])
+      .eq("status", "sent")
+      .order("created_at", { ascending: false })
+      .then(({ data }) => { setDisponibles(data ?? []); setLoadingDisp(false); });
     if (surveyId) {
       const supabase = createClient();
       supabase.from("surveys").select("name, project_id, questions(id, type, text, options, order)")
@@ -352,11 +363,59 @@ function RegistrarPanelistaContent() {
     rostro: { label: "Foto del panelista", instruccion: "Apunta la cámara al ROSTRO del panelista — que mire directo", modo: "environment" },
   };
 
+  // ── Selección de encuesta (sin la cual no se puede encuestar) ───────────────
+  if (step === "seleccion") {
+    return (
+      <div className="flex flex-col min-h-screen bg-slate-900">
+        <header className="bg-emerald-900 px-5 py-4 flex items-center gap-3">
+          <button onClick={() => router.push("/campo/encuestador")} className="text-emerald-300 active:text-white">
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+          <p className="text-sm font-semibold text-white">Encuestar en campo</p>
+        </header>
+        <main className="flex-1 px-5 py-6">
+          <p className="text-sm text-slate-400 mb-4">Elige la encuesta que vas a aplicar:</p>
+          {loadingDisp ? (
+            <div className="space-y-2">{[1, 2].map(n => <div key={n} className="h-16 animate-pulse rounded-2xl bg-slate-800" />)}</div>
+          ) : disponibles.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-white/10 py-14 text-center">
+              <ClipboardList className="h-10 w-10 text-slate-700 mx-auto mb-3" />
+              <p className="text-slate-300 text-sm font-medium">No hay encuestas disponibles</p>
+              <p className="text-xs text-slate-500 mt-1 max-w-xs mx-auto">
+                No puedes encuestar en campo sin una encuesta activa. Pídele a tu coordinador que publique una para encuestadores.
+              </p>
+              <button onClick={() => router.push("/campo/encuestador")}
+                className="mt-5 rounded-xl bg-emerald-600 hover:bg-emerald-500 px-5 py-2.5 text-sm font-semibold text-white">
+                Volver al inicio
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {disponibles.map(s => (
+                <button key={s.id} onClick={() => { setSurveyId(s.id); setStep("datos"); }}
+                  className="w-full text-left rounded-2xl bg-slate-800 border border-white/5 p-4 flex items-center gap-4 hover:bg-slate-700 transition-colors active:scale-[0.98]">
+                  <div className="h-11 w-11 rounded-xl bg-emerald-500/20 flex items-center justify-center shrink-0">
+                    <ClipboardList className="h-5 w-5 text-emerald-400" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-white text-sm leading-tight">{s.name}</p>
+                    <p className="text-xs text-slate-400 mt-0.5">Ola {s.wave}</p>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-slate-500 shrink-0" />
+                </button>
+              ))}
+            </div>
+          )}
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col min-h-screen bg-slate-900">
       {/* Header */}
       <header className="bg-emerald-900 px-5 py-4 flex items-center gap-3">
-        <button onClick={() => step === "datos" ? router.back() : setStep(PASOS[Math.max(0, stepIdx - 1)].id)}
+        <button onClick={() => step === "datos" ? (params.get("survey_id") ? router.back() : setStep("seleccion")) : setStep(PASOS[Math.max(0, stepIdx - 1)].id)}
           className="text-emerald-300 active:text-white">
           <ArrowLeft className="h-5 w-5" />
         </button>
