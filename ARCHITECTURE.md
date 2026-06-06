@@ -1,5 +1,5 @@
 # ARCHITECTURE.md — GeoDataVoice
-> Última actualización: 2026-06-05
+> Última actualización: 2026-06-06
 
 ---
 
@@ -37,14 +37,14 @@ No hay backend intermedio. El directorio `backend/` (FastAPI) está **descontinu
 │  PostgreSQL (tablas del dominio + RLS)                      │
 │  Auth (JWT + user_metadata.role)                            │
 │  Storage (bucket geodatavoice-audio — audios privados)      │
-│  Edge Functions (process-audio: Whisper + GPT-4o-mini)      │
+│  Edge Functions (process-audio: Whisper + Claude (claude-opus-4-8))      │
 └──────────────────────────┬──────────────────────────────────┘
                            │ HTTP (OpenAI SDK)
                            ▼
 ┌─────────────────────────────────────────────────────────────┐
 │  Servicios externos                                         │
-│  OpenAI Whisper-1 (STT) + GPT-4o-mini (NLP/sentimiento)    │
-│  Truora / Metamap (KYC — pendiente integrar)                │
+│  OpenAI Whisper-1 (STT) + Claude (claude-opus-4-8) (NLP/sentimiento)    │
+│  AutenTIC/Veriff (KYC — en simulación, cuenta saas-3)                │
 │  WhatsApp Business API (pendiente integrar)                 │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -61,7 +61,7 @@ frontend/app/
 │   ├── page.tsx                          Selector de perfil
 │   ├── cliente/page.tsx                  signUp + insert clients
 │   ├── panelista/page.tsx                signUp + insert participants (SHA-256)
-│   └── encuestador/page.tsx              signUp (⚠ falta insert field_operators)
+│   └── encuestador/page.tsx              signUp + insert field_operators + genera recruiter_code
 ├── auth/
 │   ├── callback/route.ts                 Callback OAuth/email
 │   └── verificar-email/page.tsx
@@ -77,22 +77,30 @@ frontend/app/
 ├── cliente/                              ROL: cliente
 │   ├── layout.tsx                        Sidebar violeta
 │   ├── page.tsx                          Home cliente
+│   ├── encuestas/page.tsx               Lista global de encuestas del cliente
+│   ├── resultados/page.tsx              Lista proyectos → resultados
 │   └── proyectos/
-│       ├── page.tsx
-│       ├── nuevo/page.tsx
+│       ├── page.tsx, nuevo/page.tsx
 │       └── [id]/
-│           ├── page.tsx                  Detalle + encuestas
-│           └── encuestas/nueva/page.tsx  Crear encuesta + preguntas
+│           ├── page.tsx                  Detalle + encuestas + toggle identidad calle
+│           ├── resultados/page.tsx       Resultados del PROYECTO (foto+olas+indicadores+favorabilidad)
+│           └── encuestas/
+│               ├── nueva/page.tsx        Crear encuesta (+ tracking_key/favorabilidad)
+│               └── [eid]/page.tsx        Resultados por ENCUESTA
 └── campo/                                ROL: panelista | encuestador
-    ├── registro/page.tsx                 Flujo GPS + consentimientos (encuestador)
-    ├── verificar-identidad/page.tsx      KYC (pendiente integrar)
+    ├── verificar-identidad/page.tsx      KYC panelista (AutenTIC real / simulación) + gate middleware
     ├── panelista/
-    │   ├── page.tsx                      Home panelista (⚠ datos mock)
-    │   ├── pagos/page.tsx                Historial de pagos (⚠ datos mock)
-    │   └── encuesta/[id]/page.tsx        Flujo encuesta + audio (⚠ DEMO_QUESTIONS)
+    │   ├── page.tsx                      Home (encuestas reales + ganado este mes/total)
+    │   ├── pagos/page.tsx                Historial de pagos
+    │   └── encuesta/[id]/page.tsx        Flujo encuesta REAL (preguntas Supabase + audio→Storage)
     └── encuestador/
-        ├── page.tsx                      Home encuestador (Supabase ✓)
-        └── registrar/page.tsx            Registrar panelista en campo
+        ├── page.tsx                      Home (encuestas + código reclutador + ganado mes)
+        └── registrar/page.tsx            ENCUESTAR EN CAMPO: selección→datos+demografía→identidad(cond)→consent→GPS→encuesta
+
+api/  (route handlers, service role)
+  ├── email/{cliente-activado,nueva-encuesta,pago-procesado}
+  ├── identidad/{simular,webhook}
+  └── audio/upload                        Sube audio al bucket privado
 ```
 
 ---
@@ -151,7 +159,7 @@ Panelista          campo/panelista/page.tsx     Supabase         Edge Function
     │                       │── insert audio_responses ►│               │
     │                       │                      │── trigger ────────►│
     │                       │                      │             Whisper STT
-    │                       │                      │             GPT-4o NLP
+    │                       │                      │             Claude NLP
     │                       │                      │◄── insert nlp_outputs
     │                       │── insert payments ───►│                   │
     │◄── confirmación ──────│                      │                   │
@@ -194,7 +202,7 @@ Cliente            cliente/proyectos/[id]/encuestas/nueva/page.tsx     Supabase
 
 ---
 
-## Procesamiento de audio (Edge Function — pendiente)
+## Procesamiento de audio (Edge Function — ACTIVA)
 
 ```
 Supabase Trigger (insert en audio_responses)
@@ -203,7 +211,7 @@ Supabase Trigger (insert en audio_responses)
 Edge Function: supabase/functions/process-audio/index.ts
     │── fetch audio desde Storage (URL firmada)
     │── OpenAI Whisper-1 → texto transcrito
-    │── GPT-4o-mini con prompt estructurado → JSON con:
+    │── Claude (claude-opus-4-8) con prompt estructurado → JSON con:
     │     sentiment (positivo/negativo/neutro/mixto)
     │     emotion (satisfacción/frustración/esperanza/indiferencia/indignación)
     │     intensity (1–5)

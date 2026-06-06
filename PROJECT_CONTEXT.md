@@ -62,9 +62,29 @@ Producción: https://geodatavoice.grialtech.co (Vercel, proyecto geodatavoice-da
 | Estilos | Tailwind CSS v4 + Lucide React |
 | Auth + DB | Supabase (PostgreSQL + Auth + Storage) |
 | Data fetching | TanStack React Query 5 + @supabase/ssr |
-| Charts | Recharts 3 (frontend dashboard) |
+| Charts | Recharts 3 (tableros de resultados) |
 | Offline queue | idb 8 (IndexedDB — campo) |
-| IA (pendiente conectar) | OpenAI Whisper-1 + GPT-4o-mini via Supabase Edge Functions |
+| IA | OpenAI Whisper-1 (transcripción) + **Claude `claude-opus-4-8`** (análisis NLP) via Edge Function |
+
+---
+
+## Integraciones externas (conexiones)
+
+| Servicio | Para qué | Cómo se conecta | Estado |
+|---|---|---|---|
+| **Supabase** | DB + Auth + Storage + Edge Functions | proyecto `bsjiqatcqbjqmtytlgll`. `@supabase/ssr` (cliente), service role (route handlers + Edge) | ✅ activo |
+| **Resend (API)** | Emails de negocio (cliente activado, nueva encuesta, pago) | `lib/email.ts` lazy init, route handlers `/api/email/*`. Remitente `geodatavoice@grialtech.co` | ✅ activo |
+| **Resend (SMTP)** | Emails de sistema de Supabase Auth (confirmar/recuperar) | SMTP en Supabase Auth: `smtp.resend.com:465`, user `resend`. Plantillas en español | ✅ activo |
+| **OpenAI Whisper-1** | Transcripción de notas de voz | Edge Function `process-audio` (fetch `api.openai.com`). Secret `OPENAI_API_KEY` | ✅ activo (requiere saldo) |
+| **Anthropic Claude** | Análisis NLP de las transcripciones | Edge Function `process-audio` (fetch `api.anthropic.com`). Secret `ANTHROPIC_API_KEY`, `CLAUDE_MODEL` | ✅ activo |
+| **AutenTIC (Veriff)** | KYC de panelistas | SDK Veriff (cdn.veriff.me) + webhook `/api/identidad/webhook` (HMAC). Cuenta `saas-3` | ⏸️ en simulación (credenciales validadas, webhook sin configurar) |
+| **Vercel** | Hosting/deploy | proyecto `geodatavoice-dashboard`, scope `jaime-criales-projects`. Dominio `geodatavoice.grialtech.co` | ✅ activo |
+
+**Edge Function `process-audio`** (Deno): Storage → Whisper → Claude → `nlp_outputs`. Disparo automático
+por trigger pg_net en INSERT de `audio_responses` (quality=pending). Deploy: `npx supabase functions deploy`.
+
+**Route handlers** (`frontend/app/api/`): `email/{cliente-activado,nueva-encuesta,pago-procesado}`,
+`identidad/{simular,webhook}`, `audio/upload`. Service role vía `lib/supabase-service.ts`.
 
 ---
 
@@ -73,20 +93,24 @@ Producción: https://geodatavoice.grialtech.co (Vercel, proyecto geodatavoice-da
 | Tabla | Descripción |
 |---|---|
 | `clients` | Clientes contratantes. `status`: pending → active/inactive |
-| `projects` | Proyectos por cliente. `type`: favorability/satisfaction/pulse/custom |
-| `surveys` | Encuestas por proyecto. `perfil_objetivo`: panelista/encuestador/ambos |
-| `questions` | Preguntas de encuesta. `type`: single_choice/multiple_choice/scale/open_text/audio |
-| `participants` | Panelistas. doc+phone hasheados SHA-256. `status`: preregistered/verified/suspended |
+| `projects` | Proyectos por cliente. `type`. **`field_identity_required`** (bool nullable=hereda global) |
+| `surveys` | Encuestas por proyecto. **`perfil_objetivo`** panelista/encuestador/ambos. `status`: draft/ready/sent/closed |
+| `questions` | Preguntas. `type`, `options`(jsonb), `order`. **`tracking_key`** (indicador entre olas), **`favorability`**, **`favorable_values`** |
+| `participants` | Personas. doc+phone SHA-256. `id`=auth.users.id. **`user_id`**, **`recruited_by`**→field_operators. Demografía: estrato, birth_year, nivel_estudios, actividades(jsonb), estado_civil, num_hijos, regimen_salud, sisben_grupo, tenencia_vivienda, grupo_etnico, antiguedad_barrio, recibe_subsidios, acceso_internet, registrado_votar. `name_encrypted` (texto plano por ahora) |
 | `panel_memberships` | Participante ↔ proyecto ↔ cohorte |
-| `field_operators` | Encuestadores. `role`: encuestador/supervisor/coordinator |
-| `field_visits` | Registro GPS de visitas del encuestador |
+| `field_operators` | Encuestadores. `user_id`→auth, **`recruiter_code`** (código de reclutador) |
+| `field_visits` | GPS de visitas del encuestador (`operator_id`, lat/lon) |
 | `consents` | Consentimientos versionados (v1.0) |
-| `responses` | Respuestas de encuesta. Incluye `encuestador_id` si fue en campo |
-| `audio_responses` | Audio subido. `quality`: pending/transcribed/processed/error |
-| `nlp_outputs` | 9 variables IA: sentiment, emotion, intensity, main_topic, topics, narrative, summary, citizen_quote, opinion_driver |
-| `payments` | Pagos a panelistas |
-| `payment_config` | Tarifa global: encuesta_cop / audio_cop / encuesta_campo_cop |
-| `client_payment_config` | Tarifa por cliente (override de la global) |
+| `responses` | Respuestas. `participant_id`, `survey_id`, `question_id`, `value`, **`encuestador_id`** (si fue en campo), `responded_at` |
+| `audio_responses` | Audio. `response_id`, `audio_url`(path Storage), `transcription`, `quality`: pending/processed/error |
+| `nlp_outputs` | 9 variables IA (vincula por `audio_id`): sentiment, emotion, intensity, main_topic, topics, narrative, summary, citizen_quote, actor_mentioned, opinion_driver, confidence |
+| `payments` | Pagos a panelistas (dispersión real pendiente) |
+| `payment_config` | Tarifas: encuesta_cop / audio_cop / encuesta_campo_cop / **bono_reclutamiento_cop** |
+| `client_payment_config` | Tarifa por cliente (override) |
+| `platform_config` | key/value jsonb. Keys: `identity_verification` (KYC panelista), `field_identity_verification` (identidad en calle) |
+
+**Función RPC:** `claim_field_participant(...)` — al auto-registrarse un panelista ya encuestado en campo
+(mismo documento), reutiliza su registro + verificación + re-apunta su historial al nuevo id.
 
 ---
 
@@ -96,10 +120,14 @@ Producción: https://geodatavoice.grialtech.co (Vercel, proyecto geodatavoice-da
 |---|---|---|
 | **admin** | `/dashboard` | Creado manualmente (no hay registro público) |
 | **cliente** | `/cliente` | Registro en `/registro/cliente` → aprobación admin |
-| **encuestador** | `/campo/registro` (por ahora) | Registro en `/registro/encuestador` |
-| **panelista** | `/campo/panelista` | Registro en `/registro/panelista` → confirma email |
+| **encuestador** | `/campo/encuestador` | Registro en `/registro/encuestador` (genera código reclutador) |
+| **panelista** | `/campo/panelista` | Registro en `/registro/panelista` (opcional código reclutador) → gate KYC |
 
-**Redirección post-login pendiente:** el login actualmente siempre va a `/dashboard`. Falta redirigir según `role` del `user_metadata`.
+Login redirige por `user_metadata.role`. Middleware: protege `/dashboard|/cliente|/campo` + gate KYC del panelista.
+
+### Modelo Encuestar vs Reclutar
+- **Encuestar en campo** (`/campo/encuestador/registrar`): encuestador encuesta a una persona (paga `encuesta_campo_cop`). NO recluta.
+- **Reclutar**: la persona se auto-registra desde su celular con el **código del encuestador** → `recruited_by` → bono. Si ya fue encuestada, se reutilizan sus datos (claim).
 
 ---
 

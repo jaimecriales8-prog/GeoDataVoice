@@ -203,6 +203,64 @@
 
 ---
 
+## ADR-013: Encuestar en campo ≠ Reclutar panelista
+**Estado:** Vigente · **Fecha:** 2026-06-06
+
+**Contexto:** El flujo del encuestador se llamaba "Registrar panelista", pero en realidad son dos cosas distintas: encuestar a alguien en la calle, vs. que esa persona se vuelva panelista.
+
+**Decisión:**
+- **Encuestar en campo** (`/campo/encuestador/registrar`): el encuestador aplica una encuesta a una persona. Requiere una encuesta seleccionada. Paga `encuesta_campo_cop`. NO genera bono.
+- **Reclutar**: la persona se auto-registra **desde su propio celular** con el **código del encuestador** (`field_operators.recruiter_code`). Eso fija `participants.recruited_by` → bono de reclutamiento.
+
+**Razón:** El bono debe premiar la conversión a panelista (con cuenta propia), no cada encuesta de calle. Separa incentivos y evita inflar reclutamientos.
+
+---
+
+## ADR-014: Reuso de datos al volverse panelista (`claim_field_participant`)
+**Estado:** Vigente · **Fecha:** 2026-06-06
+
+**Contexto:** Una persona encuestada en campo ya existe en `participants` (id aleatorio, sin cuenta). Si luego se registra como panelista, no debe duplicarse ni perder su historial/verificación.
+
+**Decisión:** Función SQL `claim_field_participant`. Si el documento ya existe, crea el registro del panelista con `id = auth.users.id` reutilizando los datos + verificación, y re-apunta el historial (responses/field_visits/consents/panel_memberships/payments) al nuevo id; libera los índices únicos del registro viejo y lo borra.
+
+**Razón:** Mantiene el modelo `participants.id = auth.id` intacto (sin tocar el resto de la app) y conserva continuidad de datos. Se agregó `participants.user_id` para evolución futura, pero el linkage sigue por `id`.
+
+**Alternativa descartada:** Migrar todo a linkage por `user_id` (rippleaba a ~6 archivos y arriesgaba el flujo del panelista).
+
+---
+
+## ADR-015: Validación de identidad en encuestas de calle — toggle de dos niveles
+**Estado:** Vigente · **Fecha:** 2026-06-06
+
+**Decisión:** Configurable con override jerárquico:
+- **Admin** (global): `platform_config.field_identity_verification` (default true).
+- **Cliente** (por proyecto): `projects.field_identity_required` (null = hereda el global).
+- El flujo de campo calcula el efectivo (proyecto > global) y salta el paso de identidad si está desactivado.
+
+**Razón:** Algunos sondeos rápidos/anónimos no requieren foto de cédula; otros sí (anti-fraude). El cliente decide para sus proyectos; el admin pone el default.
+
+---
+
+## ADR-016: Ficha demográfica rica del encuestado para segmentación
+**Estado:** Vigente · **Fecha:** 2026-06-06
+
+**Contexto:** El valor analítico del producto está en cruzar la opinión con perfiles socioeconómicos.
+
+**Decisión:** Capturar en `participants` (en el flujo de campo): estrato, edad→birth_year, nivel_estudios, actividades (multi), estado_civil, num_hijos, regimen_salud, sisben_grupo, tenencia_vivienda, grupo_etnico, antiguedad_barrio, recibe_subsidios, acceso_internet, registrado_votar.
+
+**Razón:** Habilita segmentación futura en tableros (favorabilidad por estrato/régimen/etc.). `registrado_votar` y salud son datos sensibles (Ley 1581) — cubiertos por el consentimiento del flujo.
+
+---
+
+## ADR-017: Análisis de audio con Claude (no GPT)
+**Estado:** Vigente · **Fecha:** 2026-06-06 (reemplaza el GPT-4o-mini de ADR-006 para el análisis)
+
+**Decisión:** La Edge Function `process-audio` usa **OpenAI Whisper-1** para transcribir y **Claude (`claude-opus-4-8`)** para el análisis NLP estructurado. Modelo configurable vía secret `CLAUDE_MODEL`.
+
+**Razón:** Claude entiende mejor el español colombiano coloquial (capta ironía/sarcasmo) y da JSON estructurado confiable. Whisper sigue siendo el mejor STT. Para alto volumen se puede bajar a `claude-haiku-4-5` sin redeploy de código.
+
+---
+
 ## Decisiones Pendientes (antes de producción)
 
 | # | Decisión | Opciones | Urgencia |
