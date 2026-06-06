@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase";
 import Link from "next/link";
-import { BarChart3, ArrowRight, Sparkles } from "lucide-react";
+import { BarChart3, ArrowRight } from "lucide-react";
 
 type Proyecto = { id: string; name: string; status: string };
 
@@ -26,24 +26,9 @@ export default function ClienteResultados() {
 
   return (
     <div className="p-8">
-      <div className="mb-8">
+      <div className="mb-6">
         <h1 className="text-2xl font-bold text-white">Resultados</h1>
-        <p className="text-slate-400 text-sm mt-1">Indicadores y análisis de tus mediciones</p>
-      </div>
-
-      {/* Aviso de disponibilidad */}
-      <div className="rounded-2xl border border-violet-500/20 bg-violet-500/5 p-5 mb-6 flex items-start gap-3">
-        <div className="h-9 w-9 rounded-xl bg-violet-500/20 flex items-center justify-center shrink-0">
-          <Sparkles className="h-4 w-4 text-violet-300" />
-        </div>
-        <div>
-          <p className="text-sm font-semibold text-white">Resultados en preparación</p>
-          <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-            El tablero de favorabilidad, sentimiento y temas dominantes se habilita cuando tus
-            encuestas empiecen a recibir respuestas y se procesen las notas de voz con IA.
-            Aquí verás los indicadores por proyecto y por territorio.
-          </p>
-        </div>
+        <p className="text-slate-400 text-sm mt-1">Elige un proyecto para ver favorabilidad, sentimiento y temas</p>
       </div>
 
       {loading ? (
@@ -56,14 +41,14 @@ export default function ClienteResultados() {
       ) : (
         <div className="space-y-3">
           {proyectos.map(p => (
-            <Link key={p.id} href={`/cliente/proyectos/${p.id}`}
+            <Link key={p.id} href={`/cliente/proyectos/${p.id}/resultados`}
               className="flex items-center gap-4 rounded-2xl border border-white/5 bg-slate-900 px-5 py-4 hover:bg-white/[0.02] transition-colors">
               <div className="h-10 w-10 rounded-xl bg-violet-500/20 flex items-center justify-center shrink-0">
                 <BarChart3 className="h-5 w-5 text-violet-400" />
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-white">{p.name}</p>
-                <p className="text-xs text-slate-500 mt-0.5">Ver proyecto y encuestas</p>
+                <p className="text-xs text-slate-500 mt-0.5">Ver resultados del proyecto</p>
               </div>
               <ArrowRight className="h-4 w-4 text-slate-600 shrink-0" />
             </Link>

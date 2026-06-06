@@ -3,7 +3,7 @@
 import { useEffect, useState, use } from "react";
 import { createClient } from "@/lib/supabase";
 import Link from "next/link";
-import { ArrowLeft, Plus, ClipboardList, Users, Mic, MapPin, ChevronRight, Clock } from "lucide-react";
+import { ArrowLeft, Plus, ClipboardList, Users, Mic, MapPin, ChevronRight, Clock, BarChart3 } from "lucide-react";
 
 type Proyecto = {
   id: string; name: string; type: string; purpose: string; status: string;
@@ -82,6 +82,10 @@ export default function ProyectoDetalle({ params }: { params: Promise<{ id: stri
             </span>
           </div>
         </div>
+        <Link href={`/cliente/proyectos/${id}/resultados`}
+          className="flex items-center gap-2 rounded-xl bg-violet-600 hover:bg-violet-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors shrink-0">
+          <BarChart3 className="h-4 w-4" /> Ver resultados
+        </Link>
       </div>
 
       {/* Stats */}

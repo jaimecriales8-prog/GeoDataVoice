@@ -99,7 +99,7 @@ export default function ClienteEncuestas() {
             const perfil = PERFIL[e.perfil_objetivo] ?? PERFIL.panelista;
             const PerfilIcon = perfil.icon;
             return (
-              <Link key={e.id} href={`/cliente/proyectos/${e.project_id}`}
+              <Link key={e.id} href={`/cliente/proyectos/${e.project_id}/encuestas/${e.id}`}
                 className="flex items-center gap-4 rounded-2xl border border-white/5 bg-slate-900 px-5 py-4 hover:bg-white/[0.02] transition-colors">
                 <div className="h-10 w-10 rounded-xl bg-violet-500/20 flex items-center justify-center shrink-0">
                   <ClipboardList className="h-5 w-5 text-violet-400" />
