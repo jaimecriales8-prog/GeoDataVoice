@@ -45,8 +45,9 @@
 - [ ] **P1-03** Exportar resultados CSV/PDF desde panel cliente
 
 ### Encuestador — flujo campo completo
-- [ ] **P1-04** Flujo encuestador aplica encuesta a panelista — `campo/encuestador/registrar?survey_id=` recibe el survey, guarda respuesta con `encuestador_id`
-- [ ] **P1-05** Registro GPS de visita en `field_visits` al iniciar flujo de registro de panelista
+- [x] **P1-04** Flujo encuestador aplica encuesta a panelista — `campo/encuestador/registrar` (datos→identidad→consentimientos→GPS→encuesta). Arreglados bugs `name`/`audio_prompt`.
+- [x] **P1-05** Registro GPS de visita en `field_visits`
+- [x] **Reclutamiento con bono** — código de reclutador por encuestador (`field_operators.recruiter_code`); `participants.recruited_by` (auto en campo, o por código en auto-registro + prefill `?ref=`); control en `dashboard/encuestadores` (conteo) y `dashboard/pagos` (bono = reclutados × `payment_config.bono_reclutamiento_cop`).
 
 ### Notificaciones y emails
 - [x] **P1-06** Email de activación al cliente cuando admin aprueba su cuenta — `/api/email/cliente-activado` + integrado en `dashboard/clientes`
