@@ -35,8 +35,31 @@ export default function RegistroPanelistaPage() {
     recruiter_code: "",
   });
 
+  const [prefillMsg, setPrefillMsg] = useState("");
+
   function update(field: string, value: string) {
     setForm(prev => ({ ...prev, [field]: value }));
+  }
+
+  // Si la persona ya fue encuestada en campo (mismo documento), reusar sus datos
+  async function checkExistente() {
+    if (!/^\d{7,12}$/.test(form.documento)) { setPrefillMsg(""); return; }
+    const supabase = createClient();
+    const docHash = await sha256(form.documento);
+    const { data } = await supabase
+      .from("participants").select("name_encrypted, gender, birth_year")
+      .eq("document_hash", docHash).maybeSingle();
+    if (data) {
+      setForm(prev => ({
+        ...prev,
+        full_name: prev.full_name || data.name_encrypted || "",
+        gender: prev.gender || data.gender || "",
+        birth_year: prev.birth_year || (data.birth_year ? String(data.birth_year) : ""),
+      }));
+      setPrefillMsg("Ya te habíamos encuestado — reusamos tus datos. Solo crea tu cuenta para ser panelista.");
+    } else {
+      setPrefillMsg("");
+    }
   }
 
   // Prefill del código de reclutador desde ?ref=CODIGO (link de referido)
@@ -107,23 +130,21 @@ export default function RegistroPanelistaPage() {
         recruitedBy = op?.id ?? null;
       }
 
-      // name_encrypted: por ahora texto plano (cifrado AES pendiente — ver ADR-005)
-      const { error: insertError } = await supabase.from("participants").insert({
-        id: authData.user.id,
-        document_hash: docHash,
-        phone_hash: phoneHash,
-        name_encrypted: form.full_name,
-        gender: form.gender || null,
-        birth_year: form.birth_year ? parseInt(form.birth_year) : null,
-        status: "preregistered",
-        kyc_status: "pending",
-        phone_verified: false,
-        recruited_by: recruitedBy,
+      // Crea el participante o RECLAMA el registro existente (si ya fue encuestado en
+      // campo con el mismo documento): reutiliza sus datos + verificación + historial.
+      const { error: rpcError } = await supabase.rpc("claim_field_participant", {
+        p_user_id: authData.user.id,
+        p_document_hash: docHash,
+        p_phone_hash: phoneHash,
+        p_name: form.full_name,
+        p_gender: form.gender || null,
+        p_birth_year: form.birth_year ? parseInt(form.birth_year) : null,
+        p_recruited_by: recruitedBy,
       });
 
-      if (insertError) {
+      if (rpcError) {
         setError("Error al guardar tus datos. Contacta soporte.");
-        console.error("[registro/panelista] insert participant:", insertError);
+        console.error("[registro/panelista] claim_field_participant:", rpcError);
         setLoading(false);
         return;
       }
@@ -208,6 +229,12 @@ export default function RegistroPanelistaPage() {
         <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur p-6">
           <form onSubmit={handleSubmit} className="space-y-4">
 
+            {prefillMsg && (
+              <div className="rounded-xl bg-emerald-500/10 border border-emerald-400/30 px-4 py-3 text-sm text-emerald-300">
+                ✓ {prefillMsg}
+              </div>
+            )}
+
             {/* Datos personales */}
             <div className="flex items-center gap-2 mb-1">
               <User className="h-4 w-4 text-amber-400" />
@@ -222,6 +249,7 @@ export default function RegistroPanelistaPage() {
             <div className="grid grid-cols-2 gap-3">
               <Field label="Cédula *">
                 <input value={form.documento} onChange={e => update("documento", e.target.value)}
+                  onBlur={checkExistente}
                   placeholder="N° documento" inputMode="numeric" className={inputCls} />
               </Field>
               <Field label="Año nacimiento">
