@@ -13,21 +13,21 @@
 
 ### Bugs activos
 - [ ] **B2** Insert en `field_operators` al registrar encuestador — `frontend/app/registro/encuestador/page.tsx:42` solo hace `signUp`, no inserta en la tabla
-- [ ] **B3** Conectar panelista a encuestas reales — `frontend/app/campo/panelista/page.tsx` usa `MOCK_SURVEYS` y `MOCK_PAYMENTS` hardcodeados
-- [ ] **B4** Flujo de encuesta real — `frontend/app/campo/panelista/encuesta/[id]/page.tsx` usa `DEMO_QUESTIONS` y no guarda respuestas en Supabase
+- [x] **B3** Panelista conectado a encuestas reales — home carga surveys (status sent/ready, no respondidas) + pagos reales
+- [x] **B4** Flujo de encuesta real — carga preguntas por survey_id, guarda en `responses` + audio en Storage + `audio_responses`. Probado end-to-end (3 respuestas + 3 audios).
 
 ### Auth & seguridad
 - [x] **P0-01** Gate de verificación en middleware — bloquea `/campo/*` si panelista con `kyc_status != approved`, respetando `platform_config` (sin loops)
 - [ ] **P0-02** Proteger `/campo/*` por rol — el middleware solo verifica sesión, no rol; un cliente podría acceder a `/campo/panelista`
 
 ### Flujo de respuesta real
-- [ ] **P0-03** Cargar preguntas reales de Supabase en el flujo de encuesta — `frontend/app/campo/panelista/encuesta/[id]/page.tsx`
-- [ ] **P0-04** Guardar respuestas en tabla `responses` al completar encuesta
-- [ ] **P0-05** Upload audio a Supabase Storage (bucket `geodatavoice-audio`) + crear registro en `audio_responses`
-- [ ] **P0-06** Crear bucket `geodatavoice-audio` en Supabase Storage con política de acceso privado
+- [x] **P0-03** Cargar preguntas reales de Supabase en el flujo de encuesta
+- [x] **P0-04** Guardar respuestas en tabla `responses` al completar encuesta
+- [x] **P0-05** Upload audio a Storage (`geodatavoice-audio`) vía `/api/audio/upload` (service role) + registro en `audio_responses`
+- [x] **P0-06** Bucket `geodatavoice-audio` creado (privado, sin filtro de mime — Safari manda mp4)
 
 ### Supabase Edge Functions
-- [ ] **P0-07** Edge Function `process-audio` — Whisper-1 (transcripción) + GPT-4o-mini (NLP) → insertar en `nlp_outputs`; disparar desde trigger en `audio_responses` o webhook
+- [ ] **P0-07** Edge Function `process-audio` — Whisper-1 (transcripción) + GPT-4o-mini (NLP) → insertar en `nlp_outputs`; disparar desde trigger en `audio_responses` (quality=pending). YA hay audios reales esperando procesamiento.
 
 ---
 
