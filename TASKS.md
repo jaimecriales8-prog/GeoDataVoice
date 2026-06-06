@@ -35,7 +35,12 @@
 
 ### Dashboard resultados cliente
 - [x] **Fix 404 sidebar cliente** — creadas `/cliente/encuestas` y `/cliente/resultados`.
-- [x] **P1-01** Tableros de resultados — **por encuesta** (`/cliente/proyectos/[id]/encuestas/[eid]`) y **por proyecto** (`/cliente/proyectos/[id]/resultados`). KPIs + sentimiento (donut recharts) + temas (barras recharts) + emociones + voces ciudadanas + distribución por pregunta. Helper `lib/resultados.ts` agrega respuestas + `nlp_outputs`. ⚠ aún sin verificar ownership del proyecto vs cliente logueado (cierra con RLS, P2-01).
+- [x] **P1-01** Tableros de resultados — **por encuesta** y **por proyecto**.
+  - Encuesta: KPIs + sentimiento (donut) + temas (barras) + emociones + voces ciudadanas + distribución por pregunta.
+  - Proyecto: foto agregada + **evolución por ola** (sentimiento y favorabilidad % en líneas recharts) + **indicadores de seguimiento** (misma pregunta entre olas vía `tracking_key`).
+  - Metodología: cada proyecto = olas (waves). NLP comparable entre olas; preguntas cerradas se rastrean por `tracking_key`; favorabilidad = % de `favorable_values` (top-box) por ola.
+  - Esquema agregado: `surveys.perfil_objetivo`, `questions.tracking_key/favorability/favorable_values`. Esto arregló el **bug de crear-encuesta** (insertaba `perfil_objetivo`/`audio_prompt` inexistentes).
+  - ⚠ aún sin verificar ownership proyecto↔cliente (cierra con RLS, P2-01).
 - [ ] **P1-02** Encuesta detalle — `/cliente/proyectos/[id]/encuestas/[eid]` con estadísticas por pregunta y listado de respuestas
 - [ ] **P1-03** Exportar resultados CSV/PDF desde panel cliente
 
