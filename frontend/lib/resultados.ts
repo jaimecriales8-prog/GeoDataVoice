@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type DistItem = { label: string; count: number; peso?: number };
 export type Distribucion = DistItem[];
@@ -95,14 +96,14 @@ function contar(valores: (string | null | undefined)[], labels?: Record<string, 
  * Agrega los resultados de una o varias encuestas (por encuesta: 1 id; por proyecto: todos los ids).
  * RLS está desactivado (MVP) → el cliente puede leer estas tablas directamente.
  */
-export async function fetchResultados(surveyIds: string[], filtro?: FiltroDemo | null): Promise<Resultados> {
+export async function fetchResultados(surveyIds: string[], filtro?: FiltroDemo | null, client?: SupabaseClient): Promise<Resultados> {
   const vacio: Resultados = {
     respuestas: 0, participantes: 0, audios: 0, audiosProcesados: 0,
     preguntas: [], sentimiento: [], emociones: [], temas: [], intensidadProm: null, citas: [], individuales: [], totalSinFiltro: 0,
   };
   if (surveyIds.length === 0) return vacio;
 
-  const supabase = createClient();
+  const supabase = client ?? createClient();
 
   // 1. Preguntas
   const { data: preguntas } = await supabase
@@ -114,7 +115,7 @@ export async function fetchResultados(surveyIds: string[], filtro?: FiltroDemo |
   // 2. Respuestas
   const { data: responses } = await supabase
     .from("responses")
-    .select("id, survey_id, question_id, participant_id, value, created_at")
+    .select("id, survey_id, question_id, participant_id, value, responded_at")
     .in("survey_id", surveyIds);
 
   const totalSinFiltro = (responses ?? []).length;
@@ -238,8 +239,8 @@ export async function fetchResultados(surveyIds: string[], filtro?: FiltroDemo |
   const byPart = new Map<string, { fecha: string; respuestas: Record<string, string> }>();
   for (const r of resp) {
     if (!r.participant_id) continue;
-    const cur = byPart.get(r.participant_id) ?? { fecha: (r as { created_at?: string }).created_at ?? "", respuestas: {} };
-    const rDate = (r as { created_at?: string }).created_at ?? "";
+    const cur = byPart.get(r.participant_id) ?? { fecha: (r as { responded_at?: string }).responded_at ?? "", respuestas: {} };
+    const rDate = (r as { responded_at?: string }).responded_at ?? "";
     if (!cur.fecha || (rDate && rDate < cur.fecha)) cur.fecha = rDate;
     cur.respuestas[r.question_id] = r.value ?? "";
     byPart.set(r.participant_id, cur);
@@ -295,12 +296,12 @@ export type ResultadosProyecto = {
   indicadores: Indicador[];
 };
 
-export async function fetchResultadosProyecto(surveys: { id: string; wave: number }[]): Promise<ResultadosProyecto> {
+export async function fetchResultadosProyecto(surveys: { id: string; wave: number }[], client?: SupabaseClient): Promise<ResultadosProyecto> {
   const ids = surveys.map(s => s.id);
-  const agregado = await fetchResultados(ids);
+  const agregado = await fetchResultados(ids, null, client);
   if (ids.length === 0) return { agregado, porOla: [], indicadores: [] };
 
-  const supabase = createClient();
+  const supabase = client ?? createClient();
   const waveOf = new Map(surveys.map(s => [s.id, s.wave]));
 
   const { data: questions } = await supabase
