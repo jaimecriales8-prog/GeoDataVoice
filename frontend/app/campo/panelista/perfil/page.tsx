@@ -18,6 +18,21 @@ export default function PerfilPanelista() {
   const [phone, setPhone] = useState("");
   const [paymentWallet, setPaymentWallet] = useState<"nequi" | "daviplata" | "">("");
   const [paymentNumber, setPaymentNumber] = useState("");
+  // Perfil socioeconómico
+  const [estrato, setEstrato] = useState("");
+  const [estadoCivil, setEstadoCivil] = useState("");
+  const [nivelEstudios, setNivelEstudios] = useState("");
+  const [actividades, setActividades] = useState<string[]>([]);
+  const [tieneHijos, setTieneHijos] = useState(false);
+  const [numHijos, setNumHijos] = useState("");
+  const [regimenSalud, setRegimenSalud] = useState("");
+  const [sisbenGrupo, setSisbenGrupo] = useState("");
+  const [tenenciaVivienda, setTenenciaVivienda] = useState("");
+  const [grupoEtnico, setGrupoEtnico] = useState("");
+  const [antiguedadBarrio, setAntiguedadBarrio] = useState("");
+  const [recibeSubsidios, setRecibeSubsidios] = useState(false);
+  const [accesoInternet, setAccesoInternet] = useState(false);
+  const [registradoVotar, setRegistradoVotar] = useState(false);
   const [ok, setOk] = useState("");
   const [error, setError] = useState("");
 
@@ -34,13 +49,27 @@ export default function PerfilPanelista() {
 
       const { data: p } = await supabase
         .from("participants")
-        .select("phone, payment_wallet, payment_number")
+        .select("phone, payment_wallet, payment_number, estrato, estado_civil, nivel_estudios, actividades, num_hijos, regimen_salud, sisben_grupo, tenencia_vivienda, grupo_etnico, antiguedad_barrio, recibe_subsidios, acceso_internet, registrado_votar")
         .eq("id", user.id)
         .maybeSingle();
       if (p) {
         setPhone(p.phone || "");
         setPaymentWallet((p.payment_wallet as "nequi" | "daviplata") || "");
         setPaymentNumber(p.payment_number || "");
+        setEstrato(p.estrato ? String(p.estrato) : "");
+        setEstadoCivil(p.estado_civil || "");
+        setNivelEstudios(p.nivel_estudios || "");
+        if (Array.isArray(p.actividades)) setActividades(p.actividades);
+        setNumHijos(p.num_hijos ? String(p.num_hijos) : "");
+        setTieneHijos(!!p.num_hijos && p.num_hijos > 0);
+        setRegimenSalud(p.regimen_salud || "");
+        setSisbenGrupo(p.sisben_grupo || "");
+        setTenenciaVivienda(p.tenencia_vivienda || "");
+        setGrupoEtnico(p.grupo_etnico || "");
+        setAntiguedadBarrio(p.antiguedad_barrio || "");
+        setRecibeSubsidios(!!p.recibe_subsidios);
+        setAccesoInternet(!!p.acceso_internet);
+        setRegistradoVotar(!!p.registrado_votar);
       }
       setLoading(false);
     });
@@ -61,6 +90,19 @@ export default function PerfilPanelista() {
           phone: phone.trim() || null,
           payment_wallet: paymentWallet || null,
           payment_number: paymentNumber.trim() || null,
+          estrato: estrato ? parseInt(estrato) : null,
+          estado_civil: estadoCivil || null,
+          nivel_estudios: nivelEstudios || null,
+          actividades: actividades.length > 0 ? actividades : null,
+          num_hijos: tieneHijos ? (parseInt(numHijos) || 0) : 0,
+          regimen_salud: regimenSalud || null,
+          sisben_grupo: sisbenGrupo || null,
+          tenencia_vivienda: tenenciaVivienda || null,
+          grupo_etnico: grupoEtnico || null,
+          antiguedad_barrio: antiguedadBarrio || null,
+          recibe_subsidios: recibeSubsidios,
+          acceso_internet: accesoInternet,
+          registrado_votar: registradoVotar,
         })
         .eq("id", user.id);
       if (upErr) throw new Error(upErr.message);
@@ -172,6 +214,112 @@ export default function PerfilPanelista() {
                 className="w-full bg-transparent text-base text-slate-900 placeholder:text-slate-400 outline-none"
               />
             </Field>
+
+            {/* Perfil socioeconómico */}
+            <div className="pt-2">
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-3">Perfil socioeconómico</p>
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <Select label="Estrato" value={estrato} onChange={setEstrato}>
+                    <option value="">Sin respuesta</option>
+                    {[1,2,3,4,5,6].map(n => <option key={n} value={n}>{n}</option>)}
+                  </Select>
+                  <Select label="Estado civil" value={estadoCivil} onChange={setEstadoCivil}>
+                    <option value="">Sin respuesta</option>
+                    <option value="soltero">Soltero/a</option>
+                    <option value="casado">Casado/a</option>
+                    <option value="union_libre">Unión libre</option>
+                    <option value="separado">Separado/a</option>
+                    <option value="divorciado">Divorciado/a</option>
+                    <option value="viudo">Viudo/a</option>
+                  </Select>
+                </div>
+                <Select label="Nivel de estudios" value={nivelEstudios} onChange={setNivelEstudios}>
+                  <option value="">Sin respuesta</option>
+                  <option value="bachiller">Bachiller</option>
+                  <option value="tecnico_tecnologo">Técnico / Tecnólogo</option>
+                  <option value="profesional">Profesional</option>
+                  <option value="posgrado">Posgrado</option>
+                </Select>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1.5">Actividad (puede elegir varias)</label>
+                  <div className="flex flex-wrap gap-2">
+                    {[["estudiante","Estudiante"],["empleado","Empleado"],["independiente","Independiente"],["desempleado","Desempleado"]].map(([v, l]) => {
+                      const sel = actividades.includes(v);
+                      return (
+                        <button key={v} type="button"
+                          onClick={() => setActividades(prev => sel ? prev.filter(a => a !== v) : [...prev, v])}
+                          className={`rounded-xl px-3 py-2 text-sm border font-medium transition-colors ${sel ? "border-blue-500 bg-blue-50 text-blue-700" : "border-slate-200 bg-white text-slate-600"}`}>
+                          {l}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-white p-3">
+                  <Toggle label="¿Tiene hijos?" val={tieneHijos} set={() => { setTieneHijos(v => !v); if (tieneHijos) setNumHijos(""); }} />
+                  {tieneHijos && (
+                    <div className="mt-3">
+                      <Field label="¿Cuántos hijos?" icon={<User className="h-4 w-4 text-slate-400" />}>
+                        <input value={numHijos} onChange={(e) => setNumHijos(e.target.value)} placeholder="Ej: 2" inputMode="numeric"
+                          className="w-full bg-transparent text-base text-slate-900 placeholder:text-slate-400 outline-none" />
+                      </Field>
+                    </div>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <Select label="Régimen de salud" value={regimenSalud} onChange={setRegimenSalud}>
+                    <option value="">Sin respuesta</option>
+                    <option value="subsidiado">Subsidiado</option>
+                    <option value="contributivo">Contributivo</option>
+                    <option value="especial">Especial</option>
+                    <option value="ninguno">Ninguno</option>
+                  </Select>
+                  <Select label="SISBEN" value={sisbenGrupo} onChange={setSisbenGrupo}>
+                    <option value="">Sin respuesta</option>
+                    <option value="no">No está en SISBEN</option>
+                    <option value="A">Grupo A</option>
+                    <option value="B">Grupo B</option>
+                    <option value="C">Grupo C</option>
+                    <option value="D">Grupo D</option>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <Select label="Vivienda" value={tenenciaVivienda} onChange={setTenenciaVivienda}>
+                    <option value="">Sin respuesta</option>
+                    <option value="propia">Propia</option>
+                    <option value="arriendo">Arriendo</option>
+                    <option value="familiar">Familiar</option>
+                  </Select>
+                  <Select label="Grupo étnico" value={grupoEtnico} onChange={setGrupoEtnico}>
+                    <option value="">Sin respuesta</option>
+                    <option value="ninguno">Ninguno</option>
+                    <option value="afro">Afrodescendiente</option>
+                    <option value="indigena">Indígena</option>
+                    <option value="raizal">Raizal</option>
+                    <option value="otro">Otro</option>
+                  </Select>
+                </div>
+                <Select label="Antigüedad en el barrio" value={antiguedadBarrio} onChange={setAntiguedadBarrio}>
+                  <option value="">Sin respuesta</option>
+                  <option value="menos_1">Menos de 1 año</option>
+                  <option value="1_5">1 a 5 años</option>
+                  <option value="5_10">5 a 10 años</option>
+                  <option value="mas_10">Más de 10 años</option>
+                </Select>
+                <div className="space-y-2">
+                  {[
+                    { label: "¿Recibe subsidios del Estado?", val: recibeSubsidios, set: setRecibeSubsidios },
+                    { label: "¿Tiene smartphone con internet?", val: accesoInternet, set: setAccesoInternet },
+                    { label: "¿Está registrado para votar?", val: registradoVotar, set: setRegistradoVotar },
+                  ].map(({ label, val, set }) => (
+                    <div key={label} className="rounded-2xl border border-slate-200 bg-white px-3 py-2.5">
+                      <Toggle label={label} val={val} set={() => set(v => !v)} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
 
           <button
@@ -221,5 +369,31 @@ function Field({ label, icon, children }: { label: string; icon: React.ReactNode
         {children}
       </div>
     </div>
+  );
+}
+
+function Select({ label, value, onChange, children }: { label: string; value: string; onChange: (v: string) => void; children: React.ReactNode }) {
+  return (
+    <div>
+      <label className="block text-xs font-semibold text-slate-600 mb-1.5">{label}</label>
+      <select
+        value={value} onChange={(e) => onChange(e.target.value)}
+        className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-base text-slate-900 outline-none focus:border-blue-400 transition-colors"
+      >
+        {children}
+      </select>
+    </div>
+  );
+}
+
+function Toggle({ label, val, set }: { label: string; val: boolean; set: () => void }) {
+  return (
+    <label className="flex items-center justify-between cursor-pointer">
+      <span className="text-sm text-slate-700">{label}</span>
+      <button type="button" onClick={set}
+        className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${val ? "bg-blue-600" : "bg-slate-300"}`}>
+        <div className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${val ? "translate-x-5" : "translate-x-0.5"}`} />
+      </button>
+    </label>
   );
 }
