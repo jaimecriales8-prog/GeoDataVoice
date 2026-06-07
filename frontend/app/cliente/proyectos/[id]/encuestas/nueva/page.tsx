@@ -67,11 +67,13 @@ export default function NuevaEncuesta({ params }: { params: Promise<{ id: string
   const [slugCopied, setSlugCopied] = useState(false);
 
   function generarSlug(nombre: string) {
-    return nombre.toLowerCase()
+    const base = nombre.toLowerCase()
       .normalize("NFD").replace(/[̀-ͯ]/g, "")
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-|-$/g, "")
-      .slice(0, 50);
+      .slice(0, 40);
+    const rand = Math.random().toString(36).slice(2, 7);
+    return base ? `${base}-${rand}` : rand;
   }
 
   const [preguntas, setPreguntas] = useState<Pregunta[]>([
@@ -167,7 +169,7 @@ export default function NuevaEncuesta({ params }: { params: Promise<{ id: string
         ponderacion: (ponderar && !ponderacionVacia(ponderacion)) ? ponderacion : null,
         closes_at: closesAt || null,
         es_abierta: esAbierta,
-        slug: esAbierta && slug.trim() ? slug.trim() : null,
+        slug: esAbierta ? (slug.trim() || generarSlug(nombre)) : null,
         abierta_identidad: esAbierta ? abIdentidad : false,
         abierta_pago: esAbierta ? abPago : false,
         abierta_anonima: esAbierta ? abAnonima : true,
@@ -329,7 +331,7 @@ export default function NuevaEncuesta({ params }: { params: Promise<{ id: string
             <Globe className="h-4 w-4 text-blue-400" />
             <h2 className="text-sm font-semibold text-white">Encuesta abierta (link público)</h2>
           </div>
-          <button type="button" onClick={() => setEsAbierta(v => !v)}
+          <button type="button" onClick={() => { setEsAbierta(v => { if (!v && !slug) setSlug(generarSlug(nombre)); return !v; }); }}
             className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${esAbierta ? "bg-blue-500" : "bg-slate-600"}`}>
             <div className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${esAbierta ? "translate-x-5" : "translate-x-0.5"}`} />
           </button>
