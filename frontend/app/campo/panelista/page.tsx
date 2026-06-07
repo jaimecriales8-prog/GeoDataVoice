@@ -43,7 +43,7 @@ export default function PanelistaHome() {
       // 2. Respuestas previas del panelista (para excluir encuestas ya respondidas)
       const { data: misResp } = await supabase
         .from("responses")
-        .select("id, survey_id, responded_at")
+        .select("id, survey_id, responded_at, encuestador_id")
         .eq("participant_id", user.id);
       const respondidasIds = new Set((misResp ?? []).map(r => r.survey_id));
       setRespondidas(respondidasIds.size);
@@ -68,7 +68,8 @@ export default function PanelistaHome() {
       const encuestaCop = cfg?.encuesta_cop ?? 0;
       const audioCop = cfg?.audio_cop ?? 0;
 
-      const rows = misResp ?? [];
+      // Solo cuentan las encuestas que el panelista respondió por sí mismo (no las de campo)
+      const rows = (misResp ?? []).filter(r => !r.encuestador_id);
       const mesInicio = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
       const surveysTotal = new Set(rows.map(r => r.survey_id)).size;
       const surveysMes = new Set(rows.filter(r => new Date(r.responded_at) >= mesInicio).map(r => r.survey_id)).size;
