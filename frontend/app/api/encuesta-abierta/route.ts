@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase-service";
 
+export const dynamic = "force-dynamic";
+
 async function sha256(text: string): Promise<string> {
   const data = new TextEncoder().encode(text.toUpperCase().trim());
   const hash = await crypto.subtle.digest("SHA-256", data);
