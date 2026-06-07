@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
     // Crear participante si no existe
     if (!participantId) {
       const newId = crypto.randomUUID();
-      const docHash = documento ? await sha256(documento) : null;
+      const docHash = documento ? await sha256(documento) : await sha256(crypto.randomUUID());
       const phoneHash = phone ? await sha256(phone) : null;
 
       const { error: pErr } = await supabase.from("participants").insert({
