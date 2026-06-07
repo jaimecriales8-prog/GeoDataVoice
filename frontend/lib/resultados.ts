@@ -254,12 +254,37 @@ export async function fetchResultadosProyecto(surveys: { id: string; wave: numbe
     .in("survey_id", ids);
   const { data: responses } = await supabase
     .from("responses")
-    .select("id, survey_id, question_id, value")
+    .select("id, survey_id, question_id, participant_id, value")
     .in("survey_id", ids);
 
   const qs = questions ?? [];
   const resp = responses ?? [];
   const respById = new Map(resp.map(r => [r.id, r]));
+
+  // Ponderación demográfica por encuesta + demografía de participantes
+  const { data: surveysPond } = await supabase
+    .from("surveys").select("id, ponderacion").in("id", ids);
+  const pondPorSurvey = new Map<string, Ponderacion | null>(
+    (surveysPond ?? []).map(s => [s.id, (s.ponderacion as Ponderacion) ?? null])
+  );
+  const hayPonderacion = (surveysPond ?? []).some(s => !ponderacionVacia(s.ponderacion as Ponderacion));
+  const demoPorParticipante = new Map<string, Record<string, unknown>>();
+  if (hayPonderacion) {
+    const partIds = [...new Set(resp.map(r => r.participant_id))].filter(Boolean) as string[];
+    if (partIds.length > 0) {
+      const { data: parts } = await supabase
+        .from("participants")
+        .select("id, gender, estrato, nivel_estudios, estado_civil, regimen_salud, sisben_grupo, tenencia_vivienda, grupo_etnico, antiguedad_barrio")
+        .in("id", partIds);
+      (parts ?? []).forEach(p => demoPorParticipante.set(p.id, p as Record<string, unknown>));
+    }
+  }
+  function pesoDeResp(r: { survey_id: string; participant_id: string } | undefined): number {
+    if (!hayPonderacion || !r) return 1;
+    const pond = pondPorSurvey.get(r.survey_id);
+    if (ponderacionVacia(pond)) return 1;
+    return pesoParticipante(pond, demoPorParticipante.get(r.participant_id));
+  }
 
   // sentimiento por ola (audio → response → survey.wave)
   const porOlaMap = new Map<number, { pos: number; neg: number; neu: number; mix: number; total: number }>();
@@ -277,12 +302,13 @@ export async function fetchResultadosProyecto(surveys: { id: string; wave: numbe
         const r = rId ? respById.get(rId) : undefined;
         const wave = r ? waveOf.get(r.survey_id) : undefined;
         if (wave == null) continue;
+        const w = pesoDeResp(r);
         const b = porOlaMap.get(wave) ?? { pos: 0, neg: 0, neu: 0, mix: 0, total: 0 };
-        if (n.sentiment === "positivo") b.pos++;
-        else if (n.sentiment === "negativo") b.neg++;
-        else if (n.sentiment === "mixto") b.mix++;
-        else b.neu++;
-        b.total++;
+        if (n.sentiment === "positivo") b.pos += w;
+        else if (n.sentiment === "negativo") b.neg += w;
+        else if (n.sentiment === "mixto") b.mix += w;
+        else b.neu += w;
+        b.total += w;
         porOlaMap.set(wave, b);
       }
     }
@@ -297,7 +323,7 @@ export async function fetchResultadosProyecto(surveys: { id: string; wave: numbe
     const positivos: string[] = q.favorable_values ?? [];
     const rs = resp.filter(r => r.question_id === q.id);
     const b = favByWave.get(wave) ?? { fav: 0, total: 0 };
-    for (const r of rs) { b.total++; if (positivos.includes(r.value)) b.fav++; }
+    for (const r of rs) { const w = pesoDeResp(r); b.total += w; if (positivos.includes(r.value)) b.fav += w; }
     favByWave.set(wave, b);
   }
 
@@ -335,10 +361,26 @@ export async function fetchResultadosProyecto(surveys: { id: string; wave: numbe
         const wave = waveOf.get(q.survey_id) ?? 0;
         const rs = resp.filter(r => r.question_id === q.id);
         const positivos: string[] = q.favorable_values ?? [];
-        const fav = q.favorability && positivos.length
-          ? Math.round((rs.filter(r => positivos.includes(r.value)).length / (rs.length || 1)) * 100)
-          : null;
-        return { wave, total: rs.length, favorablePct: fav, distribucion: contar(rs.map(r => r.value)) };
+        const ponderada = hayPonderacion && !ponderacionVacia(pondPorSurvey.get(q.survey_id));
+        // favorabilidad ponderada = peso favorable / peso total
+        let fav: number | null = null;
+        if (q.favorability && positivos.length) {
+          let favW = 0, totW = 0;
+          for (const r of rs) { const w = pesoDeResp(r); totW += w; if (positivos.includes(r.value)) favW += w; }
+          fav = Math.round((favW / (totW || 1)) * 100);
+        }
+        // distribución ponderada por opción
+        const m = new Map<string, { count: number; peso: number }>();
+        for (const r of rs) {
+          if (!r.value) continue;
+          const cur = m.get(r.value) ?? { count: 0, peso: 0 };
+          cur.count += 1; cur.peso += pesoDeResp(r);
+          m.set(r.value, cur);
+        }
+        const distribucion = [...m.entries()]
+          .map(([label, v]) => ({ label, count: v.count, peso: ponderada ? v.peso : undefined }))
+          .sort((a, b) => (ponderada ? (b.peso ?? 0) - (a.peso ?? 0) : b.count - a.count));
+        return { wave, total: rs.length, favorablePct: fav, distribucion };
       })
       .sort((a, b) => a.wave - b.wave);
     return { key, text: preguntas[0].text, esFavorabilidad: esFav, olas };
