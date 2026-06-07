@@ -28,6 +28,15 @@ export default function RegistroPanelistaPage() {
     barrio: "",
     birth_year: "",
     gender: "",
+    estrato: "",
+    nivel_estudios: "",
+    estado_civil: "",
+    num_hijos: "",
+    regimen_salud: "",
+    sisben_grupo: "",
+    tenencia_vivienda: "",
+    grupo_etnico: "",
+    antiguedad_barrio: "",
     payment_wallet: "",
     nequi_or_daviplata: "",
     email: "",
@@ -35,6 +44,12 @@ export default function RegistroPanelistaPage() {
     password2: "",
     recruiter_code: "",
   });
+
+  const [actividades, setActividades] = useState<string[]>([]);
+  const [tieneHijos, setTieneHijos] = useState(false);
+  const [recibeSubsidios, setRecibeSubsidios] = useState(false);
+  const [accesoInternet, setAccesoInternet] = useState(false);
+  const [registradoVotar, setRegistradoVotar] = useState(false);
 
   const [prefillMsg, setPrefillMsg] = useState("");
 
@@ -48,7 +63,8 @@ export default function RegistroPanelistaPage() {
     const supabase = createClient();
     const docHash = await sha256(form.documento);
     const { data } = await supabase
-      .from("participants").select("name_encrypted, gender, birth_year")
+      .from("participants")
+      .select("name_encrypted, gender, birth_year, estrato, nivel_estudios, actividades, estado_civil, num_hijos, regimen_salud, sisben_grupo, tenencia_vivienda, grupo_etnico, antiguedad_barrio, recibe_subsidios, acceso_internet, registrado_votar")
       .eq("document_hash", docHash).maybeSingle();
     if (data) {
       setForm(prev => ({
@@ -56,7 +72,21 @@ export default function RegistroPanelistaPage() {
         full_name: prev.full_name || data.name_encrypted || "",
         gender: prev.gender || data.gender || "",
         birth_year: prev.birth_year || (data.birth_year ? String(data.birth_year) : ""),
+        estrato: prev.estrato || (data.estrato ? String(data.estrato) : ""),
+        nivel_estudios: prev.nivel_estudios || data.nivel_estudios || "",
+        estado_civil: prev.estado_civil || data.estado_civil || "",
+        num_hijos: prev.num_hijos || (data.num_hijos ? String(data.num_hijos) : ""),
+        regimen_salud: prev.regimen_salud || data.regimen_salud || "",
+        sisben_grupo: prev.sisben_grupo || data.sisben_grupo || "",
+        tenencia_vivienda: prev.tenencia_vivienda || data.tenencia_vivienda || "",
+        grupo_etnico: prev.grupo_etnico || data.grupo_etnico || "",
+        antiguedad_barrio: prev.antiguedad_barrio || data.antiguedad_barrio || "",
       }));
+      if (Array.isArray(data.actividades) && data.actividades.length) setActividades(data.actividades);
+      if (data.num_hijos && data.num_hijos > 0) setTieneHijos(true);
+      if (data.recibe_subsidios) setRecibeSubsidios(true);
+      if (data.acceso_internet) setAccesoInternet(true);
+      if (data.registrado_votar) setRegistradoVotar(true);
       setPrefillMsg("Ya te habíamos encuestado — reusamos tus datos. Solo crea tu cuenta para ser panelista.");
     } else {
       setPrefillMsg("");
@@ -163,6 +193,19 @@ export default function RegistroPanelistaPage() {
           phone: form.phone.trim() || null,
           payment_wallet: form.payment_wallet || null,
           payment_number: form.nequi_or_daviplata.trim() || null,
+          estrato: form.estrato ? parseInt(form.estrato) : null,
+          nivel_estudios: form.nivel_estudios || null,
+          actividades: actividades.length > 0 ? actividades : null,
+          estado_civil: form.estado_civil || null,
+          num_hijos: tieneHijos ? (parseInt(form.num_hijos) || 0) : 0,
+          regimen_salud: form.regimen_salud || null,
+          sisben_grupo: form.sisben_grupo || null,
+          tenencia_vivienda: form.tenencia_vivienda || null,
+          grupo_etnico: form.grupo_etnico || null,
+          antiguedad_barrio: form.antiguedad_barrio || null,
+          recibe_subsidios: recibeSubsidios,
+          acceso_internet: accesoInternet,
+          registrado_votar: registradoVotar,
         })
         .eq("id", authData.user.id);
     }
@@ -299,6 +342,139 @@ export default function RegistroPanelistaPage() {
                   <input value={form.barrio} onChange={e => update("barrio", e.target.value)}
                     placeholder="Tu barrio" className={inputCls} />
                 </Field>
+              </div>
+            </div>
+
+            {/* Perfil socioeconómico */}
+            <div className="border-t border-white/10 pt-3">
+              <div className="flex items-center gap-2 mb-3">
+                <User className="h-4 w-4 text-amber-400" />
+                <p className="text-xs text-amber-300 font-semibold uppercase tracking-wide">Perfil socioeconómico</p>
+              </div>
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Estrato">
+                    <select value={form.estrato} onChange={e => update("estrato", e.target.value)} className={inputCls}>
+                      <option value="">Sin respuesta</option>
+                      {[1,2,3,4,5,6].map(n => <option key={n} value={n}>{n}</option>)}
+                    </select>
+                  </Field>
+                  <Field label="Estado civil">
+                    <select value={form.estado_civil} onChange={e => update("estado_civil", e.target.value)} className={inputCls}>
+                      <option value="">Sin respuesta</option>
+                      <option value="soltero">Soltero/a</option>
+                      <option value="casado">Casado/a</option>
+                      <option value="union_libre">Unión libre</option>
+                      <option value="separado">Separado/a</option>
+                      <option value="divorciado">Divorciado/a</option>
+                      <option value="viudo">Viudo/a</option>
+                    </select>
+                  </Field>
+                </div>
+                <Field label="Nivel de estudios">
+                  <select value={form.nivel_estudios} onChange={e => update("nivel_estudios", e.target.value)} className={inputCls}>
+                    <option value="">Sin respuesta</option>
+                    <option value="bachiller">Bachiller</option>
+                    <option value="tecnico_tecnologo">Técnico / Tecnólogo</option>
+                    <option value="profesional">Profesional</option>
+                    <option value="posgrado">Posgrado</option>
+                  </select>
+                </Field>
+                <Field label="Actividad (puede elegir varias)">
+                  <div className="flex flex-wrap gap-2">
+                    {[["estudiante","Estudiante"],["empleado","Empleado"],["independiente","Independiente"],["desempleado","Desempleado"]].map(([v, l]) => {
+                      const sel = actividades.includes(v);
+                      return (
+                        <button key={v} type="button"
+                          onClick={() => setActividades(prev => sel ? prev.filter(a => a !== v) : [...prev, v])}
+                          className={`rounded-lg px-3 py-2 text-sm border transition-colors ${sel ? "border-amber-400 bg-amber-400/20 text-amber-200" : "border-white/15 bg-white/5 text-slate-300"}`}>
+                          {l}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </Field>
+                <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                  <label className="flex items-center justify-between cursor-pointer">
+                    <span className="text-sm text-slate-300">¿Tiene hijos?</span>
+                    <button type="button" onClick={() => { setTieneHijos(v => !v); if (tieneHijos) update("num_hijos", ""); }}
+                      className={`relative w-11 h-6 rounded-full transition-colors ${tieneHijos ? "bg-amber-500" : "bg-slate-600"}`}>
+                      <div className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${tieneHijos ? "translate-x-5" : "translate-x-0.5"}`} />
+                    </button>
+                  </label>
+                  {tieneHijos && (
+                    <div className="mt-3">
+                      <Field label="¿Cuántos hijos?">
+                        <input value={form.num_hijos} onChange={e => update("num_hijos", e.target.value)} placeholder="Ej: 2" inputMode="numeric" className={inputCls} />
+                      </Field>
+                    </div>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Régimen de salud">
+                    <select value={form.regimen_salud} onChange={e => update("regimen_salud", e.target.value)} className={inputCls}>
+                      <option value="">Sin respuesta</option>
+                      <option value="subsidiado">Subsidiado</option>
+                      <option value="contributivo">Contributivo</option>
+                      <option value="especial">Especial</option>
+                      <option value="ninguno">Ninguno</option>
+                    </select>
+                  </Field>
+                  <Field label="SISBEN">
+                    <select value={form.sisben_grupo} onChange={e => update("sisben_grupo", e.target.value)} className={inputCls}>
+                      <option value="">Sin respuesta</option>
+                      <option value="no">No está en SISBEN</option>
+                      <option value="A">Grupo A</option>
+                      <option value="B">Grupo B</option>
+                      <option value="C">Grupo C</option>
+                      <option value="D">Grupo D</option>
+                    </select>
+                  </Field>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Vivienda">
+                    <select value={form.tenencia_vivienda} onChange={e => update("tenencia_vivienda", e.target.value)} className={inputCls}>
+                      <option value="">Sin respuesta</option>
+                      <option value="propia">Propia</option>
+                      <option value="arriendo">Arriendo</option>
+                      <option value="familiar">Familiar</option>
+                    </select>
+                  </Field>
+                  <Field label="Grupo étnico">
+                    <select value={form.grupo_etnico} onChange={e => update("grupo_etnico", e.target.value)} className={inputCls}>
+                      <option value="">Sin respuesta</option>
+                      <option value="ninguno">Ninguno</option>
+                      <option value="afro">Afrodescendiente</option>
+                      <option value="indigena">Indígena</option>
+                      <option value="raizal">Raizal</option>
+                      <option value="otro">Otro</option>
+                    </select>
+                  </Field>
+                </div>
+                <Field label="Antigüedad en el barrio">
+                  <select value={form.antiguedad_barrio} onChange={e => update("antiguedad_barrio", e.target.value)} className={inputCls}>
+                    <option value="">Sin respuesta</option>
+                    <option value="menos_1">Menos de 1 año</option>
+                    <option value="1_5">1 a 5 años</option>
+                    <option value="5_10">5 a 10 años</option>
+                    <option value="mas_10">Más de 10 años</option>
+                  </select>
+                </Field>
+                <div className="space-y-2">
+                  {[
+                    { label: "¿Recibe subsidios del Estado?", val: recibeSubsidios, set: setRecibeSubsidios },
+                    { label: "¿Tiene smartphone con internet?", val: accesoInternet, set: setAccesoInternet },
+                    { label: "¿Está registrado para votar?", val: registradoVotar, set: setRegistradoVotar },
+                  ].map(({ label, val, set }) => (
+                    <label key={label} className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5 cursor-pointer">
+                      <span className="text-sm text-slate-300">{label}</span>
+                      <button type="button" onClick={() => set(v => !v)}
+                        className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${val ? "bg-amber-500" : "bg-slate-600"}`}>
+                        <div className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${val ? "translate-x-5" : "translate-x-0.5"}`} />
+                      </button>
+                    </label>
+                  ))}
+                </div>
               </div>
             </div>
 
