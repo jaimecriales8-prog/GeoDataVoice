@@ -178,6 +178,8 @@ function RegistrarPanelistaContent() {
   const mediaRef = useRef<MediaRecorder | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const chunksRef = useRef<BlobPart[]>([]);
+  const audioBlobsRef = useRef<Record<string, Blob>>({});
+  const audioMimesRef = useRef<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -196,7 +198,7 @@ function RegistrarPanelistaContent() {
       .then(({ data }) => { setDisponibles(data ?? []); setLoadingDisp(false); });
     if (surveyId) {
       const supabase = createClient();
-      supabase.from("surveys").select("name, project_id, questions(id, type, text, options, order)")
+      supabase.from("surveys").select("name, project_id, questions(id, type, text, options, order, audio_prompt)")
         .eq("id", surveyId).single().then(async ({ data }) => {
           if (data) {
             setSurvey({ name: data.name, questions: (data.questions as any[]).sort((a, b) => a.order - b.order) });
@@ -293,8 +295,8 @@ function RegistrarPanelistaContent() {
       });
       if (e?.code === "23505") {
         // La persona ya existe → reutilizar su registro para aplicarle la encuesta
-        const { data: existente } = await supabase
-          .from("participants").select("id").eq("document_hash", docHash).maybeSingle();
+        const { data: existenteRows } = await supabase.rpc("get_participant_by_hash", { p_hash: docHash });
+        const existente = existenteRows?.[0] ?? null;
         if (existente) {
           setParticipantId(existente.id);
           setProcesandoId(false);
@@ -354,14 +356,27 @@ function RegistrarPanelistaContent() {
   // ── STEP 5: Encuesta ──────────────────────────────────────────────────────
   const pregunta = survey?.questions[qIdx];
 
+  function pickAudioMime() {
+    for (const t of ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg"]) {
+      if (typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported(t)) return t;
+    }
+    return "";
+  }
+
   async function startRecording() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       chunksRef.current = [];
-      const mr = new MediaRecorder(stream);
+      const mime = pickAudioMime();
+      const mr = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
       mr.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data); };
       mr.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+        const type = mr.mimeType || mime || "audio/webm";
+        const blob = new Blob(chunksRef.current, { type });
+        if (pregunta) {
+          audioBlobsRef.current[pregunta.id] = blob;
+          audioMimesRef.current[pregunta.id] = type;
+        }
         setAudioUrl(URL.createObjectURL(blob));
         stream.getTracks().forEach(t => t.stop());
       };
@@ -378,7 +393,6 @@ function RegistrarPanelistaContent() {
     const isLast = qIdx === (survey?.questions.length ?? 0) - 1;
     if (isLast) {
       setSubmitting(true);
-      // Guardar respuestas en Supabase
       if (participantId && operadorId && surveyId) {
         const supabase = createClient();
         const rows = Object.entries(answers).map(([qId, val]) => ({
@@ -393,6 +407,17 @@ function RegistrarPanelistaContent() {
         }));
         const { error: rErr } = await supabase.from("responses").insert(rows);
         if (rErr) { setError("Error al guardar la encuesta: " + rErr.message); setSubmitting(false); return; }
+
+        // Subir audios grabados
+        for (const [qId, blob] of Object.entries(audioBlobsRef.current)) {
+          const mime = audioMimesRef.current[qId] || "audio/webm";
+          const ext = mime.includes("mp4") ? "mp4" : mime.includes("ogg") ? "ogg" : "webm";
+          const fd = new FormData();
+          fd.append("file", blob, `audio.${ext}`);
+          fd.append("surveyId", surveyId);
+          fd.append("questionId", qId);
+          await fetch("/api/audio/upload", { method: "POST", body: fd });
+        }
       }
       setSubmitting(false);
       setStep("exito");
