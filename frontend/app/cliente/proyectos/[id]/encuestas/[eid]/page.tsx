@@ -12,7 +12,7 @@ async function fetchResultados(surveyIds: string[], filtro?: FiltroDemo | null):
 import ResultadosView from "@/components/resultados-view";
 import { PonderacionEditor } from "@/components/ponderacion-editor";
 import { FiltroDemografico } from "@/components/filtro-demografico";
-import { ArrowLeft, Loader2, Download, Printer, Send, StopCircle } from "lucide-react";
+import { ArrowLeft, Loader2, Download, Printer, Send, StopCircle, Pencil, Link2, Check } from "lucide-react";
 
 function exportarCSV(nombre: string, res: Resultados) {
   const preguntas = res.preguntas;
@@ -56,13 +56,15 @@ export default function ResultadosEncuesta({ params }: { params: Promise<{ id: s
   const [filtro, setFiltro] = useState<FiltroDemo | null>(null);
   const [filtrando, setFiltrando] = useState(false);
   const [cambiandoEstado, setCambiandoEstado] = useState(false);
+  const [slug, setSlug] = useState<string | null>(null);
+  const [linkCopiado, setLinkCopiado] = useState(false);
 
   useEffect(() => {
     (async () => {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       const { data: survey } = await supabase
-        .from("surveys").select("name, status, wave, project_id, ponderacion").eq("id", eid).maybeSingle();
+        .from("surveys").select("name, status, wave, project_id, ponderacion, slug, es_abierta").eq("id", eid).maybeSingle();
       if (!survey) { setNotFound(true); setLoading(false); return; }
 
       // Ownership: la encuesta pertenece a un proyecto del cliente logueado
@@ -77,6 +79,7 @@ export default function ResultadosEncuesta({ params }: { params: Promise<{ id: s
       setWave(survey.wave);
       setPonderacion((survey.ponderacion as Ponderacion) ?? null);
       setPuedeEditar(role === "admin" || proyecto?.client_id === user?.id);
+      if (survey.es_abierta && survey.slug) setSlug(survey.slug);
       setRes(await fetchResultados([eid]));
       setLoading(false);
     })();
@@ -133,13 +136,27 @@ export default function ResultadosEncuesta({ params }: { params: Promise<{ id: s
         <h1 className="text-2xl font-bold text-white flex-1">{nombre}</h1>
         <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${st.cls}`}>{st.label}</span>
         {puedeEditar && status === "draft" && (
+          <div className="flex items-center gap-2 print:hidden">
+            <Link href={`/cliente/proyectos/${id}/encuestas/nueva?edit=${eid}`}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 px-3 py-1.5 text-xs text-slate-300 hover:text-white transition-colors">
+              <Pencil className="h-3.5 w-3.5" /> Editar
+            </Link>
+            <button
+              onClick={() => cambiarEstado("ready")}
+              disabled={cambiandoEstado}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 px-3 py-1.5 text-xs text-white font-semibold transition-colors"
+            >
+              {cambiandoEstado ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+              Publicar
+            </button>
+          </div>
+        )}
+        {slug && (status === "ready" || status === "sent") && (
           <button
-            onClick={() => cambiarEstado("ready")}
-            disabled={cambiandoEstado}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 px-3 py-1.5 text-xs text-white font-semibold transition-colors print:hidden"
+            onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/encuesta/${slug}`); setLinkCopiado(true); setTimeout(() => setLinkCopiado(false), 2000); }}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600/20 border border-blue-500/30 hover:bg-blue-600/30 px-3 py-1.5 text-xs text-blue-300 transition-colors print:hidden"
           >
-            {cambiandoEstado ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
-            Publicar encuesta
+            {linkCopiado ? <><Check className="h-3.5 w-3.5 text-emerald-400" /> Copiado</> : <><Link2 className="h-3.5 w-3.5" /> Copiar link</>}
           </button>
         )}
         {puedeEditar && (status === "ready" || status === "sent") && (
