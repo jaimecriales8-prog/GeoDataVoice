@@ -403,7 +403,7 @@ function RegistrarPanelistaContent() {
   if (step === "seleccion") {
     return (
       <div className="flex flex-col min-h-screen bg-slate-900">
-        <header className="bg-emerald-900 px-5 py-4 flex items-center gap-3">
+        <header className="bg-emerald-900 px-5 pb-4 pt-[max(1rem,env(safe-area-inset-top))] flex items-center gap-3">
           <button onClick={() => router.push("/campo/encuestador")} className="text-emerald-300 active:text-white">
             <ArrowLeft className="h-5 w-5" />
           </button>
@@ -450,7 +450,7 @@ function RegistrarPanelistaContent() {
   return (
     <div className="flex flex-col min-h-screen bg-slate-900">
       {/* Header */}
-      <header className="bg-emerald-900 px-5 py-4 flex items-center gap-3">
+      <header className="bg-emerald-900 px-5 pb-4 pt-[max(1rem,env(safe-area-inset-top))] flex items-center gap-3">
         <button onClick={() => step === "datos" ? (params.get("survey_id") ? router.back() : setStep("seleccion")) : setStep(PASOS[Math.max(0, stepIdx - 1)].id)}
           className="text-emerald-300 active:text-white">
           <ArrowLeft className="h-5 w-5" />

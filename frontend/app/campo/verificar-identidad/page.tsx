@@ -435,7 +435,7 @@ export default function VerificarIdentidadPage() {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex flex-col items-center px-4 pb-10 pt-[max(2rem,env(safe-area-inset-top))]">
       <div className="w-full max-w-lg space-y-6">
 
         {/* Header */}
