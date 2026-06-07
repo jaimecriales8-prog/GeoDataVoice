@@ -162,7 +162,7 @@ export default function NuevaEncuesta({ params }: { params: Promise<{ id: string
         name: nombre.trim(),
         wave,
         status: estado,
-        perfil_objetivo: esAbierta ? null : perfil,
+        perfil_objetivo: esAbierta ? "" : perfil,
         audiencia: (segmentar && !audienciaVacia(audiencia)) ? audiencia : null,
         ponderacion: (ponderar && !ponderacionVacia(ponderacion)) ? ponderacion : null,
         closes_at: closesAt || null,
