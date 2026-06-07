@@ -217,9 +217,28 @@ function RegistrarPanelistaContent() {
 
   // ── STEP 1: Datos ─────────────────────────────────────────────────────────
   async function handleDatos() {
-    if (!form.nombre || !form.documento || !form.telefono || !form.municipio) {
-      setError("Nombre, documento, celular y municipio son obligatorios."); return;
-    }
+    // Todos los campos son obligatorios
+    const requeridos: [string, string][] = [
+      [form.nombre, "el nombre completo"],
+      [form.documento, "la cédula"],
+      [form.telefono, "el celular"],
+      [form.municipio, "el municipio"],
+      [form.barrio, "el barrio"],
+      [form.genero, "el sexo"],
+      [form.edad, "la edad"],
+      [form.estrato, "el estrato"],
+      [form.estado_civil, "el estado civil"],
+      [form.nivel_estudios, "el nivel de estudios"],
+      [form.regimen_salud, "el régimen de salud"],
+      [form.sisben_grupo, "el grupo SISBEN"],
+      [form.tenencia_vivienda, "el tipo de vivienda"],
+      [form.grupo_etnico, "el grupo étnico"],
+      [form.antiguedad_barrio, "la antigüedad en el barrio"],
+    ];
+    const faltante = requeridos.find(([v]) => !String(v).trim());
+    if (faltante) { setError(`Falta ${faltante[1]}. Todos los campos son obligatorios.`); return; }
+    if (actividades.length === 0) { setError("Selecciona al menos una actividad."); return; }
+    if (tieneHijos && !form.num_hijos.trim()) { setError("Indica cuántos hijos tiene."); return; }
     if (!/^\d{7,12}$/.test(form.documento)) { setError("Documento inválido."); return; }
     if (!/^3\d{9}$/.test(form.telefono)) { setError("Celular colombiano inválido."); return; }
     setError("");
@@ -482,20 +501,20 @@ function RegistrarPanelistaContent() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Municipio *"><input value={form.municipio} onChange={e => update("municipio", e.target.value)} placeholder="Ej: Barranquilla" className={inputCls} /></Field>
-              <Field label="Barrio"><input value={form.barrio} onChange={e => update("barrio", e.target.value)} placeholder="Tu barrio" className={inputCls} /></Field>
+              <Field label="Barrio *"><input value={form.barrio} onChange={e => update("barrio", e.target.value)} placeholder="Tu barrio" className={inputCls} /></Field>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Género"><select value={form.genero} onChange={e => update("genero", e.target.value)} className={inputCls}><option value="">Sin respuesta</option><option value="female">Mujer</option><option value="male">Hombre</option><option value="other">Otro</option></select></Field>
-              <Field label="Edad"><input value={form.edad} onChange={e => update("edad", e.target.value)} placeholder="Ej: 38" inputMode="numeric" className={inputCls} /></Field>
+              <Field label="Género *"><select value={form.genero} onChange={e => update("genero", e.target.value)} className={inputCls}><option value="">Sin respuesta</option><option value="female">Mujer</option><option value="male">Hombre</option><option value="other">Otro</option></select></Field>
+              <Field label="Edad *"><input value={form.edad} onChange={e => update("edad", e.target.value)} placeholder="Ej: 38" inputMode="numeric" className={inputCls} /></Field>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Estrato">
+              <Field label="Estrato *">
                 <select value={form.estrato} onChange={e => update("estrato", e.target.value)} className={inputCls}>
                   <option value="">Sin respuesta</option>
                   {[1,2,3,4,5,6].map(n => <option key={n} value={n}>{n}</option>)}
                 </select>
               </Field>
-              <Field label="Estado civil">
+              <Field label="Estado civil *">
                 <select value={form.estado_civil} onChange={e => update("estado_civil", e.target.value)} className={inputCls}>
                   <option value="">Sin respuesta</option>
                   <option value="soltero">Soltero/a</option>
@@ -507,7 +526,7 @@ function RegistrarPanelistaContent() {
                 </select>
               </Field>
             </div>
-            <Field label="Nivel de estudios">
+            <Field label="Nivel de estudios *">
               <select value={form.nivel_estudios} onChange={e => update("nivel_estudios", e.target.value)} className={inputCls}>
                 <option value="">Sin respuesta</option>
                 <option value="bachiller">Bachiller</option>
@@ -516,7 +535,7 @@ function RegistrarPanelistaContent() {
                 <option value="posgrado">Posgrado</option>
               </select>
             </Field>
-            <Field label="Actividad (puede elegir varias)">
+            <Field label="Actividad (elige al menos una) *">
               <div className="flex flex-wrap gap-2">
                 {[["estudiante","Estudiante"],["empleado","Empleado"],["independiente","Independiente"],["desempleado","Desempleado"]].map(([v, l]) => {
                   const sel = actividades.includes(v);
@@ -540,7 +559,7 @@ function RegistrarPanelistaContent() {
               </label>
               {tieneHijos && (
                 <div className="mt-3">
-                  <Field label="¿Cuántos hijos?">
+                  <Field label="¿Cuántos hijos? *">
                     <input value={form.num_hijos} onChange={e => update("num_hijos", e.target.value)} placeholder="Ej: 2" inputMode="numeric" className={inputCls} />
                   </Field>
                 </div>
@@ -550,7 +569,7 @@ function RegistrarPanelistaContent() {
             <div className="border-t border-white/5 pt-4 space-y-3">
               <p className="text-xs text-emerald-300 font-semibold uppercase tracking-wide">Perfil socioeconómico</p>
               <div className="grid grid-cols-2 gap-3">
-                <Field label="Régimen de salud">
+                <Field label="Régimen de salud *">
                   <select value={form.regimen_salud} onChange={e => update("regimen_salud", e.target.value)} className={inputCls}>
                     <option value="">Sin respuesta</option>
                     <option value="subsidiado">Subsidiado</option>
@@ -559,7 +578,7 @@ function RegistrarPanelistaContent() {
                     <option value="ninguno">Ninguno</option>
                   </select>
                 </Field>
-                <Field label="SISBEN">
+                <Field label="SISBEN *">
                   <select value={form.sisben_grupo} onChange={e => update("sisben_grupo", e.target.value)} className={inputCls}>
                     <option value="">Sin respuesta</option>
                     <option value="no">No está en SISBEN</option>
@@ -571,7 +590,7 @@ function RegistrarPanelistaContent() {
                 </Field>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <Field label="Vivienda">
+                <Field label="Vivienda *">
                   <select value={form.tenencia_vivienda} onChange={e => update("tenencia_vivienda", e.target.value)} className={inputCls}>
                     <option value="">Sin respuesta</option>
                     <option value="propia">Propia</option>
@@ -579,7 +598,7 @@ function RegistrarPanelistaContent() {
                     <option value="familiar">Familiar</option>
                   </select>
                 </Field>
-                <Field label="Grupo étnico">
+                <Field label="Grupo étnico *">
                   <select value={form.grupo_etnico} onChange={e => update("grupo_etnico", e.target.value)} className={inputCls}>
                     <option value="">Sin respuesta</option>
                     <option value="ninguno">Ninguno</option>
@@ -590,7 +609,7 @@ function RegistrarPanelistaContent() {
                   </select>
                 </Field>
               </div>
-              <Field label="Antigüedad en el barrio">
+              <Field label="Antigüedad en el barrio *">
                 <select value={form.antiguedad_barrio} onChange={e => update("antiguedad_barrio", e.target.value)} className={inputCls}>
                   <option value="">Sin respuesta</option>
                   <option value="menos_1">Menos de 1 año</option>
