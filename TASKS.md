@@ -114,7 +114,11 @@
 - [ ] **P2-06** Paginación en listados de panelistas, encuestadores, proyectos
 - [ ] **P2-07** WhatsApp Business API (360dialog o Twilio) para envío de links de encuesta
 - [ ] **P2-08** Panel rotativo automático: reglas de rotación, reemplazo por gemelos estadísticos
-- [ ] **P2-09** Post-estratificación y ponderación estadística (Raking contra censo)
+- [ ] **P2-09** Post-estratificación y ponderación estadística (Raking contra censo DANE)
+  - **Qué:** ajustar automáticamente los pesos de la muestra para que reproduzca las distribuciones reales del territorio (corrige el sesgo del panel: ej. panel 70% mujeres vs censo 55%). Distinto de la ponderación manual del cliente (ADR-022, P1-25), que es editorial/subjetiva.
+  - **Cómo:** algoritmo IPF (Iterative Proportional Fitting / raking) que itera hasta cuadrar varias variables a la vez (sexo, estrato, edad, etc.) contra las cifras del censo.
+  - **Necesita:** (1) cargar tablas del censo DANE por municipio; (2) implementar IPF; (3) definir variables ancla por proyecto; (4) decidir tabla/estructura para guardar los marginales del censo.
+  - **Combinación ideal:** raking corrige el sesgo muestral y, encima, el cliente puede aplicar su ponderación editorial (P1-25) si quiere dar más peso a un grupo según el tema.
 - [ ] **P2-10** CI/CD con GitHub Actions (lint + type-check + deploy preview)
 - [ ] **P2-11** Monitoreo de errores — Sentry o Vercel Analytics
 
