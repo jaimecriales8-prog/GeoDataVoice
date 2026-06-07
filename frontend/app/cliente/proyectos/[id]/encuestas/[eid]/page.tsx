@@ -3,8 +3,9 @@
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase";
-import { fetchResultados, Resultados } from "@/lib/resultados";
+import { fetchResultados, Resultados, type Ponderacion } from "@/lib/resultados";
 import ResultadosView from "@/components/resultados-view";
+import { PonderacionEditor } from "@/components/ponderacion-editor";
 import { ArrowLeft, Loader2 } from "lucide-react";
 
 const STATUS_LABELS: Record<string, { label: string; cls: string }> = {
@@ -23,13 +24,16 @@ export default function ResultadosEncuesta({ params }: { params: Promise<{ id: s
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [denegado, setDenegado] = useState(false);
+  const [ponderacion, setPonderacion] = useState<Ponderacion | null>(null);
+  const [puedeEditar, setPuedeEditar] = useState(false);
+  const [recalculando, setRecalculando] = useState(false);
 
   useEffect(() => {
     (async () => {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       const { data: survey } = await supabase
-        .from("surveys").select("name, status, wave, project_id").eq("id", eid).maybeSingle();
+        .from("surveys").select("name, status, wave, project_id, ponderacion").eq("id", eid).maybeSingle();
       if (!survey) { setNotFound(true); setLoading(false); return; }
 
       // Ownership: la encuesta pertenece a un proyecto del cliente logueado
@@ -42,10 +46,19 @@ export default function ResultadosEncuesta({ params }: { params: Promise<{ id: s
       setNombre(survey.name);
       setStatus(survey.status);
       setWave(survey.wave);
+      setPonderacion((survey.ponderacion as Ponderacion) ?? null);
+      setPuedeEditar(role === "admin" || proyecto?.client_id === user?.id);
       setRes(await fetchResultados([eid]));
       setLoading(false);
     })();
   }, [eid]);
+
+  async function recalcular(p: Ponderacion | null) {
+    setPonderacion(p);
+    setRecalculando(true);
+    setRes(await fetchResultados([eid]));
+    setRecalculando(false);
+  }
 
   if (loading) return (
     <div className="p-8 flex justify-center"><Loader2 className="h-7 w-7 text-violet-400 animate-spin mt-12" /></div>
@@ -78,7 +91,15 @@ export default function ResultadosEncuesta({ params }: { params: Promise<{ id: s
       </div>
       <p className="text-slate-400 text-sm mb-8">Resultados de la encuesta · Ola {wave}</p>
 
-      {res && <ResultadosView r={res} />}
+      {puedeEditar && (
+        <PonderacionEditor surveyId={eid} inicial={ponderacion} onSaved={recalcular} />
+      )}
+
+      {recalculando ? (
+        <div className="flex items-center gap-2 text-sm text-slate-400 py-6">
+          <Loader2 className="h-4 w-4 animate-spin" /> Recalculando con la nueva ponderación…
+        </div>
+      ) : res && <ResultadosView r={res} />}
     </div>
   );
 }
