@@ -42,6 +42,17 @@ export type Cita = {
   topic: string;
 };
 
+export type FiltroDemo = { variable: string; valor: string | number };
+
+export type RespuestaIndividual = {
+  participantId: string;
+  nombre: string;
+  estrato: string | null;
+  gender: string | null;
+  fecha: string;
+  respuestas: Record<string, string>; // question_id → value
+};
+
 export type Resultados = {
   respuestas: number;
   participantes: number;
@@ -53,6 +64,8 @@ export type Resultados = {
   temas: Distribucion;
   intensidadProm: number | null;
   citas: Cita[];
+  individuales: RespuestaIndividual[];
+  totalSinFiltro: number; // total de respuestas antes de aplicar filtro demográfico
 };
 
 const TEMA_LABELS: Record<string, string> = {
@@ -82,10 +95,10 @@ function contar(valores: (string | null | undefined)[], labels?: Record<string, 
  * Agrega los resultados de una o varias encuestas (por encuesta: 1 id; por proyecto: todos los ids).
  * RLS está desactivado (MVP) → el cliente puede leer estas tablas directamente.
  */
-export async function fetchResultados(surveyIds: string[]): Promise<Resultados> {
+export async function fetchResultados(surveyIds: string[], filtro?: FiltroDemo | null): Promise<Resultados> {
   const vacio: Resultados = {
     respuestas: 0, participantes: 0, audios: 0, audiosProcesados: 0,
-    preguntas: [], sentimiento: [], emociones: [], temas: [], intensidadProm: null, citas: [],
+    preguntas: [], sentimiento: [], emociones: [], temas: [], intensidadProm: null, citas: [], individuales: [], totalSinFiltro: 0,
   };
   if (surveyIds.length === 0) return vacio;
 
@@ -101,13 +114,12 @@ export async function fetchResultados(surveyIds: string[]): Promise<Resultados> 
   // 2. Respuestas
   const { data: responses } = await supabase
     .from("responses")
-    .select("id, survey_id, question_id, participant_id, value")
+    .select("id, survey_id, question_id, participant_id, value, created_at")
     .in("survey_id", surveyIds);
 
-  const resp = responses ?? [];
-  const participantes = new Set(resp.map(r => r.participant_id)).size;
+  const totalSinFiltro = (responses ?? []).length;
 
-  // 2b. Ponderación demográfica (balanceo): por encuesta + demografía de participantes
+  // 2b. Ponderación demográfica + demografía de participantes (siempre se fetcha)
   const { data: surveysPond } = await supabase
     .from("surveys").select("id, ponderacion").in("id", surveyIds);
   const pondPorSurvey = new Map<string, Ponderacion | null>(
@@ -115,15 +127,34 @@ export async function fetchResultados(surveyIds: string[]): Promise<Resultados> 
   );
   const hayPonderacion = (surveysPond ?? []).some(s => !ponderacionVacia(s.ponderacion as Ponderacion));
 
-  const partIds = [...new Set(resp.map(r => r.participant_id))].filter(Boolean) as string[];
+  const allPartIds = [...new Set((responses ?? []).map(r => r.participant_id))].filter(Boolean) as string[];
   const demoPorParticipante = new Map<string, Record<string, unknown>>();
-  if (hayPonderacion && partIds.length > 0) {
+  if (allPartIds.length > 0) {
     const { data: parts } = await supabase
       .from("participants")
-      .select("id, gender, estrato, nivel_estudios, estado_civil, regimen_salud, sisben_grupo, tenencia_vivienda, grupo_etnico, antiguedad_barrio")
-      .in("id", partIds);
+      .select("id, name_encrypted, gender, estrato, nivel_estudios, estado_civil, regimen_salud, sisben_grupo, tenencia_vivienda, grupo_etnico, antiguedad_barrio, actividades")
+      .in("id", allPartIds);
     (parts ?? []).forEach(p => demoPorParticipante.set(p.id, p as Record<string, unknown>));
   }
+
+  // Aplicar filtro demográfico: solo respuestas de participantes que coincidan
+  let resp = responses ?? [];
+  if (filtro) {
+    const partIdsFiltrados = new Set(
+      allPartIds.filter(pid => {
+        const demo = demoPorParticipante.get(pid);
+        if (!demo) return false;
+        const val = demo[filtro.variable];
+        if (Array.isArray(val)) return val.includes(filtro.valor);
+        return String(val) === String(filtro.valor);
+      })
+    );
+    resp = resp.filter(r => r.participant_id && partIdsFiltrados.has(r.participant_id));
+  }
+
+  const partIds = [...new Set(resp.map(r => r.participant_id))].filter(Boolean) as string[];
+  const participantes = new Set(resp.map(r => r.participant_id)).size;
+
   // peso por respuesta = peso del participante según la ponderación de su encuesta
   function pesoDeRespuesta(r: { survey_id: string; participant_id: string }): number {
     if (!hayPonderacion) return 1;
@@ -203,6 +234,28 @@ export async function fetchResultados(surveyIds: string[]): Promise<Resultados> 
     };
   });
 
+  // 5. Respuestas individuales (una fila por participante, reutiliza demoPorParticipante)
+  const byPart = new Map<string, { fecha: string; respuestas: Record<string, string> }>();
+  for (const r of resp) {
+    if (!r.participant_id) continue;
+    const cur = byPart.get(r.participant_id) ?? { fecha: (r as { created_at?: string }).created_at ?? "", respuestas: {} };
+    const rDate = (r as { created_at?: string }).created_at ?? "";
+    if (!cur.fecha || (rDate && rDate < cur.fecha)) cur.fecha = rDate;
+    cur.respuestas[r.question_id] = r.value ?? "";
+    byPart.set(r.participant_id, cur);
+  }
+  const individuales: RespuestaIndividual[] = [...byPart.entries()].map(([pid, d]) => {
+    const p = demoPorParticipante.get(pid);
+    return {
+      participantId: pid,
+      nombre: (p as { name_encrypted?: string } | undefined)?.name_encrypted ?? "—",
+      estrato: (p as { estrato?: number | null } | undefined)?.estrato != null ? String((p as { estrato: number }).estrato) : null,
+      gender: (p as { gender?: string | null } | undefined)?.gender ?? null,
+      fecha: d.fecha,
+      respuestas: d.respuestas,
+    };
+  }).sort((a, b) => a.fecha.localeCompare(b.fecha));
+
   return {
     respuestas: resp.length,
     participantes,
@@ -214,6 +267,8 @@ export async function fetchResultados(surveyIds: string[]): Promise<Resultados> 
     temas,
     intensidadProm,
     citas,
+    individuales,
+    totalSinFiltro,
   };
 }
 

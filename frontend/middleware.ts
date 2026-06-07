@@ -33,6 +33,30 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
+  // ── Guard de rol para /campo/* ────────────────────────────────────────────
+  // Cada subruta de /campo solo es accesible por su rol correspondiente.
+  // Un cliente o admin que intente acceder a /campo/panelista es redirigido.
+  if (user && pathname.startsWith("/campo") && !authOnlyPaths.some(p => pathname.startsWith(p))) {
+    const role = user.user_metadata?.role ?? "";
+
+    const esPanelista   = role === "panelista";
+    const esEncuestador = role === "encuestador";
+    const esAdmin       = role === "admin";
+
+    // /campo/panelista/** → solo panelistas (y admin que puede ver todo)
+    if (pathname.startsWith("/campo/panelista") && !esPanelista && !esAdmin) {
+      return NextResponse.redirect(new URL("/login", request.url));
+    }
+    // /campo/encuestador/** → solo encuestadores (y admin)
+    if (pathname.startsWith("/campo/encuestador") && !esEncuestador && !esAdmin) {
+      return NextResponse.redirect(new URL("/login", request.url));
+    }
+    // /campo/verificar-identidad → solo panelistas
+    if (pathname.startsWith("/campo/verificar-identidad") && !esPanelista && !esAdmin) {
+      return NextResponse.redirect(new URL("/login", request.url));
+    }
+  }
+
   // ── Gate de verificación de identidad (KYC) ──────────────────────────────
   // Bloquea el acceso a /campo/* si el panelista no completó su verificación.
   // Respeta platform_config.identity_verification para no crear loops con la

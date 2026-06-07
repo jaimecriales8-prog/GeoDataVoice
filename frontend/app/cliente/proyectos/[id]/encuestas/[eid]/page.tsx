@@ -3,10 +3,31 @@
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase";
-import { fetchResultados, Resultados, type Ponderacion } from "@/lib/resultados";
+import { fetchResultados, Resultados, type Ponderacion, type FiltroDemo } from "@/lib/resultados";
 import ResultadosView from "@/components/resultados-view";
 import { PonderacionEditor } from "@/components/ponderacion-editor";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { FiltroDemografico } from "@/components/filtro-demografico";
+import { ArrowLeft, Loader2, Download, Printer } from "lucide-react";
+
+function exportarCSV(nombre: string, res: Resultados) {
+  const preguntas = res.preguntas;
+  const headers = ["#", "Nombre", "Estrato", "Género", "Fecha", ...preguntas.map((q, i) => `P${i + 1}: ${q.text}`)];
+  const filas = res.individuales.map((ind, idx) => [
+    String(idx + 1),
+    ind.nombre,
+    ind.estrato ?? "",
+    ind.gender ?? "",
+    ind.fecha ? new Date(ind.fecha).toLocaleDateString("es-CO") : "",
+    ...preguntas.map(q => ind.respuestas[q.id] ?? ""),
+  ]);
+  const escape = (v: string) => `"${v.replace(/"/g, '""')}"`;
+  const csv = [headers, ...filas].map(row => row.map(escape).join(",")).join("\n");
+  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = `${nombre.replace(/\s+/g, "_")}_respuestas.csv`; a.click();
+  URL.revokeObjectURL(url);
+}
 
 const STATUS_LABELS: Record<string, { label: string; cls: string }> = {
   draft: { label: "Borrador", cls: "bg-slate-700 text-slate-300" },
@@ -27,6 +48,8 @@ export default function ResultadosEncuesta({ params }: { params: Promise<{ id: s
   const [ponderacion, setPonderacion] = useState<Ponderacion | null>(null);
   const [puedeEditar, setPuedeEditar] = useState(false);
   const [recalculando, setRecalculando] = useState(false);
+  const [filtro, setFiltro] = useState<FiltroDemo | null>(null);
+  const [filtrando, setFiltrando] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -56,8 +79,15 @@ export default function ResultadosEncuesta({ params }: { params: Promise<{ id: s
   async function recalcular(p: Ponderacion | null) {
     setPonderacion(p);
     setRecalculando(true);
-    setRes(await fetchResultados([eid]));
+    setRes(await fetchResultados([eid], filtro));
     setRecalculando(false);
+  }
+
+  async function aplicarFiltro(f: FiltroDemo | null) {
+    setFiltro(f);
+    setFiltrando(true);
+    setRes(await fetchResultados([eid], f));
+    setFiltrando(false);
   }
 
   if (loading) return (
@@ -85,9 +115,25 @@ export default function ResultadosEncuesta({ params }: { params: Promise<{ id: s
       <Link href={`/cliente/proyectos/${id}`} className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-white transition-colors mb-4">
         <ArrowLeft className="h-4 w-4" /> Volver al proyecto
       </Link>
-      <div className="flex items-center gap-3 mb-1">
-        <h1 className="text-2xl font-bold text-white">{nombre}</h1>
+      <div className="flex flex-wrap items-center gap-3 mb-1">
+        <h1 className="text-2xl font-bold text-white flex-1">{nombre}</h1>
         <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${st.cls}`}>{st.label}</span>
+        {res && res.individuales.length > 0 && (
+          <div className="flex items-center gap-2 print:hidden">
+            <button
+              onClick={() => exportarCSV(nombre, res)}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-slate-800 border border-white/10 px-3 py-1.5 text-xs text-slate-300 hover:text-white hover:bg-slate-700 transition-colors"
+            >
+              <Download className="h-3.5 w-3.5" /> CSV
+            </button>
+            <button
+              onClick={() => window.print()}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-slate-800 border border-white/10 px-3 py-1.5 text-xs text-slate-300 hover:text-white hover:bg-slate-700 transition-colors"
+            >
+              <Printer className="h-3.5 w-3.5" /> PDF
+            </button>
+          </div>
+        )}
       </div>
       <p className="text-slate-400 text-sm mb-8">Resultados de la encuesta · Ola {wave}</p>
 
@@ -95,9 +141,19 @@ export default function ResultadosEncuesta({ params }: { params: Promise<{ id: s
         <PonderacionEditor surveyId={eid} inicial={ponderacion} onSaved={recalcular} />
       )}
 
-      {recalculando ? (
+      {res && (
+        <FiltroDemografico
+          filtro={filtro}
+          onChange={aplicarFiltro}
+          totalSinFiltro={res.totalSinFiltro}
+          totalFiltrado={res.respuestas}
+        />
+      )}
+
+      {(recalculando || filtrando) ? (
         <div className="flex items-center gap-2 text-sm text-slate-400 py-6">
-          <Loader2 className="h-4 w-4 animate-spin" /> Recalculando con la nueva ponderación…
+          <Loader2 className="h-4 w-4 animate-spin" />
+          {recalculando ? "Recalculando con la nueva ponderación…" : "Filtrando resultados…"}
         </div>
       ) : res && <ResultadosView r={res} />}
     </div>

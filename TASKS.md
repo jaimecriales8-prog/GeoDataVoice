@@ -18,7 +18,7 @@
 
 ### Auth & seguridad
 - [x] **P0-01** Gate de verificación en middleware — bloquea `/campo/*` si panelista con `kyc_status != approved`, respetando `platform_config` (sin loops)
-- [ ] **P0-02** Proteger `/campo/*` por rol — el middleware solo verifica sesión, no rol; un cliente podría acceder a `/campo/panelista`
+- [x] **P0-02** Proteger `/campo/*` por rol — middleware verifica rol por subruta: `/campo/panelista/**` → solo panelista/admin; `/campo/encuestador/**` → solo encuestador/admin; cualquier otro rol redirige a `/login`.
 
 ### Flujo de respuesta real
 - [x] **P0-03** Cargar preguntas reales de Supabase en el flujo de encuesta
@@ -33,6 +33,30 @@
 
 ## P1 — Demo con clientes (semanas 3–6)
 
+### Encuestas abiertas (anónimas, sin requisito de panel)
+- [x] **P1-27** Encuestas abiertas — modalidad donde cualquier persona puede responder sin ser panelista registrado, vía link público.
+  - **Esquema BD:**
+    - `surveys.tipo` enum `panel` (default, actual) | `abierta`
+    - `surveys.abierta_identidad` boolean — si se exige verificación de identidad (AutenTIC) al responder (default false)
+    - `surveys.abierta_pago` boolean — si se paga al completar (default false; requiere billetera al final)
+    - `surveys.slug` text unique nullable — identificador amigable para el link público (ej. `encuesta-barranquilla-2026-01`)
+  - **Link público:** `/encuesta/[slug]` — ruta pública (fuera de `/campo/*`), sin auth requerida
+  - **Flujo del respondente:**
+    1. Página de bienvenida con descripción de la encuesta
+    2. Datos demográficos obligatorios (mismo set que panelista: estrato, edad, género, nivel estudios, actividad, estado civil, hijos, régimen salud, SISBEN, vivienda, grupo étnico, antigüedad barrio, subsidios, internet, registro electoral)
+    3. Si `abierta_identidad=true` → flujo AutenTIC (simulación o real)
+    4. Consentimientos (grabación de voz si aplica)
+    5. GPS (opcional)
+    6. Preguntas de la encuesta
+    7. Si `abierta_pago=true` → captura Nequi/Daviplata + número antes de cerrar
+    8. Pantalla de agradecimiento
+  - **Anonimato (opcional doble):** configurable por el creador (`surveys.abierta_anonima` boolean). Si `true` → siempre anónima (solo demografía, sin nombre/contacto). Si `false` → el respondente puede elegir identificarse (nombre + email/teléfono) o quedarse anónimo; en ambos casos los datos demográficos se capturan igual. No se crea `auth.users`; se guarda un `participant` con `user_id=null`, `is_anonymous=true/false`.
+  - **Deduplicación:** si el mismo `document_hash` ya existe (fue panelista o encuestado en campo), reutilizar datos demográficos pero crear nueva `response` — no bloquear, solo prefill.
+  - **Creación:** en el formulario de nueva encuesta (cliente y admin), nuevo toggle "Encuesta abierta" que muestra las opciones de identidad, pago y slug. El slug se puede auto-generar o editar.
+  - **Segmentación:** `surveys.audiencia` aplica igual — si el respondente no cumple el perfil, mostrar mensaje de "esta encuesta no está dirigida a tu perfil" (no bloquear, solo informar).
+  - **Resultados:** los tableros existentes (`/cliente/proyectos/[id]/encuestas/[eid]`) ya muestran los datos; no requieren cambios. El tipo `abierta` se muestra como badge en la encuesta.
+  - **Consideración RLS futura:** la ruta pública usará service role solo para insertar; el anon key no debe poder leer otras respuestas.
+
 ### Dashboard resultados cliente
 - [x] **Fix 404 sidebar cliente** — creadas `/cliente/encuestas` y `/cliente/resultados`.
 - [x] **P1-01** Tableros de resultados — **por encuesta** y **por proyecto**.
@@ -41,8 +65,8 @@
   - Metodología: cada proyecto = olas (waves). NLP comparable entre olas; preguntas cerradas se rastrean por `tracking_key`; favorabilidad = % de `favorable_values` (top-box) por ola.
   - Esquema agregado: `surveys.perfil_objetivo`, `questions.tracking_key/favorability/favorable_values`. Esto arregló el **bug de crear-encuesta** (insertaba `perfil_objetivo`/`audio_prompt` inexistentes).
   - ⚠ aún sin verificar ownership proyecto↔cliente (cierra con RLS, P2-01).
-- [ ] **P1-02** Encuesta detalle — `/cliente/proyectos/[id]/encuestas/[eid]` con estadísticas por pregunta y listado de respuestas
-- [ ] **P1-03** Exportar resultados CSV/PDF desde panel cliente
+- [x] **P1-02** Encuesta detalle — `/cliente/proyectos/[id]/encuestas/[eid]` con estadísticas por pregunta y listado de respuestas individuales (tabla colapsable por participante, paginada de 25 en 25).
+- [x] **P1-03** Exportar resultados CSV/PDF desde panel cliente — botón CSV (descarga con BOM UTF-8, una fila por participante) y botón PDF (window.print) en el encabezado de resultados de encuesta.
 
 ### Encuestador — flujo campo completo
 - [x] **P1-04** "Encuestar en campo" — selección de encuesta OBLIGATORIA → datos + perfil socioeconómico → identidad (condicional) → consentimientos → GPS → encuesta. Guarda en `responses` con `encuestador_id` (columna agregada; sin ella fallaba). Si la persona ya existe (documento), reutiliza su registro (no bloquea). Paga `encuesta_campo_cop`.
@@ -52,7 +76,7 @@
 - [x] **Reuso de datos (claim)** — `claim_field_participant`: encuestado que se vuelve panelista (mismo documento) reutiliza registro + verificación + historial. Prefill por documento.
 - [x] **Toggle validación identidad en calle** — admin global (`platform_config.field_identity_verification`) + cliente por proyecto (`projects.field_identity_required`).
 - [x] **Demografía del encuestado** — estrato, edad, nivel estudios, actividad(multi), estado civil, hijos, régimen salud, SISBEN, vivienda, grupo étnico, antigüedad barrio, subsidios, internet, registrado para votar.
-- [ ] **P1-04b** Segmentar tableros de resultados por demografía (favorabilidad por estrato/régimen/etc.).
+- [x] **P1-04b** Segmentar tableros de resultados por demografía — filtro demográfico en `/cliente/proyectos/[id]/encuestas/[eid]`: selector de variable (sexo, estrato, estudios, estado civil, salud, étnico, vivienda) + chips de valor. Re-fetcha con filtro aplicado. Badge activo muestra "X de Y respuestas".
 
 ### Notificaciones y emails
 - [x] **P1-06** Email de activación al cliente cuando admin aprueba su cuenta — `/api/email/cliente-activado` + integrado en `dashboard/clientes`
@@ -87,7 +111,7 @@
 - [x] **P1-15** Selector Nequi/Daviplata separado del número — nuevas columnas `participants.phone`, `payment_wallet`, `payment_number` (en claro, para contacto y dispersión). Se guardan en registro y edición.
 - [x] **P1-16** El registro del panelista captura el **mismo perfil socioeconómico** que el flujo de campo (estrato, estado civil, estudios, actividades, hijos, salud, SISBEN, vivienda, grupo étnico, antigüedad barrio, subsidios, internet, registro electoral). Prefill reutiliza estos campos si ya fue encuestado.
 - [x] **P1-17** El panelista puede **editar** todo ese perfil socioeconómico desde Mi perfil (los datos cambian con el tiempo).
-- [ ] **P1-18** Histórico del perfil socioeconómico — hoy al editar se sobrescribe; decidir si se versiona para análisis longitudinal.
+- [x] **P1-18** Histórico del perfil socioeconómico — tabla `participant_profile_history` (snapshot jsonb + captured_at). Antes de cada guardado en `/campo/panelista/perfil`, inserta un snapshot. El historial (últimas 10 entradas) aparece colapsado al final de la página con fecha + chips de valores clave. Migración en `supabase/migrations/20260607_encuestas_abiertas.sql`.
 
 ### Pagos a panelistas
 - [x] **Ganancias devengadas en vivo** — home panelista ("ganado este mes" + "total" = encuestas × `encuesta_cop` + audios × `audio_cop`); home encuestador ("ganado este mes" = reclutados × bono + encuestas campo × `encuesta_campo_cop`). Calculado desde la actividad, no desde `payments`.

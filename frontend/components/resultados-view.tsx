@@ -1,7 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { Resultados, Distribucion, SENTIMENT_COLOR, SENTIMENT_LABELS } from "@/lib/resultados";
-import { MessageSquareQuote, Users, ClipboardCheck, Mic, Activity } from "lucide-react";
+import { MessageSquareQuote, Users, ClipboardCheck, Mic, Activity, ChevronDown, ChevronUp, List } from "lucide-react";
 import {
   PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip,
 } from "recharts";
@@ -109,6 +110,84 @@ function TopicsBar({ data }: { data: Distribucion }) {
   );
 }
 
+const GENDER_LABELS: Record<string, string> = {
+  male: "Hombre", female: "Mujer", non_binary: "No binario", prefer_not: "Prefiere no decir",
+};
+
+function ListadoRespuestas({ r }: { r: Resultados }) {
+  const [open, setOpen] = useState(false);
+  const [limite, setLimite] = useState(25);
+  if (r.individuales.length === 0) return null;
+
+  const preguntas = r.preguntas;
+  const filas = r.individuales.slice(0, limite);
+
+  return (
+    <div className="rounded-2xl border border-white/5 bg-slate-900 overflow-hidden print:hidden">
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-white/[0.02] transition-colors"
+      >
+        <span className="flex items-center gap-2 text-sm font-semibold text-white">
+          <List className="h-4 w-4 text-violet-400" />
+          Respuestas individuales
+          <span className="rounded-full bg-violet-500/15 text-violet-300 text-[11px] px-2 py-0.5 font-medium">{r.individuales.length}</span>
+        </span>
+        {open ? <ChevronUp className="h-4 w-4 text-slate-500" /> : <ChevronDown className="h-4 w-4 text-slate-500" />}
+      </button>
+
+      {open && (
+        <div className="border-t border-white/5 overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="border-b border-white/5 text-slate-500">
+                <th className="text-left px-4 py-2.5 font-medium whitespace-nowrap">#</th>
+                <th className="text-left px-4 py-2.5 font-medium whitespace-nowrap">Nombre</th>
+                <th className="text-left px-4 py-2.5 font-medium whitespace-nowrap">Estrato</th>
+                <th className="text-left px-4 py-2.5 font-medium whitespace-nowrap">Género</th>
+                <th className="text-left px-4 py-2.5 font-medium whitespace-nowrap">Fecha</th>
+                {preguntas.map((q, i) => (
+                  <th key={q.id} className="text-left px-4 py-2.5 font-medium whitespace-nowrap max-w-[160px]">
+                    <span className="text-violet-400">P{i + 1}</span> {q.text.slice(0, 40)}{q.text.length > 40 ? "…" : ""}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {filas.map((ind, idx) => (
+                <tr key={ind.participantId} className="border-b border-white/[0.03] hover:bg-white/[0.02]">
+                  <td className="px-4 py-2.5 text-slate-500">{idx + 1}</td>
+                  <td className="px-4 py-2.5 text-slate-300 whitespace-nowrap">{ind.nombre}</td>
+                  <td className="px-4 py-2.5 text-slate-400 whitespace-nowrap">{ind.estrato ?? "—"}</td>
+                  <td className="px-4 py-2.5 text-slate-400 whitespace-nowrap">{ind.gender ? (GENDER_LABELS[ind.gender] ?? ind.gender) : "—"}</td>
+                  <td className="px-4 py-2.5 text-slate-500 whitespace-nowrap">
+                    {ind.fecha ? new Date(ind.fecha).toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric" }) : "—"}
+                  </td>
+                  {preguntas.map(q => (
+                    <td key={q.id} className="px-4 py-2.5 text-slate-300 max-w-[200px] truncate">
+                      {ind.respuestas[q.id] ?? "—"}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {r.individuales.length > limite && (
+            <div className="px-5 py-3 border-t border-white/5">
+              <button
+                onClick={() => setLimite(v => v + 25)}
+                className="text-xs text-violet-400 hover:text-violet-300 transition-colors"
+              >
+                Ver más ({r.individuales.length - limite} restantes)
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ResultadosView({ r }: { r: Resultados }) {
   if (r.respuestas === 0) {
     return (
@@ -194,6 +273,9 @@ export default function ResultadosView({ r }: { r: Resultados }) {
           ))}
         </div>
       </div>
+
+      {/* Listado individual */}
+      <ListadoRespuestas r={r} />
     </div>
   );
 }

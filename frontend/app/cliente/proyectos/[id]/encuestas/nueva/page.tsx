@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import {
   ArrowLeft, Plus, Trash2, Mic, MapPin, Users,
-  GripVertical, ChevronDown, Save, Target, Scale
+  GripVertical, ChevronDown, Save, Target, Scale,
+  Globe, EyeOff, CreditCard, ShieldCheck, Copy, Check,
 } from "lucide-react";
 import { SEGMENT_VARS, type Audiencia, audienciaVacia } from "@/lib/segmentacion";
 import { type Ponderacion, ponderacionVacia } from "@/lib/resultados";
@@ -57,6 +58,22 @@ export default function NuevaEncuesta({ params }: { params: Promise<{ id: string
   const [audiencia, setAudiencia] = useState<Audiencia>({});
   const [ponderar, setPonderar] = useState(false);
   const [ponderacion, setPonderacion] = useState<Ponderacion>({});
+  // Encuesta abierta
+  const [esAbierta, setEsAbierta] = useState(false);
+  const [slug, setSlug] = useState("");
+  const [abIdentidad, setAbIdentidad] = useState(false);
+  const [abPago, setAbPago] = useState(false);
+  const [abAnonima, setAbAnonima] = useState(true);
+  const [slugCopied, setSlugCopied] = useState(false);
+
+  function generarSlug(nombre: string) {
+    return nombre.toLowerCase()
+      .normalize("NFD").replace(/[̀-ͯ]/g, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "")
+      .slice(0, 50);
+  }
+
   const [preguntas, setPreguntas] = useState<Pregunta[]>([
     { id: uid(), type: "single_choice", text: "", required: true, options: ["", ""], pide_audio: true, audio_prompt: "", tracking_key: "", favorability: false, favorable_values: [] },
   ]);
@@ -145,10 +162,15 @@ export default function NuevaEncuesta({ params }: { params: Promise<{ id: string
         name: nombre.trim(),
         wave,
         status: estado,
-        perfil_objetivo: perfil,
+        perfil_objetivo: esAbierta ? null : perfil,
         audiencia: (segmentar && !audienciaVacia(audiencia)) ? audiencia : null,
         ponderacion: (ponderar && !ponderacionVacia(ponderacion)) ? ponderacion : null,
         closes_at: closesAt || null,
+        es_abierta: esAbierta,
+        slug: esAbierta && slug.trim() ? slug.trim() : null,
+        abierta_identidad: esAbierta ? abIdentidad : false,
+        abierta_pago: esAbierta ? abPago : false,
+        abierta_anonima: esAbierta ? abAnonima : true,
       })
       .select("id")
       .single();
@@ -222,8 +244,8 @@ export default function NuevaEncuesta({ params }: { params: Promise<{ id: string
         </div>
       </div>
 
-      {/* Perfil objetivo */}
-      <div className="rounded-2xl border border-white/5 bg-slate-900 p-6 mb-5">
+      {/* Perfil objetivo — solo aplica si no es abierta */}
+      <div className={`rounded-2xl border border-white/5 bg-slate-900 p-6 mb-5 transition-opacity ${esAbierta ? "opacity-30 pointer-events-none" : ""}`}>
         <h2 className="text-sm font-semibold text-white mb-1">¿Quién responde esta encuesta?</h2>
         <p className="text-xs text-slate-500 mb-4">Define qué perfil puede ver y ejecutar esta encuesta</p>
         <div className="grid grid-cols-3 gap-3">
@@ -296,6 +318,104 @@ export default function NuevaEncuesta({ params }: { params: Promise<{ id: string
             {audienciaVacia(audiencia) && (
               <p className="text-xs text-amber-300">Aún no seleccionaste ninguna variable → se mostrará a cualquier persona.</p>
             )}
+          </div>
+        )}
+      </div>
+
+      {/* Encuesta abierta */}
+      <div className="rounded-2xl border border-white/5 bg-slate-900 p-6 mb-5">
+        <div className="flex items-center justify-between mb-1">
+          <div className="flex items-center gap-2">
+            <Globe className="h-4 w-4 text-blue-400" />
+            <h2 className="text-sm font-semibold text-white">Encuesta abierta (link público)</h2>
+          </div>
+          <button type="button" onClick={() => setEsAbierta(v => !v)}
+            className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${esAbierta ? "bg-blue-500" : "bg-slate-600"}`}>
+            <div className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${esAbierta ? "translate-x-5" : "translate-x-0.5"}`} />
+          </button>
+        </div>
+        <p className="text-xs text-slate-500 mb-4">Cualquier persona puede responderla vía link, sin necesidad de ser panelista.</p>
+
+        {esAbierta && (
+          <div className="space-y-5 border-t border-white/5 pt-5">
+            {/* Slug */}
+            <Field label="URL pública (slug) *">
+              <div className="flex gap-2">
+                <div className="flex-1 relative">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 text-sm select-none">/encuesta/</span>
+                  <input
+                    value={slug}
+                    onChange={e => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
+                    onBlur={() => { if (!slug && nombre.trim()) setSlug(generarSlug(nombre)); }}
+                    placeholder={nombre.trim() ? generarSlug(nombre) : "mi-encuesta-2026"}
+                    className={inputCls + " pl-[84px]"}
+                  />
+                </div>
+                <button type="button" onClick={() => setSlug(generarSlug(nombre))}
+                  className="rounded-xl border border-white/10 px-3 py-2.5 text-xs text-slate-400 hover:text-white hover:bg-white/5 transition-colors whitespace-nowrap">
+                  Generar
+                </button>
+                {slug && (
+                  <button type="button" onClick={() => {
+                    navigator.clipboard.writeText(`${window.location.origin}/encuesta/${slug}`);
+                    setSlugCopied(true); setTimeout(() => setSlugCopied(false), 2000);
+                  }} className="rounded-xl border border-white/10 px-3 py-2.5 text-xs text-slate-400 hover:text-white hover:bg-white/5 transition-colors">
+                    {slugCopied ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
+                  </button>
+                )}
+              </div>
+              {slug && <p className="text-[11px] text-blue-400 mt-1">{typeof window !== "undefined" ? window.location.origin : ""}/encuesta/{slug}</p>}
+            </Field>
+
+            {/* Anonimato */}
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <EyeOff className="h-3.5 w-3.5 text-violet-400" />
+                <p className="text-xs font-semibold text-slate-300">Anonimato</p>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <button type="button" onClick={() => setAbAnonima(true)}
+                  className={`rounded-xl border-2 p-3 text-left transition-all ${abAnonima ? "border-violet-500 bg-violet-500/10" : "border-white/10 hover:bg-white/5"}`}>
+                  <p className={`text-xs font-semibold mb-0.5 ${abAnonima ? "text-violet-200" : "text-slate-300"}`}>Siempre anónima</p>
+                  <p className={`text-[11px] leading-relaxed ${abAnonima ? "text-violet-300/70" : "text-slate-600"}`}>No se guarda nombre ni identidad. Solo demografía.</p>
+                </button>
+                <button type="button" onClick={() => setAbAnonima(false)}
+                  className={`rounded-xl border-2 p-3 text-left transition-all ${!abAnonima ? "border-violet-500 bg-violet-500/10" : "border-white/10 hover:bg-white/5"}`}>
+                  <p className={`text-xs font-semibold mb-0.5 ${!abAnonima ? "text-violet-200" : "text-slate-300"}`}>El respondente elige</p>
+                  <p className={`text-[11px] leading-relaxed ${!abAnonima ? "text-violet-300/70" : "text-slate-600"}`}>Puede identificarse o quedar anónimo. Su elección.</p>
+                </button>
+              </div>
+            </div>
+
+            {/* Verificación de identidad */}
+            <label className="flex items-center justify-between cursor-pointer rounded-xl border border-white/5 bg-white/[0.02] p-3">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="h-4 w-4 text-emerald-400" />
+                <div>
+                  <p className="text-sm text-slate-200">Verificación de identidad (AutenTIC)</p>
+                  <p className="text-xs text-slate-500 mt-0.5">Requiere que el respondente verifique su identidad antes de responder</p>
+                </div>
+              </div>
+              <button type="button" onClick={() => setAbIdentidad(v => !v)}
+                className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ml-4 ${abIdentidad ? "bg-emerald-600" : "bg-slate-600"}`}>
+                <div className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${abIdentidad ? "translate-x-5" : "translate-x-0.5"}`} />
+              </button>
+            </label>
+
+            {/* Pago */}
+            <label className="flex items-center justify-between cursor-pointer rounded-xl border border-white/5 bg-white/[0.02] p-3">
+              <div className="flex items-center gap-2">
+                <CreditCard className="h-4 w-4 text-amber-400" />
+                <div>
+                  <p className="text-sm text-slate-200">Pagar al completar</p>
+                  <p className="text-xs text-slate-500 mt-0.5">Se le pedirá Nequi o Daviplata al final para dispersar el pago</p>
+                </div>
+              </div>
+              <button type="button" onClick={() => setAbPago(v => !v)}
+                className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ml-4 ${abPago ? "bg-amber-600" : "bg-slate-600"}`}>
+                <div className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${abPago ? "translate-x-5" : "translate-x-0.5"}`} />
+              </button>
+            </label>
           </div>
         )}
       </div>

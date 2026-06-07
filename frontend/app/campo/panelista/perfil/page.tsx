@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import {
   ArrowLeft, User, Mail, Phone, Wallet, Loader2,
-  CheckCircle, LogOut, AlertCircle, ClipboardList,
+  CheckCircle, LogOut, AlertCircle, ClipboardList, History, ChevronDown, ChevronUp,
 } from "lucide-react";
 
 export default function PerfilPanelista() {
@@ -35,6 +35,8 @@ export default function PerfilPanelista() {
   const [registradoVotar, setRegistradoVotar] = useState(false);
   const [ok, setOk] = useState("");
   const [error, setError] = useState("");
+  const [historial, setHistorial] = useState<{ id: string; captured_at: string; data: Record<string, unknown> }[]>([]);
+  const [histOpen, setHistOpen] = useState(false);
 
   useEffect(() => {
     const supabase = createClient();
@@ -71,6 +73,16 @@ export default function PerfilPanelista() {
         setAccesoInternet(!!p.acceso_internet);
         setRegistradoVotar(!!p.registrado_votar);
       }
+
+      // Cargar historial de cambios
+      const { data: hist } = await supabase
+        .from("participant_profile_history")
+        .select("id, captured_at, data")
+        .eq("participant_id", user.id)
+        .order("captured_at", { ascending: false })
+        .limit(10);
+      setHistorial((hist ?? []) as { id: string; captured_at: string; data: Record<string, unknown> }[]);
+
       setLoading(false);
     });
   }, [router]);
@@ -83,7 +95,30 @@ export default function PerfilPanelista() {
     if (!user) { setSaving(false); router.replace("/login"); return; }
 
     try {
-      // 1. Datos en participants (teléfono + número de pago)
+      // 1. Snapshot del perfil socioeconómico antes de sobrescribir
+      const snapshot = {
+        estrato: estrato ? parseInt(estrato) : null,
+        estado_civil: estadoCivil || null,
+        nivel_estudios: nivelEstudios || null,
+        actividades: actividades.length > 0 ? actividades : null,
+        num_hijos: tieneHijos ? (parseInt(numHijos) || 0) : 0,
+        regimen_salud: regimenSalud || null,
+        sisben_grupo: sisbenGrupo || null,
+        tenencia_vivienda: tenenciaVivienda || null,
+        grupo_etnico: grupoEtnico || null,
+        antiguedad_barrio: antiguedadBarrio || null,
+        recibe_subsidios: recibeSubsidios,
+        acceso_internet: accesoInternet,
+        registrado_votar: registradoVotar,
+      };
+      const { data: snap } = await supabase
+        .from("participant_profile_history")
+        .insert({ participant_id: user.id, data: snapshot })
+        .select("id, captured_at, data")
+        .single();
+      if (snap) setHistorial(prev => [snap as { id: string; captured_at: string; data: Record<string, unknown> }, ...prev].slice(0, 10));
+
+      // 2. Datos en participants (teléfono + número de pago)
       const { error: upErr } = await supabase
         .from("participants")
         .update({
@@ -328,6 +363,49 @@ export default function PerfilPanelista() {
           >
             {saving ? <Loader2 className="h-5 w-5 animate-spin" /> : "Guardar cambios"}
           </button>
+
+          {/* Historial de cambios */}
+          {historial.length > 0 && (
+            <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
+              <button
+                onClick={() => setHistOpen(v => !v)}
+                className="w-full flex items-center justify-between px-4 py-3 text-left"
+              >
+                <span className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                  <History className="h-4 w-4 text-slate-400" />
+                  Historial de cambios
+                  <span className="rounded-full bg-slate-100 text-slate-500 text-xs px-2 py-0.5">{historial.length}</span>
+                </span>
+                {histOpen ? <ChevronUp className="h-4 w-4 text-slate-400" /> : <ChevronDown className="h-4 w-4 text-slate-400" />}
+              </button>
+              {histOpen && (
+                <div className="border-t border-slate-100 divide-y divide-slate-100">
+                  {historial.map((h, i) => {
+                    const d = h.data;
+                    const fecha = new Date(h.captured_at).toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+                    return (
+                      <div key={h.id} className="px-4 py-3">
+                        <p className="text-xs font-semibold text-slate-500 mb-1.5">{i === 0 ? "Más reciente · " : ""}{fecha}</p>
+                        <div className="flex flex-wrap gap-2">
+                          {[
+                            d.estrato ? `Estrato ${d.estrato}` : null,
+                            d.nivel_estudios ? String(d.nivel_estudios) : null,
+                            d.estado_civil ? String(d.estado_civil) : null,
+                            d.regimen_salud ? String(d.regimen_salud) : null,
+                            d.grupo_etnico ? String(d.grupo_etnico) : null,
+                          ].filter(Boolean).map((label, j) => (
+                            <span key={j} className="rounded-lg bg-slate-100 text-slate-600 text-xs px-2.5 py-1 capitalize">
+                              {(label as string).replace(/_/g, " ")}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="pt-2">
             <button
