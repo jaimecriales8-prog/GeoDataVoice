@@ -84,6 +84,8 @@ export async function POST(req: NextRequest) {
         phone: is_anonymous ? null : (phone ?? null),
         payment_wallet: is_anonymous ? null : (paymentWallet ?? null),
         payment_number: is_anonymous ? null : (paymentNumber ?? null),
+        departamento: body.departamento ?? null,
+        municipio: body.municipio ?? null,
         gender: gender ?? null,
         birth_year: birth_year ? parseInt(birth_year) : null,
         estrato: estrato ? parseInt(estrato) : null,

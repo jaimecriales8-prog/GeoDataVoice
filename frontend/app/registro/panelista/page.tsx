@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import { Mic, Loader2, ArrowLeft, CheckCircle, Phone, MapPin, User, Lock, Eye, EyeOff, Mail } from "lucide-react";
 import { PasswordStrength, passwordCumple } from "@/components/password-strength";
+import { DEPARTAMENTOS, getMunicipios } from "@/lib/colombia";
 
 async function sha256(text: string): Promise<string> {
   const data = new TextEncoder().encode(text.toUpperCase().trim());
@@ -25,6 +26,7 @@ export default function RegistroPanelistaPage() {
     full_name: "",
     phone: "",
     documento: "",
+    departamento: "",
     municipio: "",
     barrio: "",
     birth_year: "",
@@ -63,10 +65,8 @@ export default function RegistroPanelistaPage() {
     if (!/^\d{7,12}$/.test(form.documento)) { setPrefillMsg(""); return; }
     const supabase = createClient();
     const docHash = await sha256(form.documento);
-    const { data } = await supabase
-      .from("participants")
-      .select("name_encrypted, gender, birth_year, estrato, nivel_estudios, actividades, estado_civil, num_hijos, regimen_salud, sisben_grupo, tenencia_vivienda, grupo_etnico, antiguedad_barrio, recibe_subsidios, acceso_internet, registrado_votar")
-      .eq("document_hash", docHash).maybeSingle();
+    const { data: rows } = await supabase.rpc("prefill_by_document_hash", { p_hash: docHash });
+    const data = rows?.[0] ?? null;
     if (data) {
       setForm(prev => ({
         ...prev,
@@ -109,6 +109,7 @@ export default function RegistroPanelistaPage() {
       [form.documento, "tu número de cédula"],
       [form.birth_year, "tu año de nacimiento"],
       [form.gender, "tu sexo"],
+      [form.departamento, "tu departamento"],
       [form.municipio, "tu municipio"],
       [form.barrio, "tu barrio"],
       [form.estrato, "tu estrato"],
@@ -188,11 +189,8 @@ export default function RegistroPanelistaPage() {
       // Resolver el código de reclutador → field_operators.id (para el bono)
       let recruitedBy: string | null = null;
       if (form.recruiter_code.trim()) {
-        const { data: op } = await supabase
-          .from("field_operators").select("id")
-          .eq("recruiter_code", form.recruiter_code.trim().toUpperCase())
-          .maybeSingle();
-        recruitedBy = op?.id ?? null;
+        const { data: opRows } = await supabase.rpc("resolve_recruiter_code", { p_code: form.recruiter_code.trim().toUpperCase() });
+        recruitedBy = opRows?.[0]?.id ?? null;
       }
 
       // Crea el participante o RECLAMA el registro existente (si ya fue encuestado en
@@ -218,6 +216,8 @@ export default function RegistroPanelistaPage() {
       await supabase
         .from("participants")
         .update({
+          departamento: form.departamento || null,
+          municipio: form.municipio || null,
           phone: form.phone.trim() || null,
           payment_wallet: form.payment_wallet || null,
           payment_number: form.nequi_or_daviplata.trim() || null,
@@ -361,10 +361,18 @@ export default function RegistroPanelistaPage() {
                 <MapPin className="h-4 w-4 text-amber-400" />
                 <p className="text-xs text-amber-300 font-semibold uppercase tracking-wide">Tu ubicación</p>
               </div>
+              <Field label="Departamento *">
+                <select value={form.departamento} onChange={e => { update("departamento", e.target.value); update("municipio", ""); }} className={inputCls}>
+                  <option value="">Selecciona departamento</option>
+                  {DEPARTAMENTOS.map(d => <option key={d} value={d}>{d}</option>)}
+                </select>
+              </Field>
               <div className="grid grid-cols-2 gap-3">
                 <Field label="Municipio *">
-                  <input value={form.municipio} onChange={e => update("municipio", e.target.value)}
-                    placeholder="Ej: Barranquilla" className={inputCls} />
+                  <select value={form.municipio} onChange={e => update("municipio", e.target.value)} className={inputCls} disabled={!form.departamento}>
+                    <option value="">{form.departamento ? "Selecciona municipio" : "Primero elige departamento"}</option>
+                    {getMunicipios(form.departamento).map(m => <option key={m} value={m}>{m}</option>)}
+                  </select>
                 </Field>
                 <Field label="Barrio *">
                   <input value={form.barrio} onChange={e => update("barrio", e.target.value)}
@@ -410,7 +418,7 @@ export default function RegistroPanelistaPage() {
                 </Field>
                 <Field label="Actividad (elige al menos una) *">
                   <div className="flex flex-wrap gap-2">
-                    {[["estudiante","Estudiante"],["empleado","Empleado"],["independiente","Independiente"],["desempleado","Desempleado"]].map(([v, l]) => {
+                    {[["empleado","Empleado"],["independiente","Independiente"],["desempleado","Desempleado"],["estudiante","Estudiante"],["ama_de_casa","Ama de casa"],["pensionado","Pensionado"],["empresario","Empresario"],["otro","Otro"]].map(([v, l]) => {
                       const sel = actividades.includes(v);
                       return (
                         <button key={v} type="button"

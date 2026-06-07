@@ -8,6 +8,7 @@ import {
   AlertCircle, Loader2, Navigation, Camera, RefreshCw, CheckCircle2,
   Shield, ClipboardList, Mic, Square, Volume2, Send, ChevronRight
 } from "lucide-react";
+import { DEPARTAMENTOS, getMunicipios } from "@/lib/colombia";
 
 type Step = "seleccion" | "datos" | "identidad" | "consentimientos" | "gps" | "encuesta" | "exito";
 type FotoTipo = "frente" | "reverso" | "rostro";
@@ -146,7 +147,7 @@ function RegistrarPanelistaContent() {
 
   // Datos básicos
   const [form, setForm] = useState({
-    nombre: "", documento: "", telefono: "", municipio: "", barrio: "", genero: "", edad: "",
+    nombre: "", documento: "", telefono: "", departamento: "", municipio: "", barrio: "", genero: "", edad: "",
     estrato: "", nivel_estudios: "", estado_civil: "", num_hijos: "",
     regimen_salud: "", sisben_grupo: "", tenencia_vivienda: "", grupo_etnico: "", antiguedad_barrio: "",
   });
@@ -224,6 +225,7 @@ function RegistrarPanelistaContent() {
       [form.nombre, "el nombre completo"],
       [form.documento, "la cédula"],
       [form.telefono, "el celular"],
+      [form.departamento, "el departamento"],
       [form.municipio, "el municipio"],
       [form.barrio, "el barrio"],
       [form.genero, "el sexo"],
@@ -274,6 +276,8 @@ function RegistrarPanelistaContent() {
         document_hash: docHash,
         phone_hash: phoneHash,
         name_encrypted: form.nombre,
+        departamento: form.departamento || null,
+        municipio: form.municipio || null,
         gender: form.genero || null,
         birth_year: form.edad ? new Date().getFullYear() - parseInt(form.edad) : null,
         estrato: form.estrato ? parseInt(form.estrato) : null,
@@ -538,8 +542,19 @@ function RegistrarPanelistaContent() {
               <Field label="Cédula *"><input value={form.documento} onChange={e => update("documento", e.target.value)} placeholder="Número" inputMode="numeric" className={inputCls} /></Field>
               <Field label="Celular *"><input value={form.telefono} onChange={e => update("telefono", e.target.value)} placeholder="3001234567" inputMode="tel" className={inputCls} /></Field>
             </div>
+            <Field label="Departamento *">
+              <select value={form.departamento} onChange={e => { update("departamento", e.target.value); update("municipio", ""); }} className={inputCls}>
+                <option value="">Selecciona departamento</option>
+                {DEPARTAMENTOS.map(d => <option key={d} value={d}>{d}</option>)}
+              </select>
+            </Field>
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Municipio *"><input value={form.municipio} onChange={e => update("municipio", e.target.value)} placeholder="Ej: Barranquilla" className={inputCls} /></Field>
+              <Field label="Municipio *">
+                <select value={form.municipio} onChange={e => update("municipio", e.target.value)} className={inputCls} disabled={!form.departamento}>
+                  <option value="">{form.departamento ? "Selecciona municipio" : "Primero elige departamento"}</option>
+                  {getMunicipios(form.departamento).map(m => <option key={m} value={m}>{m}</option>)}
+                </select>
+              </Field>
               <Field label="Barrio *"><input value={form.barrio} onChange={e => update("barrio", e.target.value)} placeholder="Tu barrio" className={inputCls} /></Field>
             </div>
             <div className="grid grid-cols-2 gap-3">
@@ -576,7 +591,7 @@ function RegistrarPanelistaContent() {
             </Field>
             <Field label="Actividad (elige al menos una) *">
               <div className="flex flex-wrap gap-2">
-                {[["estudiante","Estudiante"],["empleado","Empleado"],["independiente","Independiente"],["desempleado","Desempleado"]].map(([v, l]) => {
+                {[["empleado","Empleado"],["independiente","Independiente"],["desempleado","Desempleado"],["estudiante","Estudiante"],["ama_de_casa","Ama de casa"],["pensionado","Pensionado"],["empresario","Empresario"],["otro","Otro"]].map(([v, l]) => {
                   const sel = actividades.includes(v);
                   return (
                     <button key={v} type="button"
@@ -860,7 +875,7 @@ function RegistrarPanelistaContent() {
             )}
 
             <div className="flex gap-3 w-full max-w-xs pt-2">
-              <button onClick={() => { setStep("datos"); setForm({ nombre:"",documento:"",telefono:"",municipio:"",barrio:"",genero:"",edad:"",estrato:"",nivel_estudios:"",estado_civil:"",num_hijos:"",regimen_salud:"",sisben_grupo:"",tenencia_vivienda:"",grupo_etnico:"",antiguedad_barrio:"" }); setActividades([]); setTieneHijos(false); setRecibeSubsidios(false); setAccesoInternet(false); setRegistradoVotar(false); setFotos({}); setConsents({panel:false,datos:false}); setGps(null); setParticipantId(null); setAnswers({}); setQIdx(0); setAudioUrl(null); }}
+              <button onClick={() => { setStep("datos"); setForm({ nombre:"",documento:"",telefono:"",departamento:"",municipio:"",barrio:"",genero:"",edad:"",estrato:"",nivel_estudios:"",estado_civil:"",num_hijos:"",regimen_salud:"",sisben_grupo:"",tenencia_vivienda:"",grupo_etnico:"",antiguedad_barrio:"" }); setActividades([]); setTieneHijos(false); setRecibeSubsidios(false); setAccesoInternet(false); setRegistradoVotar(false); setFotos({}); setConsents({panel:false,datos:false}); setGps(null); setParticipantId(null); setAnswers({}); setQIdx(0); setAudioUrl(null); }}
                 className="flex-1 rounded-xl bg-emerald-600 hover:bg-emerald-500 py-3 text-white font-semibold text-sm">
                 Encuestar a otra persona
               </button>

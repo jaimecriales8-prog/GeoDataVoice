@@ -6,6 +6,7 @@ import {
   ArrowRight, ArrowLeft, CheckCircle, Loader2, Mic, Square,
   User, MapPin, Users, EyeOff, ChevronDown,
 } from "lucide-react";
+import { DEPARTAMENTOS, getMunicipios } from "@/lib/colombia";
 
 // ── tipos ─────────────────────────────────────────────────────────────────────
 type Survey = {
@@ -73,7 +74,7 @@ export default function EncuestaAbiertaPage({ params }: { params: Promise<{ slug
 
   // Demografía
   const [demo, setDemo] = useState({
-    gender: "", birth_year: "", municipio: "", barrio: "",
+    gender: "", birth_year: "", departamento: "", municipio: "", barrio: "",
     estrato: "", nivel_estudios: "", estado_civil: "", num_hijos: "",
     regimen_salud: "", sisben_grupo: "", tenencia_vivienda: "",
     grupo_etnico: "", antiguedad_barrio: "",
@@ -183,7 +184,7 @@ export default function EncuestaAbiertaPage({ params }: { params: Promise<{ slug
   function validarDemo(): string | null {
     const req: [string, string][] = [
       [demo.gender, "sexo"], [demo.birth_year, "año de nacimiento"],
-      [demo.municipio, "municipio"], [demo.barrio, "barrio"],
+      [demo.departamento, "departamento"], [demo.municipio, "municipio"], [demo.barrio, "barrio"],
       [demo.estrato, "estrato"], [demo.nivel_estudios, "nivel de estudios"],
       [demo.estado_civil, "estado civil"], [demo.regimen_salud, "régimen de salud"],
       [demo.sisben_grupo, "grupo SISBEN"], [demo.tenencia_vivienda, "tipo de vivienda"],
@@ -395,10 +396,9 @@ export default function EncuestaAbiertaPage({ params }: { params: Promise<{ slug
               <div className="grid grid-cols-2 gap-4">
                 <Sel label="Sexo *" value={demo.gender} onChange={v => setDemo(p => ({ ...p, gender: v }))}>
                   <option value="">Selecciona</option>
-                  <option value="male">Hombre</option>
                   <option value="female">Mujer</option>
-                  <option value="non_binary">No binario</option>
-                  <option value="prefer_not">Prefiero no decir</option>
+                  <option value="male">Hombre</option>
+                  <option value="other">Otro</option>
                 </Sel>
                 <Field label="Año de nacimiento *">
                   <input value={demo.birth_year} onChange={e => setDemo(p => ({ ...p, birth_year: e.target.value }))}
@@ -406,10 +406,20 @@ export default function EncuestaAbiertaPage({ params }: { params: Promise<{ slug
                 </Field>
               </div>
 
+              <Sel label="Departamento *" value={demo.departamento} onChange={v => setDemo(p => ({ ...p, departamento: v, municipio: "" }))}>
+                <option value="">Selecciona departamento</option>
+                {DEPARTAMENTOS.map(d => <option key={d} value={d}>{d}</option>)}
+              </Sel>
+
               <div className="grid grid-cols-2 gap-4">
                 <Field label="Municipio *">
-                  <input value={demo.municipio} onChange={e => setDemo(p => ({ ...p, municipio: e.target.value }))}
-                    placeholder="Ej: Barranquilla" className={inputCls} />
+                  <div className="relative">
+                    <select value={demo.municipio} onChange={e => setDemo(p => ({ ...p, municipio: e.target.value }))} className={selectCls} disabled={!demo.departamento}>
+                      <option value="">{demo.departamento ? "Selecciona municipio" : "Primero elige departamento"}</option>
+                      {getMunicipios(demo.departamento).map(m => <option key={m} value={m}>{m}</option>)}
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+                  </div>
                 </Field>
                 <Field label="Barrio *">
                   <input value={demo.barrio} onChange={e => setDemo(p => ({ ...p, barrio: e.target.value }))}
@@ -424,12 +434,10 @@ export default function EncuestaAbiertaPage({ params }: { params: Promise<{ slug
                 </Sel>
                 <Sel label="Nivel de estudios *" value={demo.nivel_estudios} onChange={v => setDemo(p => ({ ...p, nivel_estudios: v }))}>
                   <option value="">Selecciona</option>
-                  <option value="primaria">Primaria</option>
-                  <option value="secundaria">Bachillerato</option>
-                  <option value="tecnico">Técnico/Tecnólogo</option>
-                  <option value="universitario">Universitario</option>
+                  <option value="bachiller">Bachiller</option>
+                  <option value="tecnico_tecnologo">Técnico / Tecnólogo</option>
+                  <option value="profesional">Profesional</option>
                   <option value="posgrado">Posgrado</option>
-                  <option value="ninguno">Ninguno</option>
                 </Sel>
               </div>
 
@@ -439,6 +447,7 @@ export default function EncuestaAbiertaPage({ params }: { params: Promise<{ slug
                 <option value="casado">Casado/a</option>
                 <option value="union_libre">Unión libre</option>
                 <option value="separado">Separado/a</option>
+                <option value="divorciado">Divorciado/a</option>
                 <option value="viudo">Viudo/a</option>
               </Sel>
 
@@ -474,18 +483,18 @@ export default function EncuestaAbiertaPage({ params }: { params: Promise<{ slug
               <div className="grid grid-cols-2 gap-4">
                 <Sel label="Régimen de salud *" value={demo.regimen_salud} onChange={v => setDemo(p => ({ ...p, regimen_salud: v }))}>
                   <option value="">Selecciona</option>
-                  <option value="contributivo">Contributivo (EPS)</option>
-                  <option value="subsidiado">Subsidiado (Sisbén)</option>
+                  <option value="subsidiado">Subsidiado</option>
+                  <option value="contributivo">Contributivo</option>
                   <option value="especial">Especial</option>
                   <option value="ninguno">Ninguno</option>
                 </Sel>
                 <Sel label="Grupo SISBEN *" value={demo.sisben_grupo} onChange={v => setDemo(p => ({ ...p, sisben_grupo: v }))}>
                   <option value="">Selecciona</option>
-                  <option value="A">A</option>
-                  <option value="B">B</option>
-                  <option value="C">C</option>
-                  <option value="D">D (no aplica)</option>
-                  <option value="no_sabe">No sé</option>
+                  <option value="no">No está en SISBEN</option>
+                  <option value="A">Grupo A</option>
+                  <option value="B">Grupo B</option>
+                  <option value="C">Grupo C</option>
+                  <option value="D">Grupo D</option>
                 </Sel>
               </div>
 
@@ -493,17 +502,15 @@ export default function EncuestaAbiertaPage({ params }: { params: Promise<{ slug
                 <Sel label="Tenencia vivienda *" value={demo.tenencia_vivienda} onChange={v => setDemo(p => ({ ...p, tenencia_vivienda: v }))}>
                   <option value="">Selecciona</option>
                   <option value="propia">Propia</option>
-                  <option value="arrendada">Arrendada</option>
-                  <option value="familiar">Familiar/cedida</option>
-                  <option value="otro">Otro</option>
+                  <option value="arriendo">Arriendo</option>
+                  <option value="familiar">Familiar</option>
                 </Sel>
                 <Sel label="Grupo étnico *" value={demo.grupo_etnico} onChange={v => setDemo(p => ({ ...p, grupo_etnico: v }))}>
                   <option value="">Selecciona</option>
-                  <option value="mestizo">Mestizo/a</option>
-                  <option value="afro">Afrocolombiano/a</option>
+                  <option value="ninguno">Ninguno</option>
+                  <option value="afro">Afrodescendiente</option>
                   <option value="indigena">Indígena</option>
                   <option value="raizal">Raizal</option>
-                  <option value="rom">Rom/Gitano</option>
                   <option value="otro">Otro</option>
                 </Sel>
               </div>
@@ -512,7 +519,7 @@ export default function EncuestaAbiertaPage({ params }: { params: Promise<{ slug
                 <option value="">Selecciona</option>
                 <option value="menos_1">Menos de 1 año</option>
                 <option value="1_5">1 a 5 años</option>
-                <option value="6_10">6 a 10 años</option>
+                <option value="5_10">5 a 10 años</option>
                 <option value="mas_10">Más de 10 años</option>
               </Sel>
 
