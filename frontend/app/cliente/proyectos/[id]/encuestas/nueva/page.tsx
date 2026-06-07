@@ -5,9 +5,13 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import {
   ArrowLeft, Plus, Trash2, Mic, MapPin, Users,
-  GripVertical, ChevronDown, Save, Target
+  GripVertical, ChevronDown, Save, Target, Scale
 } from "lucide-react";
 import { SEGMENT_VARS, type Audiencia, audienciaVacia } from "@/lib/segmentacion";
+import { type Ponderacion, ponderacionVacia } from "@/lib/resultados";
+
+// Variables aptas para ponderar (discretas, no listas ni booleanas)
+const PONDERAR_VARS = SEGMENT_VARS.filter(v => v.tipo === "opciones");
 
 type TipoPregunta = "single_choice" | "multiple_choice" | "scale" | "open_text" | "audio";
 type PerfilObjetivo = "panelista" | "encuestador" | "ambos";
@@ -51,6 +55,8 @@ export default function NuevaEncuesta({ params }: { params: Promise<{ id: string
   const [perfil, setPerfil] = useState<PerfilObjetivo>("panelista");
   const [segmentar, setSegmentar] = useState(false);
   const [audiencia, setAudiencia] = useState<Audiencia>({});
+  const [ponderar, setPonderar] = useState(false);
+  const [ponderacion, setPonderacion] = useState<Ponderacion>({});
   const [preguntas, setPreguntas] = useState<Pregunta[]>([
     { id: uid(), type: "single_choice", text: "", required: true, options: ["", ""], pide_audio: true, audio_prompt: "", tracking_key: "", favorability: false, favorable_values: [] },
   ]);
@@ -66,6 +72,20 @@ export default function NuevaEncuesta({ params }: { params: Promise<{ id: string
       const nuevos = existe ? actuales.filter(v => v !== value) : [...actuales, value];
       const next = { ...prev, [key]: nuevos };
       if (nuevos.length === 0) delete next[key];
+      return next;
+    });
+  }
+
+  // ── Ponderación ──────────────────────────────────────────────
+  function setPeso(variable: string, valor: string, peso: string) {
+    setPonderacion(prev => {
+      const next = { ...prev };
+      const grupo = { ...(next[variable] ?? {}) };
+      const num = parseFloat(peso);
+      if (peso.trim() === "" || isNaN(num)) { delete grupo[valor]; }
+      else { grupo[valor] = num; }
+      if (Object.keys(grupo).length === 0) delete next[variable];
+      else next[variable] = grupo;
       return next;
     });
   }
@@ -127,6 +147,7 @@ export default function NuevaEncuesta({ params }: { params: Promise<{ id: string
         status: estado,
         perfil_objetivo: perfil,
         audiencia: (segmentar && !audienciaVacia(audiencia)) ? audiencia : null,
+        ponderacion: (ponderar && !ponderacionVacia(ponderacion)) ? ponderacion : null,
         closes_at: closesAt || null,
       })
       .select("id")
@@ -274,6 +295,65 @@ export default function NuevaEncuesta({ params }: { params: Promise<{ id: string
             })}
             {audienciaVacia(audiencia) && (
               <p className="text-xs text-amber-300">Aún no seleccionaste ninguna variable → se mostrará a cualquier persona.</p>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Ponderación (balanceo de resultados) */}
+      <div className="rounded-2xl border border-white/5 bg-slate-900 p-6 mb-5">
+        <div className="flex items-center gap-2 mb-1">
+          <Scale className="h-4 w-4 text-amber-400" />
+          <h2 className="text-sm font-semibold text-white">Ponderación de resultados (balanceo)</h2>
+        </div>
+        <p className="text-xs text-slate-500 mb-4">
+          Da más o menos peso a ciertos grupos al calcular los porcentajes. Ej: en seguridad ciudadana, una respuesta de estrato 1 puede pesar más que una de estrato 6.
+        </p>
+
+        <div className="grid grid-cols-2 gap-3 mb-4">
+          <button onClick={() => setPonderar(false)}
+            className={`rounded-xl border-2 p-4 text-left transition-all ${!ponderar ? "border-amber-400 bg-amber-500/10 text-amber-200" : "border-white/10 bg-white/[0.02] hover:bg-white/5"}`}>
+            <Users className={`h-5 w-5 mb-2 ${!ponderar ? "" : "text-slate-500"}`} />
+            <p className={`text-sm font-semibold mb-1 ${!ponderar ? "" : "text-slate-300"}`}>Sin ponderar</p>
+            <p className={`text-xs leading-relaxed ${!ponderar ? "opacity-80" : "text-slate-500"}`}>Cada respuesta vale igual (1 persona = 1 voto)</p>
+          </button>
+          <button onClick={() => setPonderar(true)}
+            className={`rounded-xl border-2 p-4 text-left transition-all ${ponderar ? "border-amber-400 bg-amber-500/10 text-amber-200" : "border-white/10 bg-white/[0.02] hover:bg-white/5"}`}>
+            <Scale className={`h-5 w-5 mb-2 ${ponderar ? "" : "text-slate-500"}`} />
+            <p className={`text-sm font-semibold mb-1 ${ponderar ? "" : "text-slate-300"}`}>Ponderar</p>
+            <p className={`text-xs leading-relaxed ${ponderar ? "opacity-80" : "text-slate-500"}`}>Asigna un peso a cada grupo de las variables que elijas</p>
+          </button>
+        </div>
+
+        {ponderar && (
+          <div className="space-y-4 border-t border-white/5 pt-4">
+            <p className="text-xs text-slate-400">
+              Escribe el peso de cada grupo (ej. 1.0 = normal, 2.0 = doble, 0.5 = mitad). Los grupos sin peso valen 1.
+              Si configuras varias variables, los pesos se multiplican.
+            </p>
+            {PONDERAR_VARS.map(v => (
+              <div key={v.key}>
+                <p className="text-xs font-semibold text-slate-300 mb-1.5">{v.label}</p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {v.opciones.map(o => {
+                    const val = ponderacion[v.key]?.[String(o.value)];
+                    return (
+                      <div key={String(o.value)} className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.02] px-2.5 py-1.5">
+                        <span className="text-xs text-slate-400 flex-1 truncate">{o.label}</span>
+                        <input
+                          type="number" step="0.1" min="0" inputMode="decimal"
+                          value={val ?? ""} onChange={e => setPeso(v.key, String(o.value), e.target.value)}
+                          placeholder="1.0"
+                          className="w-14 rounded-md bg-slate-800 border border-white/10 px-2 py-1 text-xs text-white text-center outline-none focus:border-amber-500"
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+            {ponderacionVacia(ponderacion) && (
+              <p className="text-xs text-amber-300">Aún no asignaste pesos → los resultados saldrán sin ponderar.</p>
             )}
           </div>
         )}

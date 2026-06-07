@@ -13,18 +13,25 @@ const SENTIMENT_HEX: Record<string, string> = {
 function Barras({ data, colorClass, colorMap }: {
   data: Distribucion; colorClass?: string; colorMap?: Record<string, string>;
 }) {
-  const total = data.reduce((s, d) => s + d.count, 0);
-  if (total === 0) return <p className="text-sm text-slate-500">Sin datos aún.</p>;
+  const totalCount = data.reduce((s, d) => s + d.count, 0);
+  if (totalCount === 0) return <p className="text-sm text-slate-500">Sin datos aún.</p>;
+  const ponderada = data.some(d => d.peso != null);
+  const totalPeso = data.reduce((s, d) => s + (d.peso ?? 0), 0) || 1;
   return (
     <div className="space-y-2.5">
       {data.map(d => {
-        const pct = Math.round((d.count / total) * 100);
+        const pctCrudo = Math.round((d.count / totalCount) * 100);
+        const pct = ponderada ? Math.round(((d.peso ?? 0) / totalPeso) * 100) : pctCrudo;
         const cls = colorMap?.[d.label.toLowerCase()] ?? colorClass ?? "bg-violet-500";
         return (
           <div key={d.label}>
             <div className="flex justify-between text-xs mb-1">
               <span className="text-slate-300 capitalize">{d.label}</span>
-              <span className="text-slate-400 font-medium">{d.count} · {pct}%</span>
+              <span className="text-slate-400 font-medium">
+                {ponderada
+                  ? <>{pct}% <span className="text-slate-600">· {pctCrudo}% sin ponderar · {d.count}</span></>
+                  : <>{d.count} · {pct}%</>}
+              </span>
             </div>
             <div className="h-2.5 rounded-full bg-white/5 overflow-hidden">
               <div className={`h-full rounded-full ${cls}`} style={{ width: `${pct}%` }} />
@@ -166,7 +173,12 @@ export default function ResultadosView({ r }: { r: Resultados }) {
               <p className="text-sm font-medium text-white mb-1">
                 <span className="text-violet-400">{i + 1}.</span> {q.text}
               </p>
-              <p className="text-xs text-slate-500 mb-4">{q.total} respuesta{q.total === 1 ? "" : "s"}</p>
+              <p className="text-xs text-slate-500 mb-4 flex items-center gap-2">
+                {q.total} respuesta{q.total === 1 ? "" : "s"}
+                {q.ponderada && (
+                  <span className="rounded-full bg-amber-500/15 text-amber-300 px-2 py-0.5 text-[10px] font-semibold">⚖ Ponderado por demografía</span>
+                )}
+              </p>
               {q.distribucion.length > 0 ? (
                 <Barras data={q.distribucion} colorClass="bg-violet-500" />
               ) : q.abiertas.length > 0 ? (

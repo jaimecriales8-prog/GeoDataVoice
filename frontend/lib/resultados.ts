@@ -1,6 +1,10 @@
 import { createClient } from "@/lib/supabase";
 
-export type Distribucion = { label: string; count: number }[];
+export type DistItem = { label: string; count: number; peso?: number };
+export type Distribucion = DistItem[];
+
+// Ponderación por variable: { estrato: { "1": 3, "2": 2, ... }, ... }
+export type Ponderacion = Record<string, Record<string, number>>;
 
 export type PreguntaResultado = {
   id: string;
@@ -9,7 +13,27 @@ export type PreguntaResultado = {
   total: number;
   distribucion: Distribucion; // para preguntas cerradas
   abiertas: string[];         // para open_text
+  ponderada: boolean;         // si se aplicó balanceo demográfico
 };
+
+/** Peso de un participante según la ponderación de la encuesta (producto entre variables). */
+export function pesoParticipante(pond: Ponderacion | null | undefined, p: Record<string, unknown> | undefined): number {
+  if (!pond || !p) return 1;
+  let w = 1;
+  for (const [variable, pesos] of Object.entries(pond)) {
+    if (!pesos || Object.keys(pesos).length === 0) continue;
+    const val = p[variable];
+    if (val === null || val === undefined) continue;
+    const factor = pesos[String(val)];
+    if (typeof factor === "number" && factor > 0) w *= factor;
+  }
+  return w;
+}
+
+export function ponderacionVacia(p: Ponderacion | null | undefined): boolean {
+  if (!p) return true;
+  return Object.values(p).every(v => !v || Object.keys(v).length === 0);
+}
 
 export type Cita = {
   quote: string;
@@ -77,11 +101,36 @@ export async function fetchResultados(surveyIds: string[]): Promise<Resultados> 
   // 2. Respuestas
   const { data: responses } = await supabase
     .from("responses")
-    .select("id, question_id, participant_id, value")
+    .select("id, survey_id, question_id, participant_id, value")
     .in("survey_id", surveyIds);
 
   const resp = responses ?? [];
   const participantes = new Set(resp.map(r => r.participant_id)).size;
+
+  // 2b. Ponderación demográfica (balanceo): por encuesta + demografía de participantes
+  const { data: surveysPond } = await supabase
+    .from("surveys").select("id, ponderacion").in("id", surveyIds);
+  const pondPorSurvey = new Map<string, Ponderacion | null>(
+    (surveysPond ?? []).map(s => [s.id, (s.ponderacion as Ponderacion) ?? null])
+  );
+  const hayPonderacion = (surveysPond ?? []).some(s => !ponderacionVacia(s.ponderacion as Ponderacion));
+
+  const partIds = [...new Set(resp.map(r => r.participant_id))].filter(Boolean) as string[];
+  const demoPorParticipante = new Map<string, Record<string, unknown>>();
+  if (hayPonderacion && partIds.length > 0) {
+    const { data: parts } = await supabase
+      .from("participants")
+      .select("id, gender, estrato, nivel_estudios, estado_civil, regimen_salud, sisben_grupo, tenencia_vivienda, grupo_etnico, antiguedad_barrio")
+      .in("id", partIds);
+    (parts ?? []).forEach(p => demoPorParticipante.set(p.id, p as Record<string, unknown>));
+  }
+  // peso por respuesta = peso del participante según la ponderación de su encuesta
+  function pesoDeRespuesta(r: { survey_id: string; participant_id: string }): number {
+    if (!hayPonderacion) return 1;
+    const pond = pondPorSurvey.get(r.survey_id);
+    if (ponderacionVacia(pond)) return 1;
+    return pesoParticipante(pond, demoPorParticipante.get(r.participant_id));
+  }
 
   // 3. Audio + NLP
   const responseIds = resp.map(r => r.id);
@@ -121,17 +170,36 @@ export async function fetchResultados(surveyIds: string[]): Promise<Resultados> 
     }
   }
 
-  // 4. Distribución por pregunta
+  // 4. Distribución por pregunta (con peso demográfico si la encuesta tiene ponderación)
   const porPregunta: PreguntaResultado[] = (preguntas ?? []).map(q => {
     const rs = resp.filter(r => r.question_id === q.id);
     const cerrada = ["single_choice", "multiple_choice", "scale"].includes(q.type);
+    const pondQ = pondPorSurvey.get(q.survey_id);
+    const ponderada = hayPonderacion && !ponderacionVacia(pondQ);
+
+    let distribucion: Distribucion = [];
+    if (cerrada) {
+      const m = new Map<string, { count: number; peso: number }>();
+      for (const r of rs) {
+        if (!r.value) continue;
+        const cur = m.get(r.value) ?? { count: 0, peso: 0 };
+        cur.count += 1;
+        cur.peso += pesoDeRespuesta(r);
+        m.set(r.value, cur);
+      }
+      distribucion = [...m.entries()]
+        .map(([label, v]) => ({ label, count: v.count, peso: ponderada ? v.peso : undefined }))
+        .sort((a, b) => (ponderada ? (b.peso ?? 0) - (a.peso ?? 0) : b.count - a.count));
+    }
+
     return {
       id: q.id,
       text: q.text,
       type: q.type,
       total: rs.length,
-      distribucion: cerrada ? contar(rs.map(r => r.value)) : [],
+      distribucion,
       abiertas: !cerrada ? rs.map(r => r.value).filter(Boolean).slice(0, 10) : [],
+      ponderada,
     };
   });
 

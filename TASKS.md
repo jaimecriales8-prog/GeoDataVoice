@@ -68,6 +68,10 @@
 ### Segmentación de encuestas
 - [x] **P1-20** Público objetivo segmentado por variables del panelista (`surveys.audiencia` jsonb + `lib/segmentacion.ts`). Creación: "Cualquier persona" vs "Segmentar"; home panelista filtra por coincidencia; detalle de proyecto muestra "Segmentada". Ver ADR-020.
 
+### Calidad de datos
+- [x] **P1-23** Todos los campos obligatorios en el **registro del panelista** (datos + perfil socioeconómico + actividad ≥1 + billetera + número) con validación específica y `passwordCumple`.
+- [x] **P1-24** Todos los campos obligatorios en **"Encuestar en campo"** (mismo set), para consistencia y segmentación/ponderación.
+
 ### UX / registro y admin
 - [x] **P1-21** Barra de fortaleza de contraseña + condiciones + coincidencia en los 3 registros (`components/password-strength.tsx`).
 - [x] **P1-22** Toggles globales del admin unificados en el panel principal (`components/admin-config-toggles.tsx`); Configuración reusa el mismo componente.
