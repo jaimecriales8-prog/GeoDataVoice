@@ -320,6 +320,22 @@
 
 ---
 
+## ADR-022: Ponderación demográfica de resultados (balanceo) por encuesta
+**Estado:** Vigente · **Fecha:** 2026-06-06
+
+**Contexto:** Medir opinión en % "1 persona = 1 voto" no refleja el peso real de cada grupo en el territorio. El cliente quiere dar más peso a ciertos grupos según el tema (ej. seguridad ciudadana → estrato 1 pesa más que estrato 6).
+
+**Decisión:** Nueva columna `surveys.ponderacion` (jsonb) = peso por valor de variable: `{ estrato: {"1":3,"2":2,...} }`. null/{} = sin ponderar.
+- `lib/resultados.ts`: `pesoParticipante(pond, participante)` = **producto** de los pesos de cada variable configurada (valor no listado → factor 1). La distribución por pregunta cerrada suma pesos en vez de conteos; el % ponderado = pesoOpción / pesoTotal.
+- La vista muestra el **% ponderado** destacado + el **% crudo** + el n, con badge "⚖ Ponderado por demografía".
+- Lo configura el **cliente** al crear la encuesta (sección "Ponderación de resultados"), por variable discreta (estrato, estudios, salud, etc.).
+
+**Razón:** Post-estratificación simple y transparente, decidida por el cliente. Se mantiene visible el dato crudo para auditoría.
+
+**Limitaciones / pendiente:** hoy se fija en la creación (no editable post-hoc todavía); no normaliza contra censo (raking real es P2-09); aplica a preguntas cerradas (las series de sentimiento/favorabilidad del tablero de proyecto aún no se ponderan).
+
+---
+
 ## Decisiones Pendientes (antes de producción)
 
 | # | Decisión | Opciones | Urgencia |
