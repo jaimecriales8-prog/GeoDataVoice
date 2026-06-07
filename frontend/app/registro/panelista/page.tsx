@@ -198,7 +198,7 @@ export default function RegistroPanelistaPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-amber-900 via-orange-950 to-slate-900 px-4 py-10">
+    <div className="min-h-screen bg-gradient-to-b from-slate-950 via-amber-950/50 to-slate-950 px-4 pb-10 pt-[max(2rem,env(safe-area-inset-top))]">
       <div className="mx-auto w-full max-w-md">
 
         <button onClick={() => router.push("/registro")} className="flex items-center gap-2 text-amber-300 hover:text-white transition-colors mb-8 text-sm">
@@ -216,17 +216,17 @@ export default function RegistroPanelistaPage() {
         </div>
 
         {/* Beneficios */}
-        <div className="rounded-2xl bg-amber-500/10 border border-amber-500/30 p-4 mb-6">
-          <p className="text-xs text-amber-300 font-semibold uppercase tracking-wide mb-2">¿Qué ganas?</p>
+        <div className="rounded-2xl bg-slate-900/80 border border-amber-500/20 p-4 mb-6">
+          <p className="text-xs text-amber-400 font-semibold uppercase tracking-wide mb-2">¿Qué ganas?</p>
           <div className="grid grid-cols-3 gap-2 text-center">
             {[
               { v: "Pago", l: "por encuesta" },
               { v: "15 min", l: "de tu tiempo" },
               { v: "Nequi", l: "o Daviplata" },
             ].map(({ v, l }) => (
-              <div key={l} className="rounded-xl bg-white/10 p-2">
-                <p className="text-amber-300 font-bold text-sm">{v}</p>
-                <p className="text-xs text-slate-400 mt-0.5">{l}</p>
+              <div key={l} className="rounded-xl bg-white/5 border border-white/5 p-2">
+                <p className="text-amber-400 font-bold text-sm">{v}</p>
+                <p className="text-xs text-slate-300 mt-0.5">{l}</p>
               </div>
             ))}
           </div>

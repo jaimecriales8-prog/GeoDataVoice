@@ -126,7 +126,7 @@ export default function RegistroEncuestadorPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-emerald-950 to-slate-900 px-4 py-10">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-emerald-950 to-slate-900 px-4 pb-10 pt-[max(2rem,env(safe-area-inset-top))]">
       <div className="mx-auto w-full max-w-md">
 
         <button onClick={() => router.push("/#perfiles")} className="flex items-center gap-2 text-emerald-300 hover:text-white transition-colors mb-8 text-sm">
