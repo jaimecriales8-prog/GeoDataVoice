@@ -95,8 +95,8 @@ export default function ResultadosEncuesta({ params }: { params: Promise<{ id: s
   async function cambiarEstado(nuevoEstado: "ready" | "closed") {
     setCambiandoEstado(true);
     const supabase = createClient();
-    await supabase.from("surveys").update({ status: nuevoEstado }).eq("id", eid);
-    setStatus(nuevoEstado);
+    const { error } = await supabase.from("surveys").update({ status: nuevoEstado }).eq("id", eid);
+    if (error) { alert("Error al cambiar el estado: " + error.message); } else { setStatus(nuevoEstado); }
     setCambiandoEstado(false);
   }
 
