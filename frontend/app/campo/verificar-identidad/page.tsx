@@ -439,12 +439,12 @@ export default function VerificarIdentidadPage() {
       <div className="w-full max-w-lg space-y-6">
 
         {/* Header */}
-        <div className="text-center">
-          <div className="inline-flex items-center gap-2 rounded-full bg-blue-500/20 border border-blue-500/30 px-4 py-1.5 mb-5">
+        <div className="flex flex-col items-center text-center">
+          <div className="flex items-center gap-2 rounded-full bg-blue-500/20 border border-blue-500/30 px-4 py-1.5 mb-5">
             <MapPin className="h-3.5 w-3.5 text-blue-400" />
             <span className="text-sm text-blue-300">GeoDataVoice</span>
           </div>
-          <div className="inline-flex rounded-2xl bg-blue-600/20 border border-blue-500/30 p-4 mb-4">
+          <div className="flex rounded-2xl bg-blue-600/20 border border-blue-500/30 p-4 mb-4">
             <Shield className="h-8 w-8 text-blue-400" />
           </div>
           <h1 className="text-2xl font-bold text-white">Verifica tu identidad</h1>
