@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
         id: newId,
         user_id: null,
         is_anonymous,
-        name_encrypted: is_anonymous ? null : (nombre ?? null),
+        name_encrypted: is_anonymous ? "anónimo" : (nombre || "sin nombre"),
         document_hash: docHash,
         phone_hash: phoneHash,
         phone: is_anonymous ? null : (phone ?? null),
