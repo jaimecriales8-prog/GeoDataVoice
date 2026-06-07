@@ -166,7 +166,17 @@ export default function ResultadosEncuesta({ params }: { params: Promise<{ id: s
                 className="inline-flex items-center gap-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 disabled:opacity-50 px-3 py-1.5 text-xs text-slate-300 hover:text-white transition-colors"
               >
                 {cambiandoEstado ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <StopCircle className="h-3.5 w-3.5" />}
-                Cerrar encuesta
+                Cerrar
+              </button>
+            )}
+            {status === "closed" && (
+              <button
+                onClick={() => cambiarEstado("ready")}
+                disabled={cambiandoEstado}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 px-3 py-1.5 text-xs text-white font-semibold transition-colors"
+              >
+                {cambiandoEstado ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                Reabrir
               </button>
             )}
           </div>
