@@ -1,9 +1,9 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { use, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase";
 import {
-  ArrowRight, ArrowLeft, CheckCircle, Loader2, Mic, MicOff,
+  ArrowRight, ArrowLeft, CheckCircle, Loader2, Mic, Square,
   User, MapPin, Users, EyeOff, ChevronDown,
 } from "lucide-react";
 
@@ -86,6 +86,46 @@ export default function EncuestaAbiertaPage({ params }: { params: Promise<{ slug
 
   // Respuestas
   const [respuestas, setRespuestas] = useState<Record<string, string>>({});
+
+  // Audio
+  const audioBlobs = useRef<Record<string, Blob>>({});
+  const audioMimes = useRef<Record<string, string>>({});
+  const [audioUrls, setAudioUrls] = useState<Record<string, string | null>>({});
+  const [recording, setRecording] = useState<string | null>(null); // question id siendo grabado
+  const [recordingTime, setRecordingTime] = useState(0);
+  const mediaRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<BlobPart[]>([]);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  function pickAudioMime() {
+    for (const t of ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg"]) {
+      if (typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported(t)) return t;
+    }
+    return "";
+  }
+
+  async function startRecording(qId: string) {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      chunksRef.current = [];
+      const mime = pickAudioMime();
+      const mr = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
+      mr.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+      mr.onstop = () => {
+        const type = mr.mimeType || mime || "audio/webm";
+        const blob = new Blob(chunksRef.current, { type });
+        audioBlobs.current[qId] = blob;
+        audioMimes.current[qId] = type;
+        setAudioUrls(p => ({ ...p, [qId]: URL.createObjectURL(blob) }));
+        stream.getTracks().forEach(t => t.stop());
+      };
+      mr.start(); mediaRef.current = mr;
+      setRecording(qId); setRecordingTime(0);
+      timerRef.current = setInterval(() => setRecordingTime(t => { if (t >= 119) { stopRecording(); return t; } return t + 1; }), 1000);
+    } catch { alert("No se pudo acceder al micrófono."); }
+  }
+
+  function stopRecording() { mediaRef.current?.stop(); setRecording(null); if (timerRef.current) clearInterval(timerRef.current); }
 
   // Pago (si abierta_pago)
   const [pago, setPago] = useState({ wallet: "", number: "" });
@@ -204,6 +244,31 @@ export default function EncuestaAbiertaPage({ params }: { params: Promise<{ slug
     });
     const data = await res.json();
     if (!res.ok) { setError(data.error ?? "Error al enviar"); setSubmitting(false); return; }
+
+    // Subir audios grabados
+    const { participantId } = data;
+    for (const [qId, blob] of Object.entries(audioBlobs.current)) {
+      const mime = audioMimes.current[qId] || "audio/webm";
+      const ext = mime.includes("mp4") ? "mp4" : mime.includes("ogg") ? "ogg" : "webm";
+      const fd = new FormData();
+      fd.append("file", blob, `audio.${ext}`);
+      fd.append("surveyId", survey.id);
+      fd.append("questionId", qId);
+      try {
+        const up = await fetch("/api/audio/upload", { method: "POST", body: fd });
+        if (up.ok) {
+          const { path } = await up.json();
+          // Buscar el response_id para este participante y pregunta
+          const rRes = await fetch("/api/encuesta-abierta/audio", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ participantId, surveyId: survey.id, questionId: qId, audioPath: path }),
+          });
+          if (!rRes.ok) console.warn("audio_responses insert failed");
+        }
+      } catch { /* audio no crítico */ }
+    }
+
     next();
     setSubmitting(false);
   }
@@ -543,14 +608,42 @@ export default function EncuestaAbiertaPage({ params }: { params: Promise<{ slug
                     </div>
                   )}
 
-                  {(q.type === "open_text" || q.type === "audio") && (
+                  {q.type === "open_text" && (
                     <textarea
                       value={respuestas[q.id] ?? ""}
                       onChange={e => setRespuestas(p => ({ ...p, [q.id]: e.target.value }))}
-                      placeholder={q.audio_prompt ?? "Escribe tu respuesta aquí..."}
+                      placeholder="Escribe tu respuesta aquí..."
                       rows={3}
                       className={inputCls + " resize-none"}
                     />
+                  )}
+
+                  {q.audio_prompt && (
+                    <div className="mt-3 rounded-xl bg-white/5 border border-white/10 p-4 space-y-3">
+                      <p className="text-xs text-slate-400 flex items-center gap-1.5">
+                        <Mic className="h-3.5 w-3.5" /> {q.audio_prompt}
+                      </p>
+                      {!audioUrls[q.id] ? (
+                        <button
+                          type="button"
+                          onClick={() => recording === q.id ? stopRecording() : startRecording(q.id)}
+                          className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl font-medium text-sm transition-all ${recording === q.id ? "bg-red-500 text-white" : "bg-white/10 text-slate-300 hover:bg-white/20"}`}
+                        >
+                          {recording === q.id
+                            ? <><Square className="h-4 w-4" fill="white" /> Detener ({Math.floor(recordingTime / 60)}:{String(recordingTime % 60).padStart(2, "0")})</>
+                            : <><Mic className="h-4 w-4" /> Grabar nota de voz</>}
+                        </button>
+                      ) : (
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2 text-xs text-emerald-400">
+                            <CheckCircle className="h-3.5 w-3.5" /> Nota de voz grabada
+                          </div>
+                          <audio src={audioUrls[q.id]!} controls className="w-full" />
+                          <button type="button" onClick={() => { delete audioBlobs.current[q.id]; setAudioUrls(p => ({ ...p, [q.id]: null })); }}
+                            className="text-xs text-slate-500 hover:text-slate-300">Grabar de nuevo</button>
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
               ))}

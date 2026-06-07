@@ -86,8 +86,6 @@ export async function POST(req: NextRequest) {
         payment_number: is_anonymous ? null : (paymentNumber ?? null),
         gender: gender ?? null,
         birth_year: birth_year ? parseInt(birth_year) : null,
-        municipio: municipio ?? null,
-        barrio: barrio ?? null,
         estrato: estrato ? parseInt(estrato) : null,
         nivel_estudios: nivel_estudios ?? null,
         actividades: actividades ?? null,
