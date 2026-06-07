@@ -90,8 +90,9 @@ frontend/app/
 └── campo/                                ROL: panelista | encuestador
     ├── verificar-identidad/page.tsx      KYC panelista (AutenTIC real / simulación) + gate middleware
     ├── panelista/
-    │   ├── page.tsx                      Home (encuestas reales + ganado este mes/total)
-    │   ├── pagos/page.tsx                Historial de pagos
+    │   ├── page.tsx                      Home (nombre en header, encuestas reales, devengado mes/total)
+    │   ├── pagos/page.tsx                Historial de pagos (devengado real por usuario)
+    │   ├── perfil/page.tsx               Editar correo/teléfono/billetera + perfil socioeconómico + cerrar sesión
     │   └── encuesta/[id]/page.tsx        Flujo encuesta REAL (preguntas Supabase + audio→Storage)
     └── encuestador/
         ├── page.tsx                      Home (encuestas + código reclutador + ganado mes)
@@ -115,7 +116,7 @@ RLS desactivado en todas las tablas (MVP). Habilitar antes de producción real.
 | `projects` | Proyectos por cliente. `type`: favorability/satisfaction/pulse/custom |
 | `surveys` | Encuestas por proyecto. `perfil_objetivo`: panelista/encuestador/ambos. `status`: draft/sent/closed |
 | `questions` | Preguntas de encuesta. `type`: single_choice/multiple_choice/scale/open_text/audio |
-| `participants` | Panelistas. `document_hash` + `phone_hash` SHA-256. `status`: preregistered/verified/suspended |
+| `participants` | Panelistas/encuestados. `document_hash` + `phone_hash` SHA-256 (dedup). Contacto/pago en claro: `phone`, `payment_wallet` (nequi/daviplata), `payment_number`. Demografía completa (estrato, nivel_estudios, actividades, estado_civil, num_hijos, regimen_salud, sisben_grupo, tenencia_vivienda, grupo_etnico, antiguedad_barrio, recibe_subsidios, acceso_internet, registrado_votar). `status`: preregistered/verified/suspended. El panelista captura/edita el mismo set que el flujo de campo |
 | `panel_memberships` | Participante ↔ proyecto ↔ cohorte |
 | `field_operators` | Encuestadores. `role`: encuestador/supervisor/coordinator. `status`: active/inactive |
 | `field_visits` | Registro GPS de visitas del encuestador (lat/lon/accuracy) |
@@ -124,8 +125,9 @@ RLS desactivado en todas las tablas (MVP). Habilitar antes de producción real.
 | `audio_responses` | Archivo de audio subido. `quality`: pending/transcribed/processed/error |
 | `nlp_outputs` | 9 variables IA: sentiment, emotion, intensity, main_topic, topics, narrative, summary, citizen_quote, opinion_driver |
 | `payments` | Pagos a panelistas. `status`: pending/approved/paid |
-| `payment_config` | Tarifa global: encuesta_cop / audio_cop / encuesta_campo_cop |
+| `payment_config` | Tarifa global: encuesta_cop / audio_cop / encuesta_campo_cop / bono_reclutamiento_cop |
 | `client_payment_config` | Tarifa por cliente (override de la global) |
+| `platform_config` | key/value jsonb: `identity_verification` (KYC panelista), `field_identity_verification` (identidad en calle) |
 
 ---
 
@@ -169,7 +171,7 @@ Panelista          campo/panelista/page.tsx     Supabase         Edge Function
 
 ---
 
-## Flujo 2: Encuestador registra panelista en campo
+## Flujo 2: Encuestador encuesta en campo (no recluta)
 
 ```
 Encuestador       campo/encuestador/page.tsx     Supabase
@@ -177,13 +179,18 @@ Encuestador       campo/encuestador/page.tsx     Supabase
     │── login ─────────────►│                      │
     │                       │── query field_operators (user_id) ──────►│
     │                       │── query surveys (perfil=encuestador/ambos) ►│
-    │── "Registrar panelista" ──────────────────────────────────────────│
+    │── "Encuestar en campo" (requiere encuesta seleccionada) ──────────│
     │              campo/encuestador/registrar/page.tsx                 │
-    │── datos + foto + GPS ─│                      │                   │
-    │                       │── insert participants ►│                  │
-    │                       │── insert field_visits ►│                  │
-    │                       │── insert consents ────►│                  │
+    │── datos + perfil socioeconómico ─►│  (claim/reuso si doc existe)  │
+    │── identidad (si toggle activo) ──►│  insert participants/update    │
+    │── consentimientos + GPS ─────────►│  insert consents/field_visits  │
+    │── aplica encuesta + audio ───────►│  insert responses (encuestador_id) │
 ```
+
+**Reclutar (distinto de encuestar):** la persona se auto-registra en `/registro/panelista`
+desde su celular con el `recruiter_code` del encuestador → `recruited_by` → bono.
+Si ya fue encuestada (mismo documento), la RPC `claim_field_participant` reutiliza sus
+datos + verificación y re-apunta su historial al nuevo `auth.id`.
 
 ---
 
@@ -249,9 +256,11 @@ surveys ──< responses ──< audio_responses ──< nlp_outputs
 
 | Campo | Tratamiento actual |
 |---|---|
-| `document_hash` | SHA-256 (irreversible) |
-| `phone_hash` | SHA-256 (irreversible) |
-| `name` | Texto plano — **pendiente cifrar** (ver ADR-004) |
+| `document_hash` | SHA-256 (irreversible) — para dedup |
+| `phone_hash` | SHA-256 (irreversible) — para dedup |
+| `phone`, `payment_number` | Texto plano (contacto/dispersión) — **sensibles**, asegurar con RLS |
+| `regimen_salud`, `sisben_grupo`, `registrado_votar` | Datos sensibles (Ley 1581) — asegurar con RLS |
+| `name_encrypted` | Texto plano — **pendiente cifrar** (ver ADR-004) |
 | Audios | Supabase Storage privado (URLs firmadas con TTL) |
 | `nlp_outputs` | Sin datos personales — solo texto anónimo y métricas |
 | Dashboard | Siempre datos agregados, nunca nombres |

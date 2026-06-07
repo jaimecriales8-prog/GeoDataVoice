@@ -1,15 +1,15 @@
 # PROJECT_CONTEXT.md — GeoDataVoice
-> Actualizado: 2026-06-05 | Producción: https://geodatavoice.grialtech.co
+> Actualizado: 2026-06-06 | Producción: https://geodatavoice.grialtech.co
 
 ---
 
 ## Resumen Ejecutivo
 
-**GeoDataVoice** es una plataforma de inteligencia territorial para Colombia que recluta ciudadanos verificados, los organiza en paneles georreferenciados y mide su opinión de forma recurrente mediante encuestas web y notas de voz analizadas con IA (Whisper + GPT-4o-mini).
+**GeoDataVoice** es una plataforma de inteligencia territorial para Colombia que recluta ciudadanos verificados, los organiza en paneles georreferenciados y mide su opinión de forma recurrente mediante encuestas web y notas de voz analizadas con IA (Whisper + Claude `claude-opus-4-8`).
 
 **Problema:** Alcaldes, gobernadores, candidatos y gremios toman decisiones con información incompleta. Las encuestas tradicionales son episódicas y costosas. GeoDataVoice provee medición recurrente, accesible y territorializada con análisis de voz como diferencial.
 
-**Estado actual:** ~45% de avance. Frontend funcional con flujos de registro, panel admin, dashboard de cliente y vistas de panelista. Tablas en Supabase creadas y operativas.
+**Estado actual:** ~70% de avance. Flujo end-to-end operativo: registro de los 3 perfiles, encuestar en campo (con perfil socioeconómico + identidad opcional + GPS), auto-registro de panelista (con claim/reuso de datos), respuesta de encuestas con audio, pipeline de IA (Whisper+Claude) automático, tableros de resultados (por encuesta y por proyecto), y panel de panelista con edición de perfil. Tablas en Supabase operativas (RLS aún desactivado).
 
 ---
 
@@ -42,10 +42,13 @@ frontend/ (Next.js 16 — puerto 3010 local, Vercel en prod)
     /resultados        → Tablero de resultados (placeholder — real es P1-01, depende de nlp_outputs)
 
   /campo/              → Vistas de campo (panelista + encuestador)
-    /panelista         → Home panelista (encuestas pendientes, pagos) — datos mock
+    /panelista         → Home panelista (nombre en header, encuestas pendientes reales, ganado del mes/total devengado)
     /panelista/encuesta/[id] → Flujo de encuesta con audio
-    /panelista/pagos   → Historial de pagos
-    /registro          → Flujo 3 pasos encuestador: datos→GPS→consentimientos
+    /panelista/pagos   → Historial de pagos (devengado real por usuario)
+    /panelista/perfil  → Editar correo (Auth), teléfono, billetera (Nequi/Daviplata + número) y perfil socioeconómico completo + cerrar sesión
+    /encuestador       → Home encuestador (ganado del mes: reclutamiento + encuestas, código reclutador, encuestas)
+    /encuestador/registrar → "Encuestar en campo": selección encuesta → datos + perfil socioeconómico → identidad (opcional) → consentimientos → GPS → encuesta
+    /verificar-identidad → KYC del panelista (simulación / AutenTIC)
 
 Supabase: https://bsjiqatcqbjqmtytlgll.supabase.co (us-west-2)
 GitHub: https://github.com/jaimecriales8-prog/GeoDataVoice.git
@@ -96,7 +99,7 @@ por trigger pg_net en INSERT de `audio_responses` (quality=pending). Deploy: `np
 | `projects` | Proyectos por cliente. `type`. **`field_identity_required`** (bool nullable=hereda global) |
 | `surveys` | Encuestas por proyecto. **`perfil_objetivo`** panelista/encuestador/ambos. `status`: draft/ready/sent/closed |
 | `questions` | Preguntas. `type`, `options`(jsonb), `order`. **`tracking_key`** (indicador entre olas), **`favorability`**, **`favorable_values`** |
-| `participants` | Personas. doc+phone SHA-256. `id`=auth.users.id. **`user_id`**, **`recruited_by`**→field_operators. Demografía: estrato, birth_year, nivel_estudios, actividades(jsonb), estado_civil, num_hijos, regimen_salud, sisben_grupo, tenencia_vivienda, grupo_etnico, antiguedad_barrio, recibe_subsidios, acceso_internet, registrado_votar. `name_encrypted` (texto plano por ahora) |
+| `participants` | Personas. doc+phone SHA-256 (`document_hash`, `phone_hash`) para dedup. `id`=auth.users.id. **`user_id`**, **`recruited_by`**→field_operators. Contacto/pago en claro: **`phone`**, **`payment_wallet`** (nequi/daviplata), **`payment_number`**. Demografía: estrato, birth_year, nivel_estudios, actividades(jsonb), estado_civil, num_hijos, regimen_salud, sisben_grupo, tenencia_vivienda, grupo_etnico, antiguedad_barrio, recibe_subsidios, acceso_internet, registrado_votar. `name_encrypted` (texto plano por ahora). El panelista captura/edita el **mismo** set de campos que el flujo de campo |
 | `panel_memberships` | Participante ↔ proyecto ↔ cohorte |
 | `field_operators` | Encuestadores. `user_id`→auth, **`recruiter_code`** (código de reclutador) |
 | `field_visits` | GPS de visitas del encuestador (`operator_id`, lat/lon) |
@@ -156,63 +159,61 @@ Login redirige por `user_metadata.role`. Middleware: protege `/dashboard|/client
 
 ### Funciona correctamente
 - Landing comercial, login, registro de los 3 perfiles
-- Panel admin: CRUD clientes/panelistas/encuestadores, configuración de tarifas
-- Panel cliente: crear proyectos, crear encuestas con preguntas y perfil_objetivo
-- Flujo de registro campo (3 pasos GPS + consentimientos) conectado a Supabase
-- Middleware protege `/dashboard` y `/cliente`
-- Build limpio, 21 rutas, deploy en Vercel
+- Panel admin: CRUD clientes/panelistas/encuestadores, configuración de tarifas + bono reclutamiento + toggles de identidad
+- Panel cliente: crear proyectos, crear encuestas (preguntas, perfil_objetivo, audio por pregunta, tracking/favorabilidad), toggle identidad por proyecto
+- **Encuestar en campo** (encuestador): selección de encuesta → datos + perfil socioeconómico → identidad opcional → consentimientos → GPS → encuesta. Claim/reuso si el documento ya existe
+- **Auto-registro panelista**: captura mismo perfil socioeconómico que campo, código reclutador → bono, claim de datos si ya fue encuestado
+- **Panelista**: home con datos reales (encuestas pendientes, devengado), responder encuestas con audio, ver pagos, **editar perfil completo** (correo/teléfono/billetera/socioeconómico) + cerrar sesión
+- **Encuestador**: home con ganado del mes (reclutamiento + encuestas) y código reclutador
+- **Pipeline IA**: Edge Function `process-audio` (Whisper + Claude) con disparo automático por trigger
+- **Tableros de resultados**: por encuesta y por proyecto (agregación por ola, tracking, favorabilidad)
+- Emails: Resend API (negocio) + SMTP (sistema Auth), dominio propio
+- Middleware protege `/dashboard`, `/cliente`, `/campo` + gate KYC panelista
+- Build limpio, deploy en Vercel
 
 ### Parcialmente implementado
-- Dashboard cliente: home y proyectos consultan Supabase; encuestas y resultados pendientes de conectar
-- Home panelista `/campo/panelista`: UI completa con datos mock — pendiente conectar a encuestas reales
-- Encuestador: tiene registro pero no tiene home/dashboard propio aún
-- Redirección post-login: siempre va a `/dashboard` sin importar el rol
+- KYC: funcional en modo simulación; AutenTIC real requiere configurar webhook
+- Pagos: se muestra **devengado** (calculado de actividad); dispersión real a Nequi/Daviplata pendiente
+- Resultados: falta segmentación por demografía (P1-04b)
 
 ### Pendiente de construir
-- Vista encuestador con sus encuestas asignadas
-- Conectar panelista a encuestas reales de Supabase
-- Flujo de respuesta real (guardar en `responses` + upload audio)
-- Procesamiento de audio: Edge Function Supabase con Whisper + GPT
-- Dashboard de resultados para el cliente (favorabilidad, sentimiento, temas)
-- Verificación de identidad digital para panelistas
-- OTP de celular para panelistas
-- Redirección post-login según rol
+- RLS en todas las tablas (tarea dedicada y cuidadosa — todo usa anon key hoy)
+- Dispersión real de pagos (tabla `payments` + flujo de pago)
+- Segmentación de tableros por variables demográficas
+- AGORA (red de pares) — fase posterior
+- Histórico de perfil socioeconómico (hoy se sobrescribe al editar)
 
 ---
 
 ## Pendientes Prioritarios
 
 ### Alta prioridad
-1. **Redirección post-login por rol** — leer `user_metadata.role` y redirigir a `/dashboard`, `/cliente`, `/campo/panelista`
-2. **Vista encuestador** — home `/campo/encuestador` con sus encuestas asignadas (perfil=encuestador/ambos)
-3. **Conectar panelista** — encuestas reales en `/campo/panelista` (perfil=panelista/ambos)
-4. **Flujo de respuesta real** — guardar respuestas en `responses` + upload audio a Supabase Storage + disparar Edge Function
-5. **Insert encuestador en field_operators** — al registrarse, crear registro en la tabla
+1. **RLS en todas las tablas** — hoy todo usa anon key. Tarea dedicada y cuidadosa (riesgo de romper la app en producción). Priorizar datos sensibles (salud, `registrado_votar`, `payment_number`) — Ley 1581
+2. **Dispersión real de pagos** — tabla `payments` + flujo; hoy solo se muestra devengado calculado
 
 ### Media prioridad
-6. **Dashboard resultados cliente** — `/cliente/proyectos/[id]/resultados` con favorabilidad, sentimiento, temas (consulta `nlp_outputs`)
-7. **Edge Function process-audio** — Whisper + GPT-4o-mini → `nlp_outputs`
-8. **Supabase Storage** — crear bucket `geodatavoice-audio` para audios
-9. **Encuesta detalle cliente** — ver respuestas, estadísticas por pregunta
-10. **Validación de identidad** — integrar Truora o Metamap para KYC digital
+3. **Segmentación de tableros por demografía** (P1-04b) — cruzar resultados por estrato/edad/género/etc.
+4. **Configurar AutenTIC Decision Webhook** para KYC real (hoy en simulación)
+5. **Histórico de perfil socioeconómico** — al editar hoy se sobrescribe; decidir si se versiona para análisis longitudinal
+6. **Variables de entorno en Preview de Vercel** (quedó solo Production)
 
 ### Baja prioridad
-11. RLS policies (actualmente desactivado en todas las tablas)
-12. Paginación en listados
-13. Notificaciones email (Resend) para activación de clientes
-14. Supabase Vault para cifrar nombre de participantes (cumplimiento Ley 1581)
+7. Landing: tarifas desde `payment_config` (hoy fijas)
+8. Paginación en listados
+9. Supabase Vault para cifrar `name_encrypted` (Ley 1581)
+10. AGORA (red de pares) — fase posterior
 
 ---
 
 ## Bugs Conocidos
 
-| # | Descripción | Impacto | Solución |
+| # | Descripción | Impacto | Estado |
 |---|---|---|---|
-| B1 | Login redirige siempre a `/dashboard` sin importar el rol | Alto — clientes y panelistas ven 403 o el panel de admin | Leer `user_metadata.role` en login y redirigir según rol |
-| B2 | Registro encuestador no inserta en `field_operators` | Medio — el encuestador queda en Auth pero no en la tabla | Agregar insert en `registro/encuestador/page.tsx` igual que cliente y panelista |
-| B3 | Montos fijos `$2.000–$3.000` hardcodeados en landing y panelista | Bajo — debería venir de `payment_config` | Consultar tarifa global al cargar la página |
-| B4 | Home panelista con `MOCK_SURVEYS` y `MOCK_PAYMENTS` | Alto — no muestra datos reales | Conectar a Supabase con filtro `perfil_objetivo` |
-| B5 | Sin validación de sesión activa en `/campo/*` | Medio — cualquiera puede ver las páginas de campo | Agregar protección en middleware |
+| B1 | Login redirige siempre a `/dashboard` sin importar el rol | Alto | ✅ Resuelto — redirige por `user_metadata.role` |
+| B2 | Registro encuestador no inserta en `field_operators` | Medio | ✅ Resuelto — inserta + genera `recruiter_code` |
+| B3 | Montos fijos hardcodeados en landing y panelista | Bajo | ⏳ Parcial — paneles usan `payment_config`; landing aún fija |
+| B4 | Home panelista con datos mock | Alto | ✅ Resuelto — datos reales por usuario |
+| B5 | Sin validación de sesión en `/campo/*` | Medio | ✅ Resuelto — middleware protege `/campo` + gate KYC |
 
 ---
 
@@ -276,20 +277,15 @@ npx vercel env ls production
 
 ---
 
-## Próximas 10 Tareas para Nueva Sesión
+## Próximas Tareas para Nueva Sesión
 
 | # | Tarea | Archivo principal |
 |---|---|---|
-| 1 | Redirección post-login por rol | `frontend/app/login/page.tsx` |
-| 2 | Insert `field_operators` en registro encuestador | `frontend/app/registro/encuestador/page.tsx` |
-| 3 | Proteger `/campo/*` en middleware | `frontend/middleware.ts` |
-| 4 | Home encuestador `/campo/encuestador` con encuestas filtradas | Crear `frontend/app/campo/encuestador/page.tsx` |
-| 5 | Conectar panelista a encuestas reales de Supabase | `frontend/app/campo/panelista/page.tsx` |
-| 6 | Guardar respuestas en Supabase al completar encuesta | `frontend/app/campo/panelista/encuesta/[id]/page.tsx` |
-| 7 | Upload audio a Supabase Storage | `frontend/app/campo/panelista/encuesta/[id]/page.tsx` |
-| 8 | Edge Function `process-audio` (Whisper + GPT → nlp_outputs) | `supabase/functions/process-audio/` |
-| 9 | Dashboard resultados para cliente | `frontend/app/cliente/proyectos/[id]/resultados/page.tsx` |
-| 10 | Notificación email al activar cliente (Resend) | Edge Function o Supabase trigger |
+| 1 | RLS en todas las tablas (tarea dedicada y cuidadosa) | Supabase (policies) |
+| 2 | Dispersión real de pagos | `frontend/app/dashboard/pagos/` + tabla `payments` |
+| 3 | Segmentación de tableros por demografía | `frontend/lib/resultados.ts`, `components/resultados-*` |
+| 4 | Configurar webhook AutenTIC para KYC real | `app/api/identidad/webhook` + panel AutenTIC |
+| 5 | Histórico de perfil socioeconómico | esquema `participants` / tabla histórica |
 
 ---
 
@@ -327,11 +323,10 @@ panelista → solo panelistas responden (desde su web)
 encuestador → encuestador aplica a panelista en campo (response.encuestador_id ≠ null)
 ambos → cualquiera
 
-## BUGS CRÍTICOS ACTIVOS
-1. Login redirige siempre a /dashboard — debe leer user_metadata.role
-2. Registro encuestador no inserta en field_operators
-3. Home panelista usa MOCK_SURVEYS — conectar a Supabase
-4. /campo/* sin protección de auth
+## ESTADO
+Flujo end-to-end operativo (~70%). Pendiente clave: RLS (todo usa anon key),
+dispersión real de pagos, segmentación de tableros por demografía.
+RLS es tarea dedicada — no improvisar, puede romper producción.
 
 ## PRÓXIMA TAREA
 [describe aquí lo que quieres hacer]

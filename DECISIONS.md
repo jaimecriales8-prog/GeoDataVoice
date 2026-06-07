@@ -261,6 +261,23 @@
 
 ---
 
+## ADR-018: Datos de contacto/pago en claro + perfil socioeconómico simétrico panelista↔campo
+**Estado:** Vigente · **Fecha:** 2026-06-06
+
+**Contexto:** El teléfono solo se guardaba hasheado (dedup) y el número Nequi/Daviplata no se guardaba en ninguna parte. Además, el panelista que se auto-registra debía aportar la misma riqueza de datos que el flujo de campo, y poder mantenerlos al día.
+
+**Decisión:**
+1. Nuevas columnas en `participants` en claro: `phone`, `payment_wallet` (nequi/daviplata) y `payment_number` — necesarias para contacto (WhatsApp) y dispersión real de pagos. El `phone_hash` se conserva para dedup.
+2. El selector de billetera (Nequi vs Daviplata) y el número son campos separados.
+3. El **registro del panelista captura el mismo set socioeconómico** que el flujo de campo, y el panelista puede **editarlo** desde `/campo/panelista/perfil` (los datos cambian con el tiempo). El correo se cambia vía Supabase Auth (`updateUser`, dispara email de confirmación).
+4. Al editar se **sobrescribe** el valor vigente (sin histórico por ahora — ver tarea P1-18).
+
+**Razón:** Funcionalidad real de pagos y contacto exige datos usables; la simetría con campo mantiene los resultados agregables/comparables sin importar el canal de captura.
+
+**Consecuencia / riesgo:** `phone`, `payment_number` y datos sensibles (salud, `registrado_votar`) quedan en claro con anon key hasta implementar RLS (P2-01) — priorizar esas columnas al asegurar.
+
+---
+
 ## Decisiones Pendientes (antes de producción)
 
 | # | Decisión | Opciones | Urgencia |

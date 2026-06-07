@@ -1,5 +1,5 @@
 # TASKS.md — GeoDataVoice Backlog
-> Última actualización: 2026-06-05
+> Última actualización: 2026-06-06
 
 ## Leyenda
 - `[ ]` Pendiente
@@ -61,6 +61,14 @@
 - [ ] **P1-06c** Configurar SMTP de Resend en Supabase Auth (confirmar registro / recuperar contraseña) — en progreso
 - [ ] **P1-06d** Verificar subdominio `geodatavoice.grialtech.co` en Resend cuando se suba de plan (hoy se envía desde la raíz `grialtech.co`)
 - [ ] **P1-06e** Agregar variables de email a Preview en Vercel (hoy solo en Production)
+
+### Panel del panelista
+- [x] **P1-13** Header con nombre del panelista + acceso a perfil (se quitó la estrella decorativa) + cerrar sesión.
+- [x] **P1-14** Página `/campo/panelista/perfil` — editar correo (Supabase Auth `updateUser` → email de confirmación), teléfono, billetera (Nequi/Daviplata) y número.
+- [x] **P1-15** Selector Nequi/Daviplata separado del número — nuevas columnas `participants.phone`, `payment_wallet`, `payment_number` (en claro, para contacto y dispersión). Se guardan en registro y edición.
+- [x] **P1-16** El registro del panelista captura el **mismo perfil socioeconómico** que el flujo de campo (estrato, estado civil, estudios, actividades, hijos, salud, SISBEN, vivienda, grupo étnico, antigüedad barrio, subsidios, internet, registro electoral). Prefill reutiliza estos campos si ya fue encuestado.
+- [x] **P1-17** El panelista puede **editar** todo ese perfil socioeconómico desde Mi perfil (los datos cambian con el tiempo).
+- [ ] **P1-18** Histórico del perfil socioeconómico — hoy al editar se sobrescribe; decidir si se versiona para análisis longitudinal.
 
 ### Pagos a panelistas
 - [x] **Ganancias devengadas en vivo** — home panelista ("ganado este mes" + "total" = encuestas × `encuesta_cop` + audios × `audio_cop`); home encuestador ("ganado este mes" = reclutados × bono + encuestas campo × `encuesta_campo_cop`). Calculado desde la actividad, no desde `payments`.
