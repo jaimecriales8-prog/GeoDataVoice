@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import { Mic, Loader2, ArrowLeft, CheckCircle, Phone, MapPin, User, Lock, Eye, EyeOff, Mail } from "lucide-react";
-import { PasswordStrength } from "@/components/password-strength";
+import { PasswordStrength, passwordCumple } from "@/components/password-strength";
 
 async function sha256(text: string): Promise<string> {
   const data = new TextEncoder().encode(text.toUpperCase().trim());
@@ -103,9 +103,36 @@ export default function RegistroPanelistaPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
-    // Validaciones
-    if (!form.full_name || !form.phone || !form.documento || !form.municipio || !form.email || !form.password) {
-      setError("Completa todos los campos obligatorios."); return;
+    // Validaciones — todos los campos son obligatorios
+    const requeridos: [string, string][] = [
+      [form.full_name, "tu nombre completo"],
+      [form.documento, "tu número de cédula"],
+      [form.birth_year, "tu año de nacimiento"],
+      [form.gender, "tu sexo"],
+      [form.municipio, "tu municipio"],
+      [form.barrio, "tu barrio"],
+      [form.estrato, "tu estrato"],
+      [form.estado_civil, "tu estado civil"],
+      [form.nivel_estudios, "tu nivel de estudios"],
+      [form.regimen_salud, "tu régimen de salud"],
+      [form.sisben_grupo, "tu grupo SISBEN"],
+      [form.tenencia_vivienda, "tu tipo de vivienda"],
+      [form.grupo_etnico, "tu grupo étnico"],
+      [form.antiguedad_barrio, "tu antigüedad en el barrio"],
+      [form.phone, "tu celular"],
+      [form.payment_wallet, "tu billetera (Nequi o Daviplata)"],
+      [form.nequi_or_daviplata, "el número de tu billetera"],
+      [form.email, "tu correo electrónico"],
+      [form.password, "tu contraseña"],
+    ];
+    const faltante = requeridos.find(([v]) => !String(v).trim());
+    if (faltante) { setError(`Falta ${faltante[1]}. Todos los campos son obligatorios.`); return; }
+
+    if (actividades.length === 0) {
+      setError("Selecciona al menos una actividad."); return;
+    }
+    if (tieneHijos && !form.num_hijos.trim()) {
+      setError("Indica cuántos hijos tienes."); return;
     }
     if (!/^3\d{9}$/.test(form.phone)) {
       setError("Ingresa un celular colombiano válido (ej: 3001234567)."); return;
@@ -113,8 +140,8 @@ export default function RegistroPanelistaPage() {
     if (!/^\d{7,12}$/.test(form.documento)) {
       setError("El número de documento debe tener entre 7 y 12 dígitos."); return;
     }
-    if (form.password.length < 8) {
-      setError("La contraseña debe tener al menos 8 caracteres."); return;
+    if (!passwordCumple(form.password)) {
+      setError("La contraseña no cumple los requisitos (8+ caracteres, mayúscula, minúscula y número)."); return;
     }
     if (form.password !== form.password2) {
       setError("Las contraseñas no coinciden."); return;
@@ -313,13 +340,13 @@ export default function RegistroPanelistaPage() {
                   onBlur={checkExistente}
                   placeholder="N° documento" inputMode="numeric" className={inputCls} />
               </Field>
-              <Field label="Año nacimiento">
+              <Field label="Año nacimiento *">
                 <input value={form.birth_year} onChange={e => update("birth_year", e.target.value)}
                   placeholder="Ej: 1990" inputMode="numeric" className={inputCls} />
               </Field>
             </div>
 
-            <Field label="Género">
+            <Field label="Género *">
               <select value={form.gender} onChange={e => update("gender", e.target.value)} className={inputCls}>
                 <option value="">Prefiero no decir</option>
                 <option value="female">Mujer</option>
@@ -339,7 +366,7 @@ export default function RegistroPanelistaPage() {
                   <input value={form.municipio} onChange={e => update("municipio", e.target.value)}
                     placeholder="Ej: Barranquilla" className={inputCls} />
                 </Field>
-                <Field label="Barrio">
+                <Field label="Barrio *">
                   <input value={form.barrio} onChange={e => update("barrio", e.target.value)}
                     placeholder="Tu barrio" className={inputCls} />
                 </Field>
@@ -354,13 +381,13 @@ export default function RegistroPanelistaPage() {
               </div>
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-3">
-                  <Field label="Estrato">
+                  <Field label="Estrato *">
                     <select value={form.estrato} onChange={e => update("estrato", e.target.value)} className={inputCls}>
                       <option value="">Sin respuesta</option>
                       {[1,2,3,4,5,6].map(n => <option key={n} value={n}>{n}</option>)}
                     </select>
                   </Field>
-                  <Field label="Estado civil">
+                  <Field label="Estado civil *">
                     <select value={form.estado_civil} onChange={e => update("estado_civil", e.target.value)} className={inputCls}>
                       <option value="">Sin respuesta</option>
                       <option value="soltero">Soltero/a</option>
@@ -372,7 +399,7 @@ export default function RegistroPanelistaPage() {
                     </select>
                   </Field>
                 </div>
-                <Field label="Nivel de estudios">
+                <Field label="Nivel de estudios *">
                   <select value={form.nivel_estudios} onChange={e => update("nivel_estudios", e.target.value)} className={inputCls}>
                     <option value="">Sin respuesta</option>
                     <option value="bachiller">Bachiller</option>
@@ -381,7 +408,7 @@ export default function RegistroPanelistaPage() {
                     <option value="posgrado">Posgrado</option>
                   </select>
                 </Field>
-                <Field label="Actividad (puede elegir varias)">
+                <Field label="Actividad (elige al menos una) *">
                   <div className="flex flex-wrap gap-2">
                     {[["estudiante","Estudiante"],["empleado","Empleado"],["independiente","Independiente"],["desempleado","Desempleado"]].map(([v, l]) => {
                       const sel = actividades.includes(v);
@@ -405,14 +432,14 @@ export default function RegistroPanelistaPage() {
                   </label>
                   {tieneHijos && (
                     <div className="mt-3">
-                      <Field label="¿Cuántos hijos?">
+                      <Field label="¿Cuántos hijos? *">
                         <input value={form.num_hijos} onChange={e => update("num_hijos", e.target.value)} placeholder="Ej: 2" inputMode="numeric" className={inputCls} />
                       </Field>
                     </div>
                   )}
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <Field label="Régimen de salud">
+                  <Field label="Régimen de salud *">
                     <select value={form.regimen_salud} onChange={e => update("regimen_salud", e.target.value)} className={inputCls}>
                       <option value="">Sin respuesta</option>
                       <option value="subsidiado">Subsidiado</option>
@@ -421,7 +448,7 @@ export default function RegistroPanelistaPage() {
                       <option value="ninguno">Ninguno</option>
                     </select>
                   </Field>
-                  <Field label="SISBEN">
+                  <Field label="SISBEN *">
                     <select value={form.sisben_grupo} onChange={e => update("sisben_grupo", e.target.value)} className={inputCls}>
                       <option value="">Sin respuesta</option>
                       <option value="no">No está en SISBEN</option>
@@ -433,7 +460,7 @@ export default function RegistroPanelistaPage() {
                   </Field>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <Field label="Vivienda">
+                  <Field label="Vivienda *">
                     <select value={form.tenencia_vivienda} onChange={e => update("tenencia_vivienda", e.target.value)} className={inputCls}>
                       <option value="">Sin respuesta</option>
                       <option value="propia">Propia</option>
@@ -441,7 +468,7 @@ export default function RegistroPanelistaPage() {
                       <option value="familiar">Familiar</option>
                     </select>
                   </Field>
-                  <Field label="Grupo étnico">
+                  <Field label="Grupo étnico *">
                     <select value={form.grupo_etnico} onChange={e => update("grupo_etnico", e.target.value)} className={inputCls}>
                       <option value="">Sin respuesta</option>
                       <option value="ninguno">Ninguno</option>
@@ -452,7 +479,7 @@ export default function RegistroPanelistaPage() {
                     </select>
                   </Field>
                 </div>
-                <Field label="Antigüedad en el barrio">
+                <Field label="Antigüedad en el barrio *">
                   <select value={form.antiguedad_barrio} onChange={e => update("antiguedad_barrio", e.target.value)} className={inputCls}>
                     <option value="">Sin respuesta</option>
                     <option value="menos_1">Menos de 1 año</option>
@@ -505,7 +532,7 @@ export default function RegistroPanelistaPage() {
                   <input type="tel" value={form.phone} onChange={e => update("phone", e.target.value)}
                     placeholder="3001234567" inputMode="tel" className={inputCls} />
                 </Field>
-                <Field label="Billetera para tus pagos">
+                <Field label="Billetera para tus pagos *">
                   <div className="grid grid-cols-2 gap-2">
                     {[
                       { val: "nequi", label: "Nequi" },
@@ -525,7 +552,7 @@ export default function RegistroPanelistaPage() {
                     ))}
                   </div>
                 </Field>
-                <Field label="Número de la billetera">
+                <Field label="Número de la billetera *">
                   <input type="tel" value={form.nequi_or_daviplata} onChange={e => update("nequi_or_daviplata", e.target.value)}
                     placeholder="Mismo número o diferente" inputMode="tel" className={inputCls} />
                 </Field>
