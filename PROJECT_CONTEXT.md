@@ -97,7 +97,7 @@ por trigger pg_net en INSERT de `audio_responses` (quality=pending). Deploy: `np
 |---|---|
 | `clients` | Clientes contratantes. `status`: pending → active/inactive |
 | `projects` | Proyectos por cliente. `type`. **`field_identity_required`** (bool nullable=hereda global) |
-| `surveys` | Encuestas por proyecto. **`perfil_objetivo`** panelista/encuestador/ambos. `status`: draft/ready/sent/closed |
+| `surveys` | Encuestas por proyecto. **`perfil_objetivo`** panelista/encuestador/ambos. **`audiencia`** (jsonb) filtros de público objetivo por variable del panelista (null=cualquiera). `status`: draft/ready/sent/closed |
 | `questions` | Preguntas. `type`, `options`(jsonb), `order`. **`tracking_key`** (indicador entre olas), **`favorability`**, **`favorable_values`** |
 | `participants` | Personas. doc+phone SHA-256 (`document_hash`, `phone_hash`) para dedup. `id`=auth.users.id. **`user_id`**, **`recruited_by`**→field_operators. Contacto/pago en claro: **`phone`**, **`payment_wallet`** (nequi/daviplata), **`payment_number`**. Demografía: estrato, birth_year, nivel_estudios, actividades(jsonb), estado_civil, num_hijos, regimen_salud, sisben_grupo, tenencia_vivienda, grupo_etnico, antiguedad_barrio, recibe_subsidios, acceso_internet, registrado_votar. `name_encrypted` (texto plano por ahora). El panelista captura/edita el **mismo** set de campos que el flujo de campo |
 | `panel_memberships` | Participante ↔ proyecto ↔ cohorte |
@@ -114,6 +114,14 @@ por trigger pg_net en INSERT de `audio_responses` (quality=pending). Deploy: `np
 
 **Función RPC:** `claim_field_participant(...)` — al auto-registrarse un panelista ya encuestado en campo
 (mismo documento), reutiliza su registro + verificación + re-apunta su historial al nuevo id.
+
+**Auth por correo (token_hash):** los enlaces de correo usan el flujo token_hash (`/auth/confirm` →
+`verifyOtp`), NO PKCE — funciona entre dispositivos. `/auth/reset-password` para recuperación.
+Plantillas configuradas en español vía Management API. Enlaces válidos 1 hora.
+
+**Segmentación de audiencia:** `lib/segmentacion.ts` define las variables (`SEGMENT_VARS`),
+el matcher `participanteCoincide(audiencia, participant)` y `resumenAudiencia()`. AND entre
+variables, OR dentro de cada una; listas (actividades) por intersección.
 
 ---
 

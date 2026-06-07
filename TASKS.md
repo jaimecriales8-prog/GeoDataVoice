@@ -62,8 +62,19 @@
 - [ ] **P1-06d** Verificar subdominio `geodatavoice.grialtech.co` en Resend cuando se suba de plan (hoy se envía desde la raíz `grialtech.co`)
 - [ ] **P1-06e** Agregar variables de email a Preview en Vercel (hoy solo en Production)
 
+### Auth / onboarding por correo
+- [x] **P1-19** Confirmación de email vía **token_hash + verifyOtp** (no PKCE) — arregla "Enlace inválido o expirado" que fallaba siempre al abrir el enlace en otro dispositivo. Ruta `/auth/confirm`, plantillas reescritas (confirmación/recuperación/cambio correo/magic link), página `/auth/reset-password`. Ver ADR-019.
+
+### Segmentación de encuestas
+- [x] **P1-20** Público objetivo segmentado por variables del panelista (`surveys.audiencia` jsonb + `lib/segmentacion.ts`). Creación: "Cualquier persona" vs "Segmentar"; home panelista filtra por coincidencia; detalle de proyecto muestra "Segmentada". Ver ADR-020.
+
+### UX / registro y admin
+- [x] **P1-21** Barra de fortaleza de contraseña + condiciones + coincidencia en los 3 registros (`components/password-strength.tsx`).
+- [x] **P1-22** Toggles globales del admin unificados en el panel principal (`components/admin-config-toggles.tsx`); Configuración reusa el mismo componente.
+
 ### Panel del panelista
 - [x] **P1-13** Header con nombre del panelista + acceso a perfil (se quitó la estrella decorativa) + cerrar sesión.
+- [x] **P1-13b** Botón Cerrar sesión también en el header del home (no solo en Perfil) para evitar editar datos por error.
 - [x] **P1-14** Página `/campo/panelista/perfil` — editar correo (Supabase Auth `updateUser` → email de confirmación), teléfono, billetera (Nequi/Daviplata) y número.
 - [x] **P1-15** Selector Nequi/Daviplata separado del número — nuevas columnas `participants.phone`, `payment_wallet`, `payment_number` (en claro, para contacto y dispersión). Se guardan en registro y edición.
 - [x] **P1-16** El registro del panelista captura el **mismo perfil socioeconómico** que el flujo de campo (estrato, estado civil, estudios, actividades, hijos, salud, SISBEN, vivienda, grupo étnico, antigüedad barrio, subsidios, internet, registro electoral). Prefill reutiliza estos campos si ya fue encuestado.

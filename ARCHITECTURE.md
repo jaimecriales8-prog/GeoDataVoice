@@ -63,7 +63,9 @@ frontend/app/
 │   ├── panelista/page.tsx                signUp + insert participants (SHA-256)
 │   └── encuestador/page.tsx              signUp + insert field_operators + genera recruiter_code
 ├── auth/
-│   ├── callback/route.ts                 Callback OAuth/email
+│   ├── callback/route.ts                 Callback OAuth (PKCE, exchangeCodeForSession)
+│   ├── confirm/route.ts                  Confirmación email vía token_hash (verifyOtp) — cross-device
+│   ├── reset-password/page.tsx           Nueva contraseña (enlace de recuperación)
 │   └── verificar-email/page.tsx
 ├── dashboard/                            ROL: admin
 │   ├── layout.tsx                        Sidebar azul oscuro
@@ -114,7 +116,7 @@ RLS desactivado en todas las tablas (MVP). Habilitar antes de producción real.
 |---|---|
 | `clients` | Clientes contratantes. `status`: pending → active/inactive |
 | `projects` | Proyectos por cliente. `type`: favorability/satisfaction/pulse/custom |
-| `surveys` | Encuestas por proyecto. `perfil_objetivo`: panelista/encuestador/ambos. `status`: draft/sent/closed |
+| `surveys` | Encuestas por proyecto. `perfil_objetivo`: panelista/encuestador/ambos. `audiencia` (jsonb): segmentación de público objetivo por variable del panelista (null=cualquiera). `status`: draft/sent/closed |
 | `questions` | Preguntas de encuesta. `type`: single_choice/multiple_choice/scale/open_text/audio |
 | `participants` | Panelistas/encuestados. `document_hash` + `phone_hash` SHA-256 (dedup). Contacto/pago en claro: `phone`, `payment_wallet` (nequi/daviplata), `payment_number`. Demografía completa (estrato, nivel_estudios, actividades, estado_civil, num_hijos, regimen_salud, sisben_grupo, tenencia_vivienda, grupo_etnico, antiguedad_barrio, recibe_subsidios, acceso_internet, registrado_votar). `status`: preregistered/verified/suspended. El panelista captura/edita el mismo set que el flujo de campo |
 | `panel_memberships` | Participante ↔ proyecto ↔ cohorte |

@@ -278,6 +278,48 @@
 
 ---
 
+## ADR-019: Confirmación de email vía token_hash (no PKCE)
+**Estado:** Vigente · **Fecha:** 2026-06-06
+
+**Contexto:** Todos los enlaces de correo (confirmar cuenta, recuperar contraseña, cambiar correo) fallaban con "Enlace inválido o expirado". Causa: el flujo PKCE (`exchangeCodeForSession`) requiere el `code_verifier` guardado en el navegador donde se hizo el `signUp`; al abrir el enlace en otro dispositivo o cuando un escáner de correo lo pre-consume, no hay verifier → falla siempre.
+
+**Decisión:** Cambiar al flujo **token_hash + `verifyOtp`** (no necesita verifier, funciona entre dispositivos).
+- Nueva ruta `app/auth/confirm/route.ts` que llama `verifyOtp({ type, token_hash })` y redirige por rol (o a `next`).
+- Plantillas de correo (confirmación, recuperación, cambio de correo, magic link) reescritas para apuntar a `/auth/confirm?token_hash={{ .TokenHash }}&type=...` (vía Management API).
+- Nueva página `app/auth/reset-password/page.tsx` para el enlace de recuperación (`updateUser({password})`).
+- `mailer_otp_exp` = 3600 (enlaces válidos 1 hora).
+
+**Razón:** Robustez real del onboarding por correo; el caso típico es registrarse en el celular y abrir el enlace en el desktop.
+
+---
+
+## ADR-020: Público objetivo segmentado por variables del panelista
+**Estado:** Vigente · **Fecha:** 2026-06-06
+
+**Contexto:** Además del `perfil_objetivo` (panelista/encuestador/ambos), el cliente necesita dirigir cada encuesta a un subconjunto demográfico (ej. mujeres + régimen contributivo).
+
+**Decisión:** Nueva columna `surveys.audiencia` (jsonb) con filtros por variable: `{ gender:["female"], regimen_salud:["contributivo"], ... }`. `null`/`{}` = cualquier persona.
+- Módulo `lib/segmentacion.ts`: catálogo `SEGMENT_VARS` (mismas columnas de `participants`), `participanteCoincide(audiencia, participant)` y `resumenAudiencia()`.
+- **Semántica:** AND entre variables, OR dentro de cada variable. Variables tipo lista (actividades) coinciden por intersección. Variable vacía no filtra.
+- Creación de encuesta: "Cualquier persona" vs "Segmentar" eligiendo valores por variable.
+- Home panelista filtra por `participanteCoincide` + `perfil_objetivo` panelista/ambos. Detalle de proyecto muestra chip "Segmentada".
+
+**Razón:** Habilita muestreo dirigido y relevancia; reutiliza exactamente las variables que ya capturamos. Para análisis comparable, la segmentación de tableros (P1-04b) seguirá usando estas mismas variables.
+
+---
+
+## ADR-021: UX — fortaleza de contraseña, logout accesible y toggles admin unificados
+**Estado:** Vigente · **Fecha:** 2026-06-06
+
+**Decisión:**
+- Componente `components/password-strength.tsx` (barra + condiciones en vivo + coincidencia) en los 3 registros, con acento por perfil.
+- Panelista: botón **Cerrar sesión** en el header del home (antes solo dentro de Perfil → riesgo de editar datos por error).
+- Admin: componente `components/admin-config-toggles.tsx` con todos los toggles globales juntos, mostrado en el **panel principal**; la página Configuración reusa el mismo componente (una sola fuente de verdad).
+
+**Razón:** Reducir fricción y errores; los toggles dispersos obligaban a buscarlos.
+
+---
+
 ## Decisiones Pendientes (antes de producción)
 
 | # | Decisión | Opciones | Urgencia |
