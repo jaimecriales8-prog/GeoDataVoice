@@ -823,7 +823,7 @@ export default function RegistrarPage() {
 }
 
 // ── UI helpers ────────────────────────────────────────────────────────────────
-const inputCls = "w-full rounded-xl bg-slate-800 border border-slate-700 px-4 py-3 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500";
+const inputCls = "w-full rounded-xl bg-slate-800 border border-slate-700 px-4 py-3 text-white placeholder-slate-500 text-base focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500";
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return <div><label className="block text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wide">{label}</label>{children}</div>;

@@ -15,6 +15,7 @@ type Question = {
   options: { choices?: string[] } | null;
   required: boolean;
   order: number;
+  audio_prompt: string | null;
 };
 
 type StepState = "answering" | "recording";
@@ -79,7 +80,7 @@ export default function EncuestaPage({ params }: { params: Promise<{ id: string 
 
       const { data: qs } = await supabase
         .from("questions")
-        .select("id, type, text, options, required, order")
+        .select("id, type, text, options, required, order, audio_prompt")
         .eq("survey_id", surveyId)
         .order("order", { ascending: true });
 
@@ -225,20 +226,26 @@ export default function EncuestaPage({ params }: { params: Promise<{ id: string 
     }
   }
 
+  async function avanzar() {
+    cancelRecording();
+    if (isLastQuestion) { await submitEncuesta(); return; }
+    setStep(s => s + 1);
+    setSubstep("answering");
+    setAudioUrl(audioUrls[questions[step + 1]?.id] || null);
+  }
+
   async function handleNext() {
     if (recording) return;
     if (substep === "answering") {
-      setSubstep("recording");
-      setAudioUrl(audioUrls[current.id] || null);
-    } else {
-      cancelRecording();
-      if (isLastQuestion) {
-        await submitEncuesta();
+      // Solo pasar a grabación si la pregunta pide nota de voz
+      if (current.audio_prompt) {
+        setSubstep("recording");
+        setAudioUrl(audioUrls[current.id] || null);
       } else {
-        setStep(s => s + 1);
-        setSubstep("answering");
-        setAudioUrl(audioUrls[questions[step + 1]?.id] || null);
+        await avanzar();
       }
+    } else {
+      await avanzar();
     }
   }
 
@@ -247,9 +254,10 @@ export default function EncuestaPage({ params }: { params: Promise<{ id: string 
     if (substep === "recording") {
       setSubstep("answering");
     } else if (step > 0) {
+      const prev = questions[step - 1];
       setStep(s => s - 1);
-      setSubstep("recording");
-      setAudioUrl(audioUrls[questions[step - 1]?.id] || null);
+      setSubstep(prev?.audio_prompt ? "recording" : "answering");
+      setAudioUrl(audioUrls[prev?.id] || null);
     } else {
       router.back();
     }
@@ -386,7 +394,7 @@ export default function EncuestaPage({ params }: { params: Promise<{ id: string 
               <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Cuéntanos más (opcional)</span>
             </div>
             <h2 className="text-lg font-bold text-slate-900 leading-snug">
-              ¿Quieres ampliar tu respuesta con una nota de voz?
+              {current.audio_prompt || "¿Quieres ampliar tu respuesta con una nota de voz?"}
             </h2>
             <p className="text-sm text-slate-500 mt-2">
               Habla con naturalidad. Máximo 2 minutos. Puedes omitir si no quieres grabar.

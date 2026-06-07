@@ -107,9 +107,15 @@ export default function RegistroPanelistaPage() {
     });
 
     if (authError) {
-      setError(authError.message === "User already registered"
-        ? "Este email ya está registrado. Intenta iniciar sesión."
-        : "Error al crear la cuenta. Intenta de nuevo.");
+      const m = (authError.message || "").toLowerCase();
+      if (authError.status === 422 || m.includes("already") || m.includes("registrad") || m.includes("exist")) {
+        setError("Este correo ya está registrado. Inicia sesión o revisa tu correo para confirmar la cuenta.");
+      } else if (m.includes("rate") || authError.status === 429) {
+        setError("Demasiados intentos. Espera unos minutos e intenta de nuevo.");
+      } else {
+        setError("No se pudo crear la cuenta: " + (authError.message || "intenta de nuevo"));
+      }
+      console.error("[registro/panelista] signUp:", authError);
       setLoading(false); return;
     }
 
@@ -226,7 +232,7 @@ export default function RegistroPanelistaPage() {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur p-6">
+        <div className="rounded-2xl border border-white/10 bg-slate-900/90 backdrop-blur-md p-6 shadow-2xl">
           <form onSubmit={handleSubmit} className="space-y-4">
 
             {prefillMsg && (
@@ -381,7 +387,7 @@ export default function RegistroPanelistaPage() {
   );
 }
 
-const inputCls = "w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-colors";
+const inputCls = "w-full rounded-xl bg-slate-800 border border-white/15 px-4 py-3 text-white placeholder-slate-400 text-base focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-colors";
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (

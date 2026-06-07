@@ -17,6 +17,8 @@ type Pregunta = {
   text: string;
   required: boolean;
   options: string[];
+  pide_audio: boolean;         // pedir nota de voz en esta pregunta
+  audio_prompt: string;        // texto que invita a grabar
   tracking_key: string;        // código para comparar la misma pregunta entre olas
   favorability: boolean;       // marcar como pregunta de favorabilidad
   favorable_values: string[];  // opciones que cuentan como "positivas" (top-box)
@@ -47,7 +49,7 @@ export default function NuevaEncuesta({ params }: { params: Promise<{ id: string
   const [closesAt, setClosesAt] = useState("");
   const [perfil, setPerfil] = useState<PerfilObjetivo>("panelista");
   const [preguntas, setPreguntas] = useState<Pregunta[]>([
-    { id: uid(), type: "single_choice", text: "", required: true, options: ["", ""], tracking_key: "", favorability: false, favorable_values: [] },
+    { id: uid(), type: "single_choice", text: "", required: true, options: ["", ""], pide_audio: true, audio_prompt: "", tracking_key: "", favorability: false, favorable_values: [] },
   ]);
   const [expandida, setExpandida] = useState<string | null>(preguntas[0].id);
   const [saving, setSaving] = useState(false);
@@ -56,7 +58,7 @@ export default function NuevaEncuesta({ params }: { params: Promise<{ id: string
   // ── Preguntas ────────────────────────────────────────────────
 
   function addPregunta() {
-    const nueva: Pregunta = { id: uid(), type: "single_choice", text: "", required: true, options: ["", ""], tracking_key: "", favorability: false, favorable_values: [] };
+    const nueva: Pregunta = { id: uid(), type: "single_choice", text: "", required: true, options: ["", ""], pide_audio: true, audio_prompt: "", tracking_key: "", favorability: false, favorable_values: [] };
     setPreguntas(prev => [...prev, nueva]);
     setExpandida(nueva.id);
   }
@@ -126,6 +128,7 @@ export default function NuevaEncuesta({ params }: { params: Promise<{ id: string
       options: ["single_choice", "multiple_choice", "scale"].includes(p.type)
         ? { choices: p.options.filter(o => o.trim()) }
         : null,
+      audio_prompt: p.pide_audio ? (p.audio_prompt.trim() || "¿Por qué respondiste así? Cuéntanos con tus palabras.") : null,
       tracking_key: p.tracking_key.trim() || null,
       favorability: p.favorability,
       favorable_values: p.favorability && p.favorable_values.length > 0 ? p.favorable_values : null,
@@ -287,6 +290,27 @@ export default function NuevaEncuesta({ params }: { params: Promise<{ id: string
                   {p.type === "scale" && (
                     <div className="rounded-xl bg-white/5 px-4 py-3 text-xs text-slate-400">
                       Escala del 1 al 5. Las etiquetas de cada valor se pueden personalizar más adelante.
+                    </div>
+                  )}
+
+                  {/* Nota de voz por pregunta */}
+                  {p.type !== "audio" && (
+                    <div className="rounded-xl border border-white/5 bg-white/[0.02] p-3">
+                      <label className="flex items-center justify-between cursor-pointer">
+                        <span className="text-sm text-slate-300">🎤 Pedir nota de voz en esta pregunta</span>
+                        <button type="button" onClick={() => updatePregunta(p.id, { pide_audio: !p.pide_audio })}
+                          className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${p.pide_audio ? "bg-violet-600" : "bg-slate-600"}`}>
+                          <div className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${p.pide_audio ? "translate-x-5" : "translate-x-0.5"}`} />
+                        </button>
+                      </label>
+                      {p.pide_audio && (
+                        <div className="mt-3">
+                          <Field label="Texto que invita a grabar (opcional)">
+                            <input value={p.audio_prompt} onChange={e => updatePregunta(p.id, { audio_prompt: e.target.value })}
+                              placeholder="Ej: ¿Por qué respondiste así? Cuéntanos con tus palabras." className={inputCls} />
+                          </Field>
+                        </div>
+                      )}
                     </div>
                   )}
 

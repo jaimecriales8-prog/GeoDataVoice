@@ -143,7 +143,7 @@ export default function RegistroEncuestadorPage() {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur p-7">
+        <div className="rounded-2xl border border-white/10 bg-slate-900/90 backdrop-blur-md p-7 shadow-2xl">
           <form onSubmit={handleSubmit} className="space-y-4">
 
             <Field label="Nombre completo *" color="emerald">
@@ -228,7 +228,7 @@ export default function RegistroEncuestadorPage() {
   );
 }
 
-const input = (c: string) => `w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-${c}-500 focus:ring-1 focus:ring-${c}-500 transition-colors`;
+const input = (c: string) => `w-full rounded-xl bg-slate-800 border border-white/15 px-4 py-3 text-white placeholder-slate-400 text-base focus:outline-none focus:border-${c}-500 focus:ring-1 focus:ring-${c}-500 transition-colors`;
 
 function Field({ label, children, color }: { label: string; children: React.ReactNode; color: string }) {
   return (
