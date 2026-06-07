@@ -154,6 +154,15 @@ export default function RegistroPanelistaPage() {
         setLoading(false);
         return;
       }
+
+      // Guarda teléfono y número de pago en claro (para contacto y dispersión Nequi/Daviplata)
+      await supabase
+        .from("participants")
+        .update({
+          phone: form.phone.trim() || null,
+          payment_number: form.nequi_or_daviplata.trim() || null,
+        })
+        .eq("id", authData.user.id);
     }
 
     setEmail(form.email || form.email);

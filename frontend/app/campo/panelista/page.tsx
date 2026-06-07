@@ -5,7 +5,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase";
 import {
   Mic, ClipboardList, Wallet, Bell, ChevronRight,
-  CheckCircle, Clock, Star, TrendingUp, Loader2
+  CheckCircle, Clock, User, TrendingUp, Loader2
 } from "lucide-react";
 
 type Survey = {
@@ -18,6 +18,7 @@ type Survey = {
 
 export default function PanelistaHome() {
   const [hora, setHora] = useState("");
+  const [nombre, setNombre] = useState("");
   const [loading, setLoading] = useState(true);
   const [surveys, setSurveys] = useState<Survey[]>([]);
   const [totalGanado, setTotalGanado] = useState(0);
@@ -32,6 +33,9 @@ export default function PanelistaHome() {
     supabase.auth.getUser().then(async ({ data }) => {
       const user = data.user;
       if (!user) { setLoading(false); return; }
+
+      const meta = user.user_metadata as { full_name?: string; name?: string } | undefined;
+      setNombre((meta?.full_name || meta?.name || "").split(" ")[0] || "");
 
       // 1. Encuestas activas
       const { data: activas } = await supabase
@@ -97,13 +101,18 @@ export default function PanelistaHome() {
     <div className="min-h-screen bg-slate-50 max-w-md mx-auto relative shadow-xl">
       <div className="bg-gradient-to-br from-blue-700 to-blue-900 px-5 pt-12 pb-8 text-white">
         <div className="flex items-center justify-between mb-6">
-          <div>
+          <div className="min-w-0">
             <p className="text-blue-200 text-sm">{hora}</p>
-            <h1 className="text-2xl font-bold mt-0.5">Panel GeoDataVoice</h1>
+            <h1 className="text-2xl font-bold mt-0.5 truncate">{nombre ? nombre : "Panel GeoDataVoice"}</h1>
+            {nombre && <p className="text-blue-200/80 text-xs mt-0.5">Panel GeoDataVoice</p>}
           </div>
-          <div className="h-11 w-11 rounded-full bg-white/20 flex items-center justify-center">
-            <Star className="h-5 w-5 text-yellow-300" />
-          </div>
+          <Link
+            href="/campo/panelista/perfil"
+            aria-label="Mi perfil"
+            className="h-11 w-11 rounded-full bg-white/20 flex items-center justify-center shrink-0 active:bg-white/30 transition-colors"
+          >
+            <User className="h-5 w-5 text-white" />
+          </Link>
         </div>
 
         <div className="grid grid-cols-3 gap-3">
@@ -201,10 +210,11 @@ export default function PanelistaHome() {
       </div>
 
       {/* Bottom nav */}
-      <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-white border-t border-slate-200 px-6 py-3 grid grid-cols-2 gap-1 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+      <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-white border-t border-slate-200 px-6 py-3 grid grid-cols-3 gap-1 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         {[
           { icon: ClipboardList, label: "Encuestas", href: "/campo/panelista", active: true },
           { icon: Wallet, label: "Pagos", href: "/campo/panelista/pagos", active: false },
+          { icon: User, label: "Perfil", href: "/campo/panelista/perfil", active: false },
         ].map(({ icon: Icon, label, href, active }) => (
           <Link key={label} href={href}
             className={`flex flex-col items-center gap-1 py-1 rounded-xl transition-colors ${active ? "text-blue-600" : "text-slate-400 hover:text-slate-600"}`}>
