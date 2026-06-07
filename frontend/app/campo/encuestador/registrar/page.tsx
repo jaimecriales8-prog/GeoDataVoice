@@ -405,10 +405,11 @@ function RegistrarPanelistaContent() {
           quality: "complete",
           responded_at: new Date().toISOString(),
         }));
+        const responseIdByQ = new Map(rows.map(r => [r.question_id, r.id]));
         const { error: rErr } = await supabase.from("responses").insert(rows);
         if (rErr) { setError("Error al guardar la encuesta: " + rErr.message); setSubmitting(false); return; }
 
-        // Subir audios grabados
+        // Subir audios y registrar en audio_responses
         for (const [qId, blob] of Object.entries(audioBlobsRef.current)) {
           const mime = audioMimesRef.current[qId] || "audio/webm";
           const ext = mime.includes("mp4") ? "mp4" : mime.includes("ogg") ? "ogg" : "webm";
@@ -416,7 +417,20 @@ function RegistrarPanelistaContent() {
           fd.append("file", blob, `audio.${ext}`);
           fd.append("surveyId", surveyId);
           fd.append("questionId", qId);
-          await fetch("/api/audio/upload", { method: "POST", body: fd });
+          try {
+            const up = await fetch("/api/audio/upload", { method: "POST", body: fd });
+            if (!up.ok) continue;
+            const { path } = await up.json();
+            const responseId = responseIdByQ.get(qId);
+            if (responseId && path) {
+              await supabase.from("audio_responses").insert({
+                id: crypto.randomUUID(),
+                response_id: responseId,
+                audio_url: path,
+                quality: "pending",
+              });
+            }
+          } catch { /* audio no crítico */ }
         }
       }
       setSubmitting(false);
