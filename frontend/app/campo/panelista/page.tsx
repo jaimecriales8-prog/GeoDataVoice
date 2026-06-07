@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase";
+import { participanteCoincide, type Audiencia } from "@/lib/segmentacion";
 import {
   Mic, ClipboardList, Wallet, Bell, ChevronRight,
   CheckCircle, Clock, User, TrendingUp, Loader2, LogOut
@@ -37,10 +38,17 @@ export default function PanelistaHome() {
       const meta = user.user_metadata as { full_name?: string; name?: string } | undefined;
       setNombre((meta?.full_name || meta?.name || "").split(" ")[0] || "");
 
-      // 1. Encuestas activas
+      // 0. Perfil del panelista (para segmentación de audiencia)
+      const { data: perfilP } = await supabase
+        .from("participants")
+        .select("gender, estrato, nivel_estudios, estado_civil, regimen_salud, sisben_grupo, tenencia_vivienda, grupo_etnico, antiguedad_barrio, actividades, recibe_subsidios, acceso_internet, registrado_votar")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      // 1. Encuestas activas (para panelistas o ambos perfiles)
       const { data: activas } = await supabase
         .from("surveys")
-        .select("id, name, wave, closes_at")
+        .select("id, name, wave, closes_at, audiencia, perfil_objetivo")
         .in("status", ["sent", "ready"])
         .order("created_at", { ascending: false });
 
@@ -52,8 +60,13 @@ export default function PanelistaHome() {
       const respondidasIds = new Set((misResp ?? []).map(r => r.survey_id));
       setRespondidas(respondidasIds.size);
 
-      // 3. Conteo de preguntas por encuesta pendiente
-      const pendientes = (activas ?? []).filter(s => !respondidasIds.has(s.id));
+      // 3. Filtrar: no respondidas + perfil panelista/ambos + audiencia segmentada
+      const pendientes = (activas ?? []).filter(s => {
+        if (respondidasIds.has(s.id)) return false;
+        const po = (s as { perfil_objetivo?: string }).perfil_objetivo;
+        if (po && po !== "panelista" && po !== "ambos") return false;
+        return participanteCoincide((s as { audiencia?: Audiencia }).audiencia, perfilP ?? {});
+      });
       const conPreguntas: Survey[] = await Promise.all(
         pendientes.map(async (s) => {
           const { count } = await supabase

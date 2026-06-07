@@ -3,7 +3,8 @@
 import { useEffect, useState, use } from "react";
 import { createClient } from "@/lib/supabase";
 import Link from "next/link";
-import { ArrowLeft, Plus, ClipboardList, Users, Mic, MapPin, ChevronRight, Clock, BarChart3 } from "lucide-react";
+import { ArrowLeft, Plus, ClipboardList, Users, Mic, MapPin, ChevronRight, Clock, BarChart3, Target } from "lucide-react";
+import { resumenAudiencia, audienciaVacia, type Audiencia } from "@/lib/segmentacion";
 
 type Proyecto = {
   id: string; name: string; type: string; purpose: string; status: string;
@@ -14,6 +15,7 @@ type Proyecto = {
 type Encuesta = {
   id: string; name: string; wave: number; status: string;
   perfil_objetivo: string; closes_at: string | null; sent_at: string | null;
+  audiencia: Audiencia | null;
   created_at: string;
   _count?: { responses: number };
 };
@@ -188,6 +190,12 @@ export default function ProyectoDetalle({ params }: { params: Promise<{ id: stri
                         <span className="flex items-center gap-1 text-xs text-slate-500">
                           <Clock className="h-3 w-3" />
                           Cierra {new Date(e.closes_at).toLocaleDateString("es-CO", { day: "numeric", month: "short" })}
+                        </span>
+                      )}
+                      {!audienciaVacia(e.audiencia) && (
+                        <span className="flex items-center gap-1 text-xs text-pink-400" title={resumenAudiencia(e.audiencia)}>
+                          <Target className="h-3 w-3" />
+                          Segmentada
                         </span>
                       )}
                     </div>

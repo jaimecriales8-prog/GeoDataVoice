@@ -5,8 +5,9 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import {
   ArrowLeft, Plus, Trash2, Mic, MapPin, Users,
-  GripVertical, ChevronDown, Save
+  GripVertical, ChevronDown, Save, Target
 } from "lucide-react";
+import { SEGMENT_VARS, type Audiencia, audienciaVacia } from "@/lib/segmentacion";
 
 type TipoPregunta = "single_choice" | "multiple_choice" | "scale" | "open_text" | "audio";
 type PerfilObjetivo = "panelista" | "encuestador" | "ambos";
@@ -48,12 +49,26 @@ export default function NuevaEncuesta({ params }: { params: Promise<{ id: string
   const [wave, setWave] = useState(1);
   const [closesAt, setClosesAt] = useState("");
   const [perfil, setPerfil] = useState<PerfilObjetivo>("panelista");
+  const [segmentar, setSegmentar] = useState(false);
+  const [audiencia, setAudiencia] = useState<Audiencia>({});
   const [preguntas, setPreguntas] = useState<Pregunta[]>([
     { id: uid(), type: "single_choice", text: "", required: true, options: ["", ""], pide_audio: true, audio_prompt: "", tracking_key: "", favorability: false, favorable_values: [] },
   ]);
   const [expandida, setExpandida] = useState<string | null>(preguntas[0].id);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+
+  // ── Audiencia ────────────────────────────────────────────────
+  function toggleAudiencia(key: string, value: string | number | boolean) {
+    setAudiencia(prev => {
+      const actuales = prev[key] ?? [];
+      const existe = actuales.some(v => v === value);
+      const nuevos = existe ? actuales.filter(v => v !== value) : [...actuales, value];
+      const next = { ...prev, [key]: nuevos };
+      if (nuevos.length === 0) delete next[key];
+      return next;
+    });
+  }
 
   // ── Preguntas ────────────────────────────────────────────────
 
@@ -111,6 +126,7 @@ export default function NuevaEncuesta({ params }: { params: Promise<{ id: string
         wave,
         status: estado,
         perfil_objetivo: perfil,
+        audiencia: (segmentar && !audienciaVacia(audiencia)) ? audiencia : null,
         closes_at: closesAt || null,
       })
       .select("id")
@@ -201,6 +217,66 @@ export default function NuevaEncuesta({ params }: { params: Promise<{ id: string
             </button>
           ))}
         </div>
+      </div>
+
+      {/* Público objetivo (segmentación) */}
+      <div className="rounded-2xl border border-white/5 bg-slate-900 p-6 mb-5">
+        <div className="flex items-center gap-2 mb-1">
+          <Target className="h-4 w-4 text-pink-400" />
+          <h2 className="text-sm font-semibold text-white">Público objetivo</h2>
+        </div>
+        <p className="text-xs text-slate-500 mb-4">Filtra a quién se le muestra la encuesta según los datos del panelista</p>
+
+        <div className="grid grid-cols-2 gap-3 mb-4">
+          <button onClick={() => setSegmentar(false)}
+            className={`rounded-xl border-2 p-4 text-left transition-all ${!segmentar ? "border-pink-400 bg-pink-500/10 text-pink-200" : "border-white/10 bg-white/[0.02] hover:bg-white/5"}`}>
+            <Users className={`h-5 w-5 mb-2 ${!segmentar ? "" : "text-slate-500"}`} />
+            <p className={`text-sm font-semibold mb-1 ${!segmentar ? "" : "text-slate-300"}`}>Cualquier persona</p>
+            <p className={`text-xs leading-relaxed ${!segmentar ? "opacity-80" : "text-slate-500"}`}>Todos los panelistas del perfil elegido pueden responderla</p>
+          </button>
+          <button onClick={() => setSegmentar(true)}
+            className={`rounded-xl border-2 p-4 text-left transition-all ${segmentar ? "border-pink-400 bg-pink-500/10 text-pink-200" : "border-white/10 bg-white/[0.02] hover:bg-white/5"}`}>
+            <Target className={`h-5 w-5 mb-2 ${segmentar ? "" : "text-slate-500"}`} />
+            <p className={`text-sm font-semibold mb-1 ${segmentar ? "" : "text-slate-300"}`}>Segmentar</p>
+            <p className={`text-xs leading-relaxed ${segmentar ? "opacity-80" : "text-slate-500"}`}>Elige variables y los valores que quieres incluir</p>
+          </button>
+        </div>
+
+        {segmentar && (
+          <div className="space-y-4 border-t border-white/5 pt-4">
+            <p className="text-xs text-slate-400">
+              Marca los valores a incluir en cada variable. Si dejas una variable vacía, no filtra por ella.
+              Una persona debe cumplir <strong className="text-slate-200">todas</strong> las variables marcadas.
+            </p>
+            {SEGMENT_VARS.map(v => {
+              const sel = audiencia[v.key] ?? [];
+              return (
+                <div key={v.key}>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <p className="text-xs font-semibold text-slate-300">{v.label}</p>
+                    {sel.length > 0 && (
+                      <span className="text-[10px] text-pink-300 bg-pink-500/10 rounded-full px-2 py-0.5">{sel.length} seleccionado{sel.length === 1 ? "" : "s"}</span>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {v.opciones.map(o => {
+                      const activo = sel.some(x => x === o.value);
+                      return (
+                        <button key={String(o.value)} type="button" onClick={() => toggleAudiencia(v.key, o.value)}
+                          className={`rounded-lg px-3 py-1.5 text-xs border transition-colors ${activo ? "border-pink-400 bg-pink-500/15 text-pink-200" : "border-white/10 bg-white/[0.02] text-slate-400 hover:bg-white/5"}`}>
+                          {o.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+            {audienciaVacia(audiencia) && (
+              <p className="text-xs text-amber-300">Aún no seleccionaste ninguna variable → se mostrará a cualquier persona.</p>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Preguntas */}
