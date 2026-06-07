@@ -5,7 +5,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase";
 import {
   Mic, ClipboardList, Wallet, Bell, ChevronRight,
-  CheckCircle, Clock, User, TrendingUp, Loader2
+  CheckCircle, Clock, User, TrendingUp, Loader2, LogOut
 } from "lucide-react";
 
 type Survey = {
@@ -106,13 +106,26 @@ export default function PanelistaHome() {
             <h1 className="text-2xl font-bold mt-0.5 truncate">{nombre ? nombre : "Panel GeoDataVoice"}</h1>
             {nombre && <p className="text-blue-200/80 text-xs mt-0.5">Panel GeoDataVoice</p>}
           </div>
-          <Link
-            href="/campo/panelista/perfil"
-            aria-label="Mi perfil"
-            className="h-11 w-11 rounded-full bg-white/20 flex items-center justify-center shrink-0 active:bg-white/30 transition-colors"
-          >
-            <User className="h-5 w-5 text-white" />
-          </Link>
+          <div className="flex items-center gap-2 shrink-0">
+            <Link
+              href="/campo/panelista/perfil"
+              aria-label="Mi perfil"
+              className="h-11 w-11 rounded-full bg-white/20 flex items-center justify-center active:bg-white/30 transition-colors"
+            >
+              <User className="h-5 w-5 text-white" />
+            </Link>
+            <button
+              onClick={async () => {
+                const supabase = createClient();
+                await supabase.auth.signOut();
+                window.location.href = "/login";
+              }}
+              aria-label="Cerrar sesión"
+              className="h-11 w-11 rounded-full bg-white/20 flex items-center justify-center active:bg-white/30 transition-colors"
+            >
+              <LogOut className="h-5 w-5 text-white" />
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-3 gap-3">

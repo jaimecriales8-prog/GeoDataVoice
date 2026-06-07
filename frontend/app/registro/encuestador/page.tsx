@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import { MapPin, Loader2, Eye, EyeOff, ArrowLeft, CheckCircle } from "lucide-react";
+import { PasswordStrength } from "@/components/password-strength";
 
 function generarCodigo(nombre: string): string {
   const letras = ((nombre.replace(/[^A-Za-z]/g, "").toUpperCase()) + "GD").slice(0, 2);
@@ -206,6 +207,8 @@ export default function RegistroEncuestadorPage() {
                     </button>
                   </div>
                 </Field>
+
+                <PasswordStrength password={form.password} confirm={form.password2} accent="emerald" />
               </div>
             </div>
 

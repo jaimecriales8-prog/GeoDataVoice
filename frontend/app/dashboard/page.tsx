@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase";
 import { Users, Mic, MapPin, BarChart3, TrendingUp, Clock, CheckCircle, AlertCircle } from "lucide-react";
+import { AdminConfigToggles } from "@/components/admin-config-toggles";
 
 type Stats = {
   clientes: number;
@@ -63,6 +64,11 @@ export default function DashboardHome() {
             <div className="text-xs text-slate-500 mt-1">{label}</div>
           </div>
         ))}
+      </div>
+
+      {/* Todos los toggles globales, juntos en el panel principal */}
+      <div className="mb-6">
+        <AdminConfigToggles />
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6">

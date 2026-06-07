@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import { Mic, Loader2, ArrowLeft, CheckCircle, Phone, MapPin, User, Lock, Eye, EyeOff, Mail } from "lucide-react";
+import { PasswordStrength } from "@/components/password-strength";
 
 async function sha256(text: string): Promise<string> {
   const data = new TextEncoder().encode(text.toUpperCase().trim());
@@ -566,6 +567,8 @@ export default function RegistroPanelistaPage() {
                     </button>
                   </div>
                 </Field>
+
+                <PasswordStrength password={form.password} confirm={form.password2} accent="amber" />
               </div>
             </div>
 

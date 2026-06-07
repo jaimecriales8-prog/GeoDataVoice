@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import { BarChart3, Loader2, Eye, EyeOff, ArrowLeft, CheckCircle } from "lucide-react";
+import { PasswordStrength } from "@/components/password-strength";
 
 const TIPOS_CLIENTE = [
   "Campaña electoral",
@@ -208,6 +209,8 @@ export default function RegistroClientePage() {
                     </button>
                   </div>
                 </Field>
+
+                <PasswordStrength password={form.password} confirm={form.password2} accent="blue" />
               </div>
             </div>
 
