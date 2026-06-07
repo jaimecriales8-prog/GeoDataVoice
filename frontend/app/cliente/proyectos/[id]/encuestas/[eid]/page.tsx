@@ -135,39 +135,41 @@ export default function ResultadosEncuesta({ params }: { params: Promise<{ id: s
       <div className="flex flex-wrap items-center gap-3 mb-1">
         <h1 className="text-2xl font-bold text-white flex-1">{nombre}</h1>
         <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${st.cls}`}>{st.label}</span>
-        {puedeEditar && status === "draft" && (
+        {puedeEditar && (
           <div className="flex items-center gap-2 print:hidden">
             <Link href={`/cliente/proyectos/${id}/encuestas/nueva?edit=${eid}`}
               className="inline-flex items-center gap-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 px-3 py-1.5 text-xs text-slate-300 hover:text-white transition-colors">
               <Pencil className="h-3.5 w-3.5" /> Editar
             </Link>
-            <button
-              onClick={() => cambiarEstado("ready")}
-              disabled={cambiandoEstado}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 px-3 py-1.5 text-xs text-white font-semibold transition-colors"
-            >
-              {cambiandoEstado ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
-              Publicar
-            </button>
+            {status === "draft" && (
+              <button
+                onClick={() => cambiarEstado("ready")}
+                disabled={cambiandoEstado}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 px-3 py-1.5 text-xs text-white font-semibold transition-colors"
+              >
+                {cambiandoEstado ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                Publicar
+              </button>
+            )}
+            {slug && (status === "ready" || status === "sent") && (
+              <button
+                onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/encuesta/${slug}`); setLinkCopiado(true); setTimeout(() => setLinkCopiado(false), 2000); }}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600/20 border border-blue-500/30 hover:bg-blue-600/30 px-3 py-1.5 text-xs text-blue-300 transition-colors"
+              >
+                {linkCopiado ? <><Check className="h-3.5 w-3.5 text-emerald-400" /> Copiado</> : <><Link2 className="h-3.5 w-3.5" /> Copiar link</>}
+              </button>
+            )}
+            {(status === "ready" || status === "sent") && (
+              <button
+                onClick={() => cambiarEstado("closed")}
+                disabled={cambiandoEstado}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 disabled:opacity-50 px-3 py-1.5 text-xs text-slate-300 hover:text-white transition-colors"
+              >
+                {cambiandoEstado ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <StopCircle className="h-3.5 w-3.5" />}
+                Cerrar encuesta
+              </button>
+            )}
           </div>
-        )}
-        {slug && (status === "ready" || status === "sent") && (
-          <button
-            onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/encuesta/${slug}`); setLinkCopiado(true); setTimeout(() => setLinkCopiado(false), 2000); }}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600/20 border border-blue-500/30 hover:bg-blue-600/30 px-3 py-1.5 text-xs text-blue-300 transition-colors print:hidden"
-          >
-            {linkCopiado ? <><Check className="h-3.5 w-3.5 text-emerald-400" /> Copiado</> : <><Link2 className="h-3.5 w-3.5" /> Copiar link</>}
-          </button>
-        )}
-        {puedeEditar && (status === "ready" || status === "sent") && (
-          <button
-            onClick={() => cambiarEstado("closed")}
-            disabled={cambiandoEstado}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 disabled:opacity-50 px-3 py-1.5 text-xs text-slate-300 hover:text-white transition-colors print:hidden"
-          >
-            {cambiandoEstado ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <StopCircle className="h-3.5 w-3.5" />}
-            Cerrar encuesta
-          </button>
         )}
         {res && res.individuales.length > 0 && (
           <div className="flex items-center gap-2 print:hidden">
