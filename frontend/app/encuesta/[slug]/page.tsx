@@ -93,22 +93,11 @@ export default function EncuestaAbiertaPage({ params }: { params: Promise<{ slug
   // ── carga ──────────────────────────────────────────────────────────────────
   useEffect(() => {
     (async () => {
-      const supabase = createClient();
-      const { data: s } = await supabase
-        .from("surveys")
-        .select("id, name, description, es_abierta, abierta_identidad, abierta_pago, abierta_anonima")
-        .eq("slug", slug)
-        .eq("es_abierta", true)
-        .in("status", ["ready", "sent"])
-        .maybeSingle();
+      const res = await fetch(`/api/encuesta-abierta?slug=${encodeURIComponent(slug)}`);
+      if (!res.ok) { setNotFound(true); setLoading(false); return; }
+      const { survey: s, questions: qs } = await res.json();
       if (!s) { setNotFound(true); setLoading(false); return; }
       setSurvey(s as Survey);
-
-      const { data: qs } = await supabase
-        .from("questions")
-        .select("id, text, type, required, options, audio_prompt, order")
-        .eq("survey_id", s.id)
-        .order("order", { ascending: true });
       setQuestions((qs ?? []) as Question[]);
       setLoading(false);
     })();

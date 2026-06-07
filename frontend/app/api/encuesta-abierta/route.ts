@@ -7,6 +7,30 @@ async function sha256(text: string): Promise<string> {
   return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, "0")).join("");
 }
 
+export async function GET(req: NextRequest) {
+  const slug = req.nextUrl.searchParams.get("slug");
+  if (!slug) return NextResponse.json({ error: "slug requerido" }, { status: 400 });
+
+  const supabase = createServiceClient();
+  const { data: survey } = await supabase
+    .from("surveys")
+    .select("id, name, description, es_abierta, abierta_identidad, abierta_pago, abierta_anonima")
+    .eq("slug", slug)
+    .eq("es_abierta", true)
+    .in("status", ["ready", "sent"])
+    .maybeSingle();
+
+  if (!survey) return NextResponse.json({ error: "not_found" }, { status: 404 });
+
+  const { data: questions } = await supabase
+    .from("questions")
+    .select("id, text, type, required, options, audio_prompt, order")
+    .eq("survey_id", survey.id)
+    .order("order", { ascending: true });
+
+  return NextResponse.json({ survey, questions: questions ?? [] });
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
