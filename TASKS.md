@@ -68,7 +68,8 @@
 ### Segmentación de encuestas
 - [x] **P1-20** Público objetivo segmentado por variables del panelista (`surveys.audiencia` jsonb + `lib/segmentacion.ts`). Creación: "Cualquier persona" vs "Segmentar"; home panelista filtra por coincidencia; detalle de proyecto muestra "Segmentada". Ver ADR-020.
 - [x] **P1-25** Ponderación demográfica de resultados (`surveys.ponderacion` jsonb). El cliente asigna pesos por grupo (ej. estrato) al crear la encuesta; los % por pregunta se balancean (suma de pesos); la vista muestra % ponderado + crudo + badge. Ver ADR-022.
-- [ ] **P1-25b** Editar la ponderación después de creada (hoy solo en creación) + ponderar series de sentimiento/favorabilidad del tablero de proyecto.
+- [x] **P1-25b** Editor de ponderación en la página de resultados por encuesta (`components/ponderacion-editor.tsx`): ajusta pesos post-recolección, guarda `surveys.ponderacion` y recalcula en vivo (solo dueño/admin).
+- [ ] **P1-25c** Ponderar también las series de sentimiento/favorabilidad del tablero de proyecto.
 
 ### Calidad de datos
 - [x] **P1-23** Todos los campos obligatorios en el **registro del panelista** (datos + perfil socioeconómico + actividad ≥1 + billetera + número) con validación específica y `passwordCumple`.
