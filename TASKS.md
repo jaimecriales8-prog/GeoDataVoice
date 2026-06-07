@@ -1,5 +1,5 @@
 # TASKS.md — GeoDataVoice Backlog
-> Última actualización: 2026-06-06
+> Última actualización: 2026-06-07
 
 ## Leyenda
 - `[ ]` Pendiente
@@ -78,6 +78,7 @@
 ### UX / registro y admin
 - [x] **P1-21** Barra de fortaleza de contraseña + condiciones + coincidencia en los 3 registros (`components/password-strength.tsx`).
 - [x] **P1-22** Toggles globales del admin unificados en el panel principal (`components/admin-config-toggles.tsx`); Configuración reusa el mismo componente.
+- [x] **P1-26** Panel `/cliente` responsive en móvil: sidebar solo en escritorio (`hidden md:flex`); en móvil top bar (logo + cerrar sesión) + bottom nav de 4 ítems con safe-area (`app/cliente/layout.tsx`).
 
 ### Panel del panelista
 - [x] **P1-13** Header con nombre del panelista + acceso a perfil (se quitó la estrella decorativa) + cerrar sesión.

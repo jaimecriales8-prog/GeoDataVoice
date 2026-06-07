@@ -1,5 +1,5 @@
 # PROJECT_CONTEXT.md — GeoDataVoice
-> Actualizado: 2026-06-06 | Producción: https://geodatavoice.grialtech.co
+> Actualizado: 2026-06-07 | Producción: https://geodatavoice.grialtech.co
 
 ---
 
