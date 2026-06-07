@@ -28,6 +28,7 @@ export default function RegistroPanelistaPage() {
     barrio: "",
     birth_year: "",
     gender: "",
+    payment_wallet: "",
     nequi_or_daviplata: "",
     email: "",
     password: "",
@@ -160,6 +161,7 @@ export default function RegistroPanelistaPage() {
         .from("participants")
         .update({
           phone: form.phone.trim() || null,
+          payment_wallet: form.payment_wallet || null,
           payment_number: form.nequi_or_daviplata.trim() || null,
         })
         .eq("id", authData.user.id);
@@ -326,7 +328,27 @@ export default function RegistroPanelistaPage() {
                   <input type="tel" value={form.phone} onChange={e => update("phone", e.target.value)}
                     placeholder="3001234567" inputMode="tel" className={inputCls} />
                 </Field>
-                <Field label="Número Nequi o Daviplata">
+                <Field label="Billetera para tus pagos">
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { val: "nequi", label: "Nequi" },
+                      { val: "daviplata", label: "Daviplata" },
+                    ].map(({ val, label }) => (
+                      <button
+                        key={val} type="button"
+                        onClick={() => update("payment_wallet", val)}
+                        className={`rounded-xl border py-2.5 text-sm font-semibold transition-colors ${
+                          form.payment_wallet === val
+                            ? "border-amber-400 bg-amber-400/20 text-amber-200"
+                            : "border-white/20 bg-white/5 text-slate-300"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </Field>
+                <Field label="Número de la billetera">
                   <input type="tel" value={form.nequi_or_daviplata} onChange={e => update("nequi_or_daviplata", e.target.value)}
                     placeholder="Mismo número o diferente" inputMode="tel" className={inputCls} />
                 </Field>

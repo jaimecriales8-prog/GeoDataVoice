@@ -16,6 +16,7 @@ export default function PerfilPanelista() {
   const [emailOriginal, setEmailOriginal] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [paymentWallet, setPaymentWallet] = useState<"nequi" | "daviplata" | "">("");
   const [paymentNumber, setPaymentNumber] = useState("");
   const [ok, setOk] = useState("");
   const [error, setError] = useState("");
@@ -33,11 +34,12 @@ export default function PerfilPanelista() {
 
       const { data: p } = await supabase
         .from("participants")
-        .select("phone, payment_number")
+        .select("phone, payment_wallet, payment_number")
         .eq("id", user.id)
         .maybeSingle();
       if (p) {
         setPhone(p.phone || "");
+        setPaymentWallet((p.payment_wallet as "nequi" | "daviplata") || "");
         setPaymentNumber(p.payment_number || "");
       }
       setLoading(false);
@@ -55,7 +57,11 @@ export default function PerfilPanelista() {
       // 1. Datos en participants (teléfono + número de pago)
       const { error: upErr } = await supabase
         .from("participants")
-        .update({ phone: phone.trim() || null, payment_number: paymentNumber.trim() || null })
+        .update({
+          phone: phone.trim() || null,
+          payment_wallet: paymentWallet || null,
+          payment_number: paymentNumber.trim() || null,
+        })
         .eq("id", user.id);
       if (upErr) throw new Error(upErr.message);
 
@@ -136,7 +142,29 @@ export default function PerfilPanelista() {
               />
             </Field>
 
-            <Field label="Número Nequi / Daviplata (para tus pagos)" icon={<Wallet className="h-4 w-4 text-slate-400" />}>
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Billetera para tus pagos</label>
+              <div className="grid grid-cols-2 gap-2">
+                {([
+                  { val: "nequi", label: "Nequi" },
+                  { val: "daviplata", label: "Daviplata" },
+                ] as const).map(({ val, label }) => (
+                  <button
+                    key={val} type="button"
+                    onClick={() => setPaymentWallet(val)}
+                    className={`rounded-2xl border py-3 text-sm font-semibold transition-colors ${
+                      paymentWallet === val
+                        ? "border-blue-500 bg-blue-50 text-blue-700"
+                        : "border-slate-200 bg-white text-slate-600 active:bg-slate-50"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <Field label="Número de la billetera (para tus pagos)" icon={<Wallet className="h-4 w-4 text-slate-400" />}>
               <input
                 type="tel" inputMode="tel"
                 value={paymentNumber} onChange={(e) => setPaymentNumber(e.target.value)}
