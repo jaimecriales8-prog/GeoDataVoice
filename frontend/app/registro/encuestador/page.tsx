@@ -73,19 +73,15 @@ export default function RegistroEncuestadorPage() {
     // Insertar en field_operators (vinculado al usuario por user_id)
     if (authData.user) {
       const code = generarCodigo(form.full_name);
-      const { error: opErr } = await supabase.from("field_operators").insert({
-        id: crypto.randomUUID(),
-        user_id: authData.user.id,
-        name: form.full_name,
-        document: form.documento,
-        phone: form.phone,
-        role: "encuestador",
-        status: "active",
-        recruiter_code: code,
+      const res = await fetch("/api/registro/encuestador", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: crypto.randomUUID(), user_id: authData.user.id, name: form.full_name, document: form.documento, phone: form.phone, role: "encuestador", status: "pending", recruiter_code: code }),
       });
-      if (opErr) {
+      const json = await res.json();
+      if (json.error) {
         setError("Error al registrar tus datos de campo. Contacta soporte.");
-        console.error("[registro/encuestador] insert field_operators:", opErr);
+        console.error("[registro/encuestador] insert field_operators:", json.error);
         setLoading(false); return;
       }
       setCodigo(code);
@@ -99,24 +95,16 @@ export default function RegistroEncuestadorPage() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-emerald-950 to-slate-900 flex items-center justify-center px-6">
         <div className="w-full max-w-sm text-center">
-          <div className="h-20 w-20 rounded-full bg-emerald-500/20 flex items-center justify-center mx-auto mb-5">
-            <CheckCircle className="h-10 w-10 text-emerald-400" />
+          <div className="h-20 w-20 rounded-full bg-amber-500/20 flex items-center justify-center mx-auto mb-5">
+            <CheckCircle className="h-10 w-10 text-amber-400" />
           </div>
-          <h1 className="text-2xl font-bold text-white mb-3">¡Listo, ya eres encuestador!</h1>
-          <p className="text-slate-300 mb-5">
-            Recibirás un mensaje del coordinador para confirmar tu territorio.
+          <h1 className="text-2xl font-bold text-white mb-3">Solicitud enviada</h1>
+          <p className="text-slate-300 mb-2">
+            Tu registro está <strong className="text-amber-300">pendiente de aprobación</strong> por el administrador.
           </p>
-
-          {codigo && (
-            <div className="rounded-2xl border border-emerald-400/30 bg-emerald-500/10 p-5 mb-6">
-              <p className="text-xs text-emerald-300 uppercase tracking-wide mb-1">Tu código de reclutador</p>
-              <p className="text-3xl font-bold text-white font-mono tracking-wider">{codigo}</p>
-              <p className="text-xs text-emerald-200/70 mt-2 leading-relaxed">
-                Compártelo con cada persona que registres. Cuando se inscriban con tu código,
-                cuentan para tu <strong>bono por reclutamiento</strong>.
-              </p>
-            </div>
-          )}
+          <p className="text-slate-400 text-sm mb-6">
+            Recibirás acceso a la aplicación una vez que tu cuenta sea aprobada.
+          </p>
           <button onClick={() => router.push("/")}
             className="rounded-xl bg-emerald-600 hover:bg-emerald-700 px-7 py-3 text-white font-semibold transition-colors">
             Volver al inicio

@@ -150,6 +150,26 @@ export default function RegistroPanelistaPage() {
 
     setLoading(true);
     setError("");
+
+    // Verificar cuotas antes de crear cuenta
+    const cuotaRes = await fetch("/api/cuotas", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        gender: form.gender,
+        estrato: form.estrato,
+        sisben_grupo: form.sisben_grupo,
+        actividad_principal: actividades[0] ?? null,
+      }),
+    });
+    if (cuotaRes.ok) {
+      const cuota = await cuotaRes.json();
+      if (cuota.blocked) {
+        setError(cuota.reason ?? "El cupo para tu perfil está completo. Gracias por tu interés.");
+        setLoading(false); return;
+      }
+    }
+
     const supabase = createClient();
 
     // 1. Crear cuenta en Supabase Auth

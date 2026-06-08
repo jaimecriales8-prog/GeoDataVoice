@@ -33,6 +33,7 @@ export default function EncuestadorHome() {
   const [codigo, setCodigo] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [hora, setHora] = useState("");
+  const [opStatus, setOpStatus] = useState<string>("active");
 
   useEffect(() => {
     const h = new Date().getHours();
@@ -46,18 +47,23 @@ export default function EncuestadorHome() {
       // Obtener operador de campo
       const { data: op } = await supabase
         .from("field_operators")
-        .select("id, recruiter_code")
+        .select("id, recruiter_code, status")
         .eq("user_id", data.user.id)
         .maybeSingle();
 
-      if (op) { setOperadorId(op.id); setCodigo(op.recruiter_code); }
+      if (op) {
+        setOperadorId(op.id);
+        setCodigo(op.recruiter_code);
+        setOpStatus(op.status ?? "active");
+        if (op.status === "pending") { setLoading(false); return; }
+      }
 
       // Encuestas asignadas a encuestadores
       const { data: sv } = await supabase
         .from("surveys")
         .select("id, name, wave, closes_at, perfil_objetivo")
         .in("perfil_objetivo", ["encuestador", "ambos"])
-        .eq("status", "sent")
+        .in("status", ["ready", "sent"])
         .order("created_at", { ascending: false });
 
       setSurveys(sv ?? []);
@@ -117,6 +123,8 @@ export default function EncuestadorHome() {
     await supabase.auth.signOut();
     router.push("/login");
   }
+
+  if (opStatus === "pending") return <PendienteAprobacion nombre={nombre} />;
 
   return (
     <div className="min-h-screen bg-slate-900">
@@ -286,6 +294,26 @@ export default function EncuestadorHome() {
         )}
 
       </div>
+    </div>
+  );
+}
+
+function PendienteAprobacion({ nombre }: { nombre: string }) {
+  const router = useRouter();
+  return (
+    <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center px-6 text-center">
+      <div className="h-20 w-20 rounded-full bg-amber-500/20 flex items-center justify-center mb-5">
+        <Clock className="h-10 w-10 text-amber-400" />
+      </div>
+      <h1 className="text-xl font-bold text-white mb-2">Hola, {nombre}</h1>
+      <p className="text-amber-300 font-semibold mb-2">Tu cuenta está pendiente de aprobación</p>
+      <p className="text-slate-400 text-sm max-w-xs leading-relaxed mb-8">
+        El administrador debe aprobar tu solicitud antes de que puedas acceder a la aplicación de campo. Vuelve pronto.
+      </p>
+      <button onClick={() => router.push("/login")}
+        className="rounded-xl border border-white/10 px-6 py-2.5 text-sm text-slate-400 hover:text-white transition-colors">
+        Cerrar sesión
+      </button>
     </div>
   );
 }

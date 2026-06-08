@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createClient } from "@/lib/supabase";
-import { MapPin, Plus, Search, CheckCircle, XCircle } from "lucide-react";
+import { MapPin, Plus, Search, CheckCircle, XCircle, Clock, Shield, Settings } from "lucide-react";
 
 type Encuestador = {
   id: string;
@@ -26,97 +25,183 @@ export default function EncuestadoresPage() {
   const [encuestadores, setEncuestadores] = useState<Encuestador[]>([]);
   const [loading, setLoading] = useState(true);
   const [busqueda, setBusqueda] = useState("");
+  const [tab, setTab] = useState<"pendientes" | "activos">("pendientes");
   const [showForm, setShowForm] = useState(false);
+  const [showConfig, setShowConfig] = useState(false);
   const [form, setForm] = useState({ name: "", document: "", phone: "", role: "encuestador" });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  useEffect(() => { load(); }, []);
+  // Config max encuestadores
+  const [maxEnc, setMaxEnc] = useState<number>(50);
+  const [requireApproval, setRequireApproval] = useState(true);
+  const [savingConfig, setSavingConfig] = useState(false);
+
+  useEffect(() => { load(); loadConfig(); }, []);
 
   async function load() {
-    const supabase = createClient();
-    const { data } = await supabase
-      .from("field_operators")
-      .select("*")
-      .order("created_at", { ascending: false });
-    const ops = data ?? [];
-
-    // Conteo de panelistas reclutados por cada encuestador (para el bono)
-    const { data: parts } = await supabase
-      .from("participants").select("recruited_by").not("recruited_by", "is", null);
-    const counts = new Map<string, number>();
-    (parts ?? []).forEach(p => {
-      if (p.recruited_by) counts.set(p.recruited_by, (counts.get(p.recruited_by) ?? 0) + 1);
-    });
-
-    setEncuestadores(ops.map(o => ({ ...o, reclutados: counts.get(o.id) ?? 0 })));
+    const res = await fetch("/api/admin/encuestadores");
+    const data = await res.json();
+    setEncuestadores(data ?? []);
     setLoading(false);
+    // Cambiar a "activos" si no hay pendientes
+    if ((data ?? []).filter((e: Encuestador) => e.status === "pending").length === 0) {
+      setTab("activos");
+    }
+  }
+
+  async function loadConfig() {
+    const res = await fetch("/api/admin/config?key=encuestadores_config");
+    if (res.ok) {
+      const { value } = await res.json();
+      if (value) { setMaxEnc(value.max ?? 50); setRequireApproval(value.require_approval ?? true); }
+    }
+  }
+
+  async function saveConfig() {
+    setSavingConfig(true);
+    await fetch("/api/admin/config", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key: "encuestadores_config", value: { max: maxEnc, require_approval: requireApproval } }),
+    });
+    setSavingConfig(false);
+    setShowConfig(false);
   }
 
   async function crear() {
     if (!form.name || !form.document) { setError("Nombre y documento son obligatorios."); return; }
     setSaving(true); setError("");
-    const supabase = createClient();
     const letras = ((form.name.replace(/[^A-Za-z]/g, "").toUpperCase()) + "GD").slice(0, 2);
     const code = `${letras}-${Math.floor(1000 + Math.random() * 9000)}`;
-    const { error: e } = await supabase.from("field_operators").insert({
-      id: crypto.randomUUID(),
-      name: form.name,
-      document: form.document,
-      phone: form.phone || null,
-      role: form.role,
-      status: "active",
-      recruiter_code: code,
+    const res = await fetch("/api/admin/encuestadores", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: crypto.randomUUID(), name: form.name, document: form.document, phone: form.phone || null, role: form.role, status: "active", recruiter_code: code }),
     });
-    if (e) { setError(e.message); setSaving(false); return; }
+    const json = await res.json();
+    if (json.error) { setError(json.error); setSaving(false); return; }
     setShowForm(false);
     setForm({ name: "", document: "", phone: "", role: "encuestador" });
     await load();
     setSaving(false);
   }
 
-  async function toggleStatus(id: string, current: string) {
-    const supabase = createClient();
-    await supabase.from("field_operators").update({ status: current === "active" ? "inactive" : "active" }).eq("id", id);
+  async function aprobar(id: string) {
+    await fetch("/api/admin/encuestadores", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, status: "active" }) });
     await load();
   }
 
-  const filtrados = encuestadores.filter(e =>
-    e.name.toLowerCase().includes(busqueda.toLowerCase()) ||
-    e.document.includes(busqueda)
+  async function rechazar(id: string) {
+    await fetch("/api/admin/encuestadores", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, status: "inactive" }) });
+    await load();
+  }
+
+  async function toggleStatus(id: string, current: string) {
+    const next = current === "active" ? "inactive" : "active";
+    await fetch("/api/admin/encuestadores", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, status: next }) });
+    await load();
+  }
+
+  const pendientes = encuestadores.filter(e => e.status === "pending");
+  const activos = encuestadores.filter(e => e.status !== "pending");
+
+  const lista = (tab === "pendientes" ? pendientes : activos).filter(e =>
+    e.name.toLowerCase().includes(busqueda.toLowerCase()) || e.document.includes(busqueda)
   );
 
   return (
     <div className="p-8">
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-white">Encuestadores</h1>
-          <p className="text-slate-400 text-sm mt-1">{encuestadores.filter(e => e.status === "active").length} activos</p>
+          <p className="text-slate-400 text-sm mt-1">
+            {encuestadores.filter(e => e.status === "active").length} activos
+            {pendientes.length > 0 && <span className="ml-2 text-amber-400 font-semibold">· {pendientes.length} pendiente{pendientes.length > 1 ? "s" : ""}</span>}
+            {" "}· máx. {maxEnc}
+          </p>
         </div>
-        <button onClick={() => setShowForm(true)}
-          className="flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors">
-          <Plus className="h-4 w-4" /> Nuevo encuestador
+        <div className="flex items-center gap-2">
+          <button onClick={() => setShowConfig(true)}
+            className="flex items-center gap-2 rounded-xl border border-white/10 hover:bg-white/5 px-3.5 py-2.5 text-sm text-slate-400 hover:text-white transition-colors">
+            <Settings className="h-4 w-4" /> Configurar
+          </button>
+          <button onClick={() => setShowForm(true)}
+            className="flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors">
+            <Plus className="h-4 w-4" /> Nuevo
+          </button>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex gap-1 bg-slate-900 rounded-xl p-1 mb-6 w-fit">
+        <button onClick={() => setTab("pendientes")}
+          className={`relative flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === "pendientes" ? "bg-slate-700 text-white" : "text-slate-400 hover:text-white"}`}>
+          <Clock className="h-3.5 w-3.5" /> Pendientes
+          {pendientes.length > 0 && (
+            <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-amber-500 text-[10px] font-bold text-white flex items-center justify-center">
+              {pendientes.length}
+            </span>
+          )}
+        </button>
+        <button onClick={() => setTab("activos")}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === "activos" ? "bg-slate-700 text-white" : "text-slate-400 hover:text-white"}`}>
+          <Shield className="h-3.5 w-3.5" /> Activos / Inactivos
         </button>
       </div>
 
-      {/* Modal */}
+      {/* Modal Config */}
+      {showConfig && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+          <div className="w-full max-w-sm rounded-2xl bg-slate-900 border border-white/10 p-6 shadow-2xl">
+            <h2 className="text-lg font-bold text-white mb-5">Configuración de encuestadores</h2>
+            <div className="space-y-5">
+              <div>
+                <label className="block text-xs font-medium text-slate-400 mb-1.5">Máximo de encuestadores permitidos</label>
+                <input type="number" min={1} value={maxEnc} onChange={e => setMaxEnc(parseInt(e.target.value) || 1)}
+                  className={inputCls} />
+                <p className="text-xs text-slate-500 mt-1">Actualmente hay {encuestadores.filter(e => e.status === "active").length} activos.</p>
+              </div>
+              <label className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 cursor-pointer">
+                <div>
+                  <p className="text-sm text-white font-medium">Requerir aprobación</p>
+                  <p className="text-xs text-slate-500 mt-0.5">Los nuevos encuestadores quedan pendientes hasta que el admin apruebe</p>
+                </div>
+                <button type="button" onClick={() => setRequireApproval(v => !v)}
+                  className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ml-4 ${requireApproval ? "bg-blue-600" : "bg-slate-600"}`}>
+                  <div className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${requireApproval ? "translate-x-5" : "translate-x-0.5"}`} />
+                </button>
+              </label>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button onClick={() => setShowConfig(false)}
+                className="flex-1 rounded-xl border border-white/10 py-2.5 text-sm text-slate-400 hover:text-white transition-colors">
+                Cancelar
+              </button>
+              <button onClick={saveConfig} disabled={savingConfig}
+                className="flex-1 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 py-2.5 text-sm font-semibold text-white transition-colors">
+                {savingConfig ? "Guardando..." : "Guardar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Nuevo */}
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
           <div className="w-full max-w-md rounded-2xl bg-slate-900 border border-white/10 p-6 shadow-2xl">
             <h2 className="text-lg font-bold text-white mb-5">Nuevo encuestador</h2>
             <div className="space-y-4">
               <Field label="Nombre completo *">
-                <input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
-                  placeholder="Como aparece en la cédula" className={inputCls} />
+                <input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder="Como aparece en la cédula" className={inputCls} />
               </Field>
               <div className="grid grid-cols-2 gap-4">
-                <Field label="Número de documento *">
-                  <input value={form.document} onChange={e => setForm(p => ({ ...p, document: e.target.value }))}
-                    placeholder="Cédula" className={inputCls} />
+                <Field label="Documento *">
+                  <input value={form.document} onChange={e => setForm(p => ({ ...p, document: e.target.value }))} placeholder="Cédula" className={inputCls} />
                 </Field>
                 <Field label="Celular">
-                  <input value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))}
-                    placeholder="3001234567" className={inputCls} />
+                  <input value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} placeholder="3001234567" className={inputCls} />
                 </Field>
               </div>
               <Field label="Rol">
@@ -151,10 +236,12 @@ export default function EncuestadoresPage() {
       <div className="rounded-2xl border border-white/5 bg-slate-900 overflow-hidden">
         {loading ? (
           <div className="p-8 space-y-3">{[1,2,3].map(n => <div key={n} className="h-14 animate-pulse rounded-xl bg-white/5" />)}</div>
-        ) : filtrados.length === 0 ? (
+        ) : lista.length === 0 ? (
           <div className="p-12 text-center">
             <MapPin className="h-10 w-10 text-slate-700 mx-auto mb-3" />
-            <p className="text-slate-400 text-sm">No hay encuestadores{busqueda ? " con ese criterio" : " aún"}</p>
+            <p className="text-slate-400 text-sm">
+              {tab === "pendientes" ? "No hay encuestadores pendientes de aprobación" : "No hay encuestadores"}
+            </p>
           </div>
         ) : (
           <table className="w-full">
@@ -169,7 +256,7 @@ export default function EncuestadoresPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
-              {filtrados.map(e => (
+              {lista.map(e => (
                 <tr key={e.id} className="hover:bg-white/[0.02] transition-colors">
                   <td className="px-5 py-4">
                     <div className="flex items-center gap-3">
@@ -194,16 +281,32 @@ export default function EncuestadoresPage() {
                   </td>
                   <td className="px-5 py-4">
                     <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-                      e.status === "active" ? "bg-emerald-500/20 text-emerald-400" : "bg-slate-700 text-slate-400"
+                      e.status === "active" ? "bg-emerald-500/20 text-emerald-400"
+                      : e.status === "pending" ? "bg-amber-500/20 text-amber-400"
+                      : "bg-slate-700 text-slate-400"
                     }`}>
-                      {e.status === "active" ? "Activo" : "Inactivo"}
+                      {e.status === "active" ? "Activo" : e.status === "pending" ? "Pendiente" : "Inactivo"}
                     </span>
                   </td>
                   <td className="px-5 py-4 text-right">
-                    <button onClick={() => toggleStatus(e.id, e.status)}
-                      className="text-xs text-slate-400 hover:text-white transition-colors">
-                      {e.status === "active" ? "Desactivar" : "Activar"}
-                    </button>
+                    {e.status === "pending" ? (
+                      <div className="flex items-center justify-end gap-2">
+                        <button onClick={() => aprobar(e.id)}
+                          className="flex items-center gap-1 text-xs text-emerald-400 hover:text-emerald-300 transition-colors font-semibold">
+                          <CheckCircle className="h-3.5 w-3.5" /> Aprobar
+                        </button>
+                        <span className="text-slate-600">·</span>
+                        <button onClick={() => rechazar(e.id)}
+                          className="flex items-center gap-1 text-xs text-red-400 hover:text-red-300 transition-colors">
+                          <XCircle className="h-3.5 w-3.5" /> Rechazar
+                        </button>
+                      </div>
+                    ) : (
+                      <button onClick={() => toggleStatus(e.id, e.status)}
+                        className="text-xs text-slate-400 hover:text-white transition-colors">
+                        {e.status === "active" ? "Desactivar" : "Activar"}
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
