@@ -149,6 +149,12 @@ export default function LoginPage() {
               <div className="rounded-xl bg-red-500/10 border border-red-500/30 px-4 py-3 text-sm text-red-300">{error}</div>
             )}
 
+            <div className="text-right -mt-1">
+              <Link href="/auth/olvide-contrasena" className="text-xs text-slate-500 hover:text-blue-400 transition-colors">
+                ¿Olvidaste tu contraseña?
+              </Link>
+            </div>
+
             <button type="submit" disabled={loading}
               className="w-full flex items-center justify-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 px-4 py-3 text-white font-semibold text-sm transition-colors mt-2">
               {loading && <Loader2 className="h-4 w-4 animate-spin" />}
