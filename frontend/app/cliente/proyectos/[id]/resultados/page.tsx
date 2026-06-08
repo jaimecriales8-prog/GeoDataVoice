@@ -3,16 +3,27 @@
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase";
-import { fetchResultadosProyecto, ResultadosProyecto } from "@/lib/resultados";
+import { type ResultadosProyecto } from "@/lib/resultados";
 import ResultadosProyectoView from "@/components/resultados-proyecto-view";
-import { ArrowLeft, Loader2, BarChart3 } from "lucide-react";
+import ResultadosView from "@/components/resultados-view";
+import { ArrowLeft, Loader2, BarChart3, GitCompare } from "lucide-react";
+
+async function fetchResultados(surveys: { id: string; wave: number }[]): Promise<ResultadosProyecto> {
+  const res = await fetch("/api/resultados/proyecto", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ surveys }) });
+  return res.json();
+}
+
+type SurveyRef = { id: string; wave: number; name: string };
 
 export default function ResultadosProyectoPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const [nombre, setNombre] = useState("");
-  const [numEncuestas, setNumEncuestas] = useState(0);
-  const [data, setData] = useState<ResultadosProyecto | null>(null);
+  const [surveys, setSurveys] = useState<SurveyRef[]>([]);
+  const [allData, setAllData] = useState<ResultadosProyecto | null>(null);
+  const [olaData, setOlaData] = useState<Record<number, ResultadosProyecto>>({});
+  const [selectedWave, setSelectedWave] = useState<number | "comparacion">("comparacion");
   const [loading, setLoading] = useState(true);
+  const [loadingOla, setLoadingOla] = useState(false);
   const [denegado, setDenegado] = useState(false);
 
   useEffect(() => {
@@ -22,21 +33,32 @@ export default function ResultadosProyectoPage({ params }: { params: Promise<{ i
       const { data: proyecto } = await supabase
         .from("projects").select("name, client_id").eq("id", id).maybeSingle();
 
-      // Ownership: el proyecto debe ser del cliente logueado (admin puede ver todo)
       const role = user?.user_metadata?.role;
       if (!proyecto || (role !== "admin" && proyecto.client_id !== user?.id)) {
         setDenegado(true); setLoading(false); return;
       }
       setNombre(proyecto.name ?? "Proyecto");
 
-      const { data: surveys } = await supabase
-        .from("surveys").select("id, wave").eq("project_id", id);
-      const lista = (surveys ?? []).map(s => ({ id: s.id, wave: s.wave ?? 1 }));
-      setNumEncuestas(lista.length);
-      setData(await fetchResultadosProyecto(lista));
+      const { data: sv } = await supabase
+        .from("surveys").select("id, wave, name").eq("project_id", id).order("wave");
+      const lista: SurveyRef[] = (sv ?? []).map(s => ({ id: s.id, wave: s.wave ?? 1, name: s.name }));
+      setSurveys(lista);
+      setAllData(await fetchResultados(lista.map(s => ({ id: s.id, wave: s.wave }))));
       setLoading(false);
     })();
   }, [id]);
+
+  async function selectWave(wave: number | "comparacion") {
+    setSelectedWave(wave);
+    if (wave === "comparacion" || olaData[wave as number]) return;
+    setLoadingOla(true);
+    const survey = surveys.find(s => s.wave === wave)!;
+    const data = await fetchResultados([{ id: survey.id, wave: survey.wave }]);
+    setOlaData(prev => ({ ...prev, [wave as number]: data }));
+    setLoadingOla(false);
+  }
+
+  const waves = [...new Set(surveys.map(s => s.wave))].sort((a, b) => a - b);
 
   if (loading) return (
     <div className="p-8 flex justify-center"><Loader2 className="h-7 w-7 text-violet-400 animate-spin mt-12" /></div>
@@ -58,11 +80,52 @@ export default function ResultadosProyectoPage({ params }: { params: Promise<{ i
         <BarChart3 className="h-6 w-6 text-violet-400" />
         <h1 className="text-2xl font-bold text-white">Resultados — {nombre}</h1>
       </div>
-      <p className="text-slate-400 text-sm mb-8">
-        {numEncuestas} encuesta{numEncuestas === 1 ? "" : "s"} · evolución por ola + indicadores
+      <p className="text-slate-400 text-sm mb-6">
+        {surveys.length} encuesta{surveys.length === 1 ? "" : "s"} · {waves.length} ola{waves.length === 1 ? "" : "s"}
       </p>
 
-      {data && <ResultadosProyectoView data={data} />}
+      {/* Tabs */}
+      {waves.length > 1 && (
+        <div className="flex flex-wrap gap-2 mb-8">
+          <button
+            onClick={() => selectWave("comparacion")}
+            className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
+              selectedWave === "comparacion"
+                ? "bg-violet-600 text-white"
+                : "bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700"
+            }`}
+          >
+            <GitCompare className="h-3.5 w-3.5" /> Comparación entre olas
+          </button>
+          {waves.map(w => (
+            <button
+              key={w}
+              onClick={() => selectWave(w)}
+              className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
+                selectedWave === w
+                  ? "bg-violet-600 text-white"
+                  : "bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700"
+              }`}
+            >
+              Ola {w}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Content */}
+      {selectedWave === "comparacion" ? (
+        allData && <ResultadosProyectoView data={allData} />
+      ) : loadingOla ? (
+        <div className="flex justify-center py-16"><Loader2 className="h-7 w-7 text-violet-400 animate-spin" /></div>
+      ) : olaData[selectedWave] ? (
+        <div>
+          <p className="text-slate-500 text-sm mb-6">
+            {surveys.find(s => s.wave === selectedWave)?.name} — {olaData[selectedWave].agregado.total} respuestas
+          </p>
+          <ResultadosView r={olaData[selectedWave].agregado} />
+        </div>
+      ) : null}
     </div>
   );
 }
