@@ -121,7 +121,7 @@ export default function ResultadosProyectoPage({ params }: { params: Promise<{ i
       ) : olaData[selectedWave] ? (
         <div>
           <p className="text-slate-500 text-sm mb-6">
-            {surveys.find(s => s.wave === selectedWave)?.name} — {olaData[selectedWave].agregado.total} respuestas
+            {surveys.find(s => s.wave === selectedWave)?.name} — {olaData[selectedWave].agregado.respuestas} respuestas
           </p>
           <ResultadosView r={olaData[selectedWave].agregado} />
         </div>
