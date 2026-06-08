@@ -103,7 +103,7 @@ export default function RegistroEncuestadorPage() {
           </div>
           <h1 className="text-2xl font-bold text-white mb-3">¡Solicitud enviada!</h1>
           <p className="text-slate-300 mb-2">
-            Te enviamos un correo de verificación a <strong className="text-white">{form.email}</strong>. Confírmalo para activar tu cuenta.
+            Te enviamos un correo de verificación a <strong className="text-white">{form.email}</strong>. Confírmalo para activar tu cuenta y haz tu proceso de validación de identidad.
           </p>
           <p className="text-slate-400 text-sm mb-6">
             Mientras tanto, estaremos revisando tu registro para aprobarte. Una vez aprobado podrás ingresar a la aplicación de campo.
