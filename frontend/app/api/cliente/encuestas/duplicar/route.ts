@@ -38,13 +38,20 @@ export async function POST(req: Request) {
   });
   if (surveyErr) return NextResponse.json({ error: surveyErr.message }, { status: 500 });
 
-  // Copiar preguntas
+  // Copiar preguntas (columnas explícitas — questions no tiene created_at)
   if (questions && questions.length > 0) {
     const newQuestions = questions.map(q => ({
-      ...q,
       id: crypto.randomUUID(),
       survey_id: newSurveyId,
-      created_at: new Date().toISOString(),
+      type: q.type,
+      text: q.text,
+      options: q.options,
+      required: q.required,
+      order: q.order,
+      tracking_key: q.tracking_key,
+      favorability: q.favorability,
+      favorable_values: q.favorable_values,
+      audio_prompt: q.audio_prompt,
     }));
     const { error: qErr } = await supabase.from("questions").insert(newQuestions);
     if (qErr) return NextResponse.json({ error: qErr.message }, { status: 500 });
