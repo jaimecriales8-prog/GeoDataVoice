@@ -127,22 +127,25 @@ export async function emailAdminNuevoEncuestador(nombre: string, documento: stri
 
 /** Encuestador: cuenta aprobada */
 export async function emailEncuestadorAprobado(encuestadorEmail: string, nombre: string) {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://geodatavoice.grialtech.co";
   return getResend().emails.send({
     from: FROM,
     to: encuestadorEmail,
-    subject: "Tu cuenta de encuestador ha sido aprobada — GeoDataVoice",
+    subject: "¡Ya haces parte del equipo GeoDataVoice!",
     html: baseTemplate(`
-      <div style="text-align:center;margin-bottom:24px;">
-        <div style="background:rgba(16,185,129,0.15);border-radius:50%;width:64px;height:64px;margin:0 auto 16px;display:inline-block;line-height:64px;font-size:32px;">✅</div>
-        <h2 style="color:#ffffff;margin:0 0 8px;font-size:22px;">¡Tu cuenta fue aprobada!</h2>
-        <p style="color:#94a3b8;margin:0;font-size:15px;">Hola ${nombre}, ya puedes ingresar a la aplicación de campo.</p>
+      <div style="text-align:center;margin-bottom:28px;">
+        <div style="font-size:48px;margin-bottom:16px;">🎉</div>
+        <h2 style="color:#ffffff;margin:0 0 12px;font-size:24px;font-weight:700;">¡Listo, ya haces parte del Team GeoDataVoice!</h2>
+        <p style="color:#94a3b8;margin:0;font-size:15px;line-height:1.6;">
+          Hola ${nombre}, desde ahora puedes entrar a la plataforma y trabajar con nosotros.
+        </p>
       </div>
-      <a href="${process.env.NEXT_PUBLIC_APP_URL ?? "https://geodatavoice.grialtech.co"}/login"
-        style="display:block;background:#10b981;color:#ffffff;text-decoration:none;text-align:center;padding:14px 24px;border-radius:10px;font-weight:600;font-size:15px;margin-bottom:20px;">
-        Ingresar a la app de campo →
+      <a href="${appUrl}/login"
+        style="display:block;background:#10b981;color:#ffffff;text-decoration:none;text-align:center;padding:16px 24px;border-radius:10px;font-weight:700;font-size:16px;margin-bottom:24px;letter-spacing:0.3px;">
+        Ingresar a GeoDataVoice →
       </a>
       <p style="color:#64748b;font-size:13px;text-align:center;margin:0;">
-        Desde la app podrás ver tus encuestas asignadas, registrar personas en campo y consultar tus ganancias.
+        ${appUrl}/login
       </p>
     `),
   });

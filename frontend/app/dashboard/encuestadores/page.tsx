@@ -8,6 +8,7 @@ type Encuestador = {
   name: string;
   document: string;
   phone: string | null;
+  email: string | null;
   role: string;
   status: string;
   created_at: string;
@@ -88,7 +89,8 @@ export default function EncuestadoresPage() {
   }
 
   async function aprobar(id: string) {
-    await fetch("/api/admin/encuestadores", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, status: "active" }) });
+    const op = encuestadores.find(e => e.id === id);
+    await fetch("/api/admin/encuestadores", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, status: "active", email: op?.email, name: op?.name }) });
     await load();
   }
 
