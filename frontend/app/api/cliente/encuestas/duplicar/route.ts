@@ -18,15 +18,23 @@ export async function POST(req: Request) {
   // Crear nueva encuesta con el mismo contenido, nueva ola, estado sent
   const newSurveyId = crypto.randomUUID();
   const { error: surveyErr } = await supabase.from("surveys").insert({
-    ...original,
     id: newSurveyId,
+    project_id: original.project_id,
+    name: original.name,
     wave,
     status: "sent",
+    perfil_objetivo: original.perfil_objetivo,
+    closes_at: original.closes_at,
+    audiencia: original.audiencia,
+    ponderacion: original.ponderacion,
+    es_abierta: original.es_abierta,
+    abierta_identidad: original.abierta_identidad,
+    abierta_pago: original.abierta_pago,
+    abierta_anonima: original.abierta_anonima,
+    field_identity_required: original.field_identity_required,
+    slug: original.slug ? `${original.slug}-ola${wave}` : null,
     sent_at: new Date().toISOString(),
     created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    // Nuevo slug si es abierta
-    slug: original.slug ? `${original.slug}-ola${wave}` : null,
   });
   if (surveyErr) return NextResponse.json({ error: surveyErr.message }, { status: 500 });
 
