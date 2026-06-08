@@ -361,8 +361,8 @@ export default function RegistroPanelistaPage() {
                   placeholder="N° documento" inputMode="numeric" className={inputCls} />
               </Field>
               <Field label="Año nacimiento *">
-                <input value={form.birth_year} onChange={e => update("birth_year", e.target.value)}
-                  placeholder="Ej: 1990" inputMode="numeric" className={inputCls} />
+                <input value={form.birth_year} onChange={e => update("birth_year", e.target.value.slice(0, 4))}
+                  placeholder="Ej: 1990" inputMode="numeric" maxLength={4} className={inputCls} />
               </Field>
             </div>
 
