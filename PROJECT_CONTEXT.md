@@ -1,5 +1,5 @@
 # PROJECT_CONTEXT.md — GeoDataVoice
-> Actualizado: 2026-06-07 | Producción: https://geodatavoice.grialtech.co
+> Actualizado: 2026-06-07 (v2) | Producción: https://geodatavoice.grialtech.co
 
 ---
 
@@ -9,7 +9,7 @@
 
 **Problema:** Alcaldes, gobernadores, candidatos y gremios toman decisiones con información incompleta. Las encuestas tradicionales son episódicas y costosas. GeoDataVoice provee medición recurrente, accesible y territorializada con análisis de voz como diferencial.
 
-**Estado actual:** ~85% de avance. Flujo end-to-end operativo en los 3 perfiles (panelista, encuestador, cliente), encuestas abiertas vía link público, audio en los 3 formularios de captura, departamento/municipio con datos de Colombia, tableros de resultados con filtros demográficos y ponderación. RLS parcialmente implementado (políticas críticas en su lugar). Deploy en Vercel estable.
+**Estado actual:** ~88% de avance. Flujo end-to-end operativo en los 3 perfiles (panelista, encuestador, cliente), encuestas abiertas vía link público, audio en los 3 formularios de captura, departamento/municipio con datos de Colombia, tableros de resultados con filtros demográficos y ponderación. **Encuestadores con flujo de aprobación** (pending→active/inactive). **Cuotas de panel** (total, género, estrato, SISBEN, actividad — toggleables por variable). RLS parcialmente implementado (políticas críticas en su lugar). Deploy en Vercel estable.
 
 ---
 
@@ -89,7 +89,7 @@ Producción: https://geodatavoice.grialtech.co (Vercel, proyecto geodatavoice-da
 
 **Edge Function `process-audio`** (Deno): Storage → Whisper → Claude → `nlp_outputs`. Disparo automático por trigger pg_net en INSERT de `audio_responses` (quality=pending).
 
-**Route handlers** (`frontend/app/api/`): `email/*`, `identidad/*`, `audio/upload`, `encuesta-abierta`, `encuesta-abierta/audio`, `resultados`, `resultados/proyecto`, `admin/*`, `registro/*`. Service role vía `lib/supabase-service.ts`. Todos con `export const dynamic = "force-dynamic"` en GETs.
+**Route handlers** (`frontend/app/api/`): `email/*`, `identidad/*`, `audio/upload`, `encuesta-abierta`, `encuesta-abierta/audio`, `resultados`, `resultados/proyecto`, `admin/encuestadores`, `admin/panelistas`, `admin/config` (GET/POST para `platform_config`), `registro/*`, `cuotas` (GET conteos + POST verifica si candidato pasa cuotas). Service role vía `lib/supabase-service.ts`. Todos con `export const dynamic = "force-dynamic"` en GETs.
 
 ---
 
@@ -111,7 +111,7 @@ Producción: https://geodatavoice.grialtech.co (Vercel, proyecto geodatavoice-da
 | `payments` | Pagos a panelistas (dispersión real pendiente) |
 | `payment_config` | Tarifas globales: encuesta_cop, audio_cop, encuesta_campo_cop, bono_reclutamiento_cop |
 | `client_payment_config` | Tarifa override por cliente |
-| `platform_config` | key/value jsonb. Keys: `identity_verification`, `field_identity_verification` |
+| `platform_config` | key/value jsonb. Keys: `identity_verification`, `field_identity_verification`, `encuestadores_config` (`{max, require_approval}`), `panel_quotas` (`{total, gender, estrato, sisben_grupo, actividades}` — cada uno con `enabled` toggle + `max`/`cupos`) |
 | `participant_profile_history` | Snapshots del perfil socioeconómico (jsonb + captured_at) |
 
 **Columnas importantes en `participants` agregadas en esta sesión:** `departamento`, `municipio` (text, nullable).
@@ -151,7 +151,7 @@ Los 3 formularios tienen el mismo set de campos demográficos y dropdowns consis
 |---|---|---|
 | **admin** | `/dashboard` | Creado manualmente |
 | **cliente** | `/cliente` | Registro → aprobación admin |
-| **encuestador** | `/campo/encuestador` | Registro → genera código reclutador |
+| **encuestador** | `/campo/encuestador` | Registro → status=pending → admin aprueba → accede al panel |
 | **panelista** | `/campo/panelista` | Registro (opcional código reclutador) → gate KYC |
 
 Login redirige por `user_metadata.role`. Middleware protege `/dashboard|/cliente|/campo` + gate KYC panelista.
@@ -228,7 +228,7 @@ curl -X PATCH "https://api.vercel.com/v9/projects/prj_uMy66cfixy7kZMdfzVGIB4FrUY
 
 ### Funciona correctamente
 - Landing, login, registro de los 3 perfiles con validaciones completas
-- Panel admin: CRUD clientes/panelistas/encuestadores, tarifas, toggles de identidad, KPIs
+- Panel admin: CRUD clientes/panelistas/encuestadores (con tabs Pendientes/Activos + aprobar/rechazar), tarifas, toggles de identidad, KPIs, cuotas de panel
 - Panel cliente: crear proyectos y encuestas (preguntas, perfil_objetivo, audio, tracking/favorabilidad, toggle abierta + slug), publicar/cerrar/reabrir, copiar link encuesta abierta
 - **Encuesta abierta** (`/encuesta/[slug]`): flujo completo con demografía (departamento+municipio), audio multi-pregunta, anonimato opcional, pago al final
 - **Encuestar en campo** (encuestador): departamento+municipio filtrado, audio con MIME detectado, guarda en `audio_responses`
@@ -295,13 +295,43 @@ curl -X PATCH "https://api.vercel.com/v9/projects/prj_uMy66cfixy7kZMdfzVGIB4FrUY
 
 ## Próximas Tareas para Nueva Sesión
 
-| # | Tarea | Archivo principal |
-|---|---|---|
-| 1 | Dispersión real de pagos | `app/dashboard/pagos/` + tabla `payments` |
-| 2 | RLS en tablas restantes (tarea dedicada) | Supabase policies |
-| 3 | Email pago-procesado en dashboard/pagos | `app/dashboard/pagos/page.tsx` |
-| 4 | Webhook AutenTIC | Panel AutenTIC + `app/api/identidad/webhook` |
-| 5 | AGORA — módulo de pares | Esquema + UI nueva |
+| # | Tarea | Archivo principal | Prioridad |
+|---|---|---|---|
+| 0 | **SQL en Supabase**: insertar `encuestadores_config` y `panel_quotas` en `platform_config` | SQL Editor Supabase | 🔴 Antes de probar |
+| 1 | **Pruebas end-to-end** — ver checklist completo abajo | todos los flujos | 🔴 Alta |
+| 2 | Dispersión real de pagos | `app/dashboard/pagos/` + tabla `payments` | 🟡 Media |
+| 3 | RLS en tablas restantes (tarea dedicada) | Supabase policies | 🟡 Media |
+| 4 | Email pago-procesado en dashboard/pagos | `app/dashboard/pagos/page.tsx` | 🟢 Baja |
+| 5 | Webhook AutenTIC | Panel AutenTIC + `app/api/identidad/webhook` | 🟢 Baja |
+| 6 | AGORA — módulo de pares | Esquema + UI nueva | 🟢 Baja |
+
+### Checklist de pruebas end-to-end (hacer mañana)
+
+**Flujo Panelista**
+- [ ] Registro nuevo: formulario completo con departamento+municipio, audio funciona en Safari y Chrome
+- [ ] Cuota bloqueada: activar una cuota en `/dashboard/configuracion`, intentar registrarse en ese segmento → debe bloquear con mensaje
+- [ ] Login → gate KYC → home panelista muestra encuestas
+- [ ] Responder encuesta con audio → verificar en `responses` + `audio_responses` + edge function dispara NLP
+- [ ] Ver devengado en home panelista
+- [ ] Editar perfil en `/campo/panelista/perfil`
+
+**Flujo Encuestador**
+- [ ] Registro nuevo → pantalla "pendiente de aprobación"
+- [ ] Admin aprueba en `/dashboard/encuestadores` pestaña Pendientes → botón Aprobar
+- [ ] Encuestador inicia sesión → ya accede al panel sin bloqueo
+- [ ] Encuestar en campo: seleccionar encuesta → llenar datos participante → audio → GPS → encuesta → guardar
+- [ ] Ver devengado del mes y código reclutador en home
+
+**Flujo Admin**
+- [ ] `/dashboard/encuestadores`: ver tabs Pendientes/Activos, aprobar/rechazar, config modal (max + require_approval)
+- [ ] `/dashboard/panelistas`: lista con estados
+- [ ] `/dashboard/configuracion`: toggles de identidad + editor de cuotas (activar/desactivar, cambiar número, guardar)
+
+**Flujo Cliente**
+- [ ] Crear proyecto → crear encuesta → publicar
+- [ ] Encuesta abierta: copiar link, abrir en otra pestaña/device, llenar, verificar en resultados
+- [ ] Tablero de resultados: filtros demográficos, ponderación, CSV
+- [ ] Tracking por ola en tablero de proyecto
 
 ---
 
@@ -327,11 +357,21 @@ participants (departamento/municipio/document_hash/phone_hash/is_anonymous),
 field_operators (recruiter_code), responses (encuestador_id/responded_at),
 audio_responses, nlp_outputs, payment_config, platform_config
 
-## ESTADO (~85%)
+## ESTADO (~88%)
 Flujo end-to-end operativo: registro 3 perfiles, encuestas abiertas vía link,
 audio en los 3 formularios (MIME detectado), departamento+municipio filtrado,
 tableros con filtros y ponderación, pipeline IA (Whisper+Claude).
+Encuestadores: flujo de aprobación (pending→active/inactive).
+Panelistas: cuotas por variable (total/género/estrato/SISBEN/actividad, toggleables).
 RLS parcialmente implementado. Pagos: solo devengado calculado.
+
+## SQL PENDIENTE (ejecutar en Supabase antes de probar)
+```sql
+INSERT INTO platform_config (key, value) VALUES
+  ('encuestadores_config', '{"max": 50, "require_approval": true}'::jsonb),
+  ('panel_quotas', '{"total": {"enabled": false, "max": 500}, "gender": {"enabled": false, "cupos": {"male": 200, "female": 200, "other": 100}}, "estrato": {"enabled": false, "cupos": {"1": 100, "2": 150, "3": 150, "4": 60, "5": 25, "6": 15}}, "sisben_grupo": {"enabled": false, "cupos": {"no": 100, "A": 100, "B": 100, "C": 100, "D": 100}}, "actividades": {"enabled": false, "cupos": {"empleado": 150, "independiente": 100, "desempleado": 60, "estudiante": 80, "ama_de_casa": 50, "pensionado": 30, "empresario": 20, "otro": 10}}}'::jsonb)
+ON CONFLICT (key) DO NOTHING;
+```
 
 ## CONVENCIONES IMPORTANTES
 - Route handlers: siempre export const dynamic = "force-dynamic" en GETs
