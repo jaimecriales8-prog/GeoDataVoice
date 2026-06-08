@@ -9,7 +9,7 @@
 
 **Problema:** Alcaldes, gobernadores, candidatos y gremios toman decisiones con información incompleta. Las encuestas tradicionales son episódicas y costosas. GeoDataVoice provee medición recurrente, accesible y territorializada con análisis de voz como diferencial.
 
-**Estado actual:** ~70% de avance. Flujo end-to-end operativo: registro de los 3 perfiles, encuestar en campo (con perfil socioeconómico + identidad opcional + GPS), auto-registro de panelista (con claim/reuso de datos), respuesta de encuestas con audio, pipeline de IA (Whisper+Claude) automático, tableros de resultados (por encuesta y por proyecto), y panel de panelista con edición de perfil. Tablas en Supabase operativas (RLS aún desactivado).
+**Estado actual:** ~85% de avance. Flujo end-to-end operativo en los 3 perfiles (panelista, encuestador, cliente), encuestas abiertas vía link público, audio en los 3 formularios de captura, departamento/municipio con datos de Colombia, tableros de resultados con filtros demográficos y ponderación. RLS parcialmente implementado (políticas críticas en su lugar). Deploy en Vercel estable.
 
 ---
 
@@ -23,7 +23,7 @@ frontend/ (Next.js 16 — puerto 3010 local, Vercel en prod)
   /login               → Login Supabase Auth
   /registro            → Selector de perfil (cliente/encuestador/panelista)
   /registro/cliente    → Registro cliente → Supabase Auth + insert clients
-  /registro/encuestador → Registro encuestador → Supabase Auth
+  /registro/encuestador → Registro encuestador → Supabase Auth + field_operators
   /registro/panelista  → Registro panelista → Supabase Auth + insert participants
 
   /dashboard/          → Panel ADMINISTRADOR (sidebar azul oscuro)
@@ -37,22 +37,25 @@ frontend/ (Next.js 16 — puerto 3010 local, Vercel en prod)
     /proyectos         → Lista proyectos del cliente
     /proyectos/nuevo   → Crear proyecto (tipo + propósito + fechas)
     /proyectos/[id]    → Detalle + lista de encuestas
-    /proyectos/[id]/encuestas/nueva → Crear encuesta con preguntas + perfil_objetivo
-    /encuestas         → Lista global de encuestas de todos los proyectos del cliente
-    /resultados        → Tablero de resultados (placeholder — real es P1-01, depende de nlp_outputs)
+    /proyectos/[id]/encuestas/nueva → Crear encuesta (preguntas + perfil_objetivo + toggle abierta)
+    /proyectos/[id]/encuestas/[eid] → Resultados por encuesta (filtros + ponderación + CSV/PDF)
+    /proyectos/[id]/resultados → Resultados agregados por proyecto (tracking por ola)
+    /encuestas         → Lista global de encuestas del cliente
+
+  /encuesta/[slug]     → Encuesta ABIERTA pública (sin auth): bienvenida → anonimato → demografía → preguntas → pago → gracias
 
   /campo/              → Vistas de campo (panelista + encuestador)
-    /panelista         → Home panelista (nombre en header, encuestas pendientes reales, ganado del mes/total devengado)
+    /panelista         → Home panelista (encuestas pendientes reales, devengado)
     /panelista/encuesta/[id] → Flujo de encuesta con audio
-    /panelista/pagos   → Historial de pagos (devengado real por usuario)
-    /panelista/perfil  → Editar correo (Auth), teléfono, billetera (Nequi/Daviplata + número) y perfil socioeconómico completo + cerrar sesión
-    /encuestador       → Home encuestador (ganado del mes: reclutamiento + encuestas, código reclutador, encuestas)
-    /encuestador/registrar → "Encuestar en campo": selección encuesta → datos + perfil socioeconómico → identidad (opcional) → consentimientos → GPS → encuesta
+    /panelista/pagos   → Historial de pagos
+    /panelista/perfil  → Editar correo, teléfono, billetera y perfil socioeconómico completo
+    /encuestador       → Home encuestador (ganado del mes, código reclutador)
+    /encuestador/registrar → "Encuestar en campo": selección encuesta → datos + perfil → identidad → consentimientos → GPS → encuesta
     /verificar-identidad → KYC del panelista (simulación / AutenTIC)
 
 Supabase: https://bsjiqatcqbjqmtytlgll.supabase.co (us-west-2)
 GitHub: https://github.com/jaimecriales8-prog/GeoDataVoice.git
-Producción: https://geodatavoice.grialtech.co (Vercel, proyecto geodatavoice-dashboard)
+Producción: https://geodatavoice.grialtech.co (Vercel, proyecto geodatavoice-dashboard, rootDirectory=frontend)
 ```
 
 ---
@@ -68,60 +71,77 @@ Producción: https://geodatavoice.grialtech.co (Vercel, proyecto geodatavoice-da
 | Charts | Recharts 3 (tableros de resultados) |
 | Offline queue | idb 8 (IndexedDB — campo) |
 | IA | OpenAI Whisper-1 (transcripción) + **Claude `claude-opus-4-8`** (análisis NLP) via Edge Function |
+| Datos Colombia | `lib/colombia.ts` — 33 departamentos + municipios (estático) |
 
 ---
 
-## Integraciones externas (conexiones)
+## Integraciones externas
 
 | Servicio | Para qué | Cómo se conecta | Estado |
 |---|---|---|---|
 | **Supabase** | DB + Auth + Storage + Edge Functions | proyecto `bsjiqatcqbjqmtytlgll`. `@supabase/ssr` (cliente), service role (route handlers + Edge) | ✅ activo |
 | **Resend (API)** | Emails de negocio (cliente activado, nueva encuesta, pago) | `lib/email.ts` lazy init, route handlers `/api/email/*`. Remitente `geodatavoice@grialtech.co` | ✅ activo |
 | **Resend (SMTP)** | Emails de sistema de Supabase Auth (confirmar/recuperar) | SMTP en Supabase Auth: `smtp.resend.com:465`, user `resend`. Plantillas en español | ✅ activo |
-| **OpenAI Whisper-1** | Transcripción de notas de voz | Edge Function `process-audio` (fetch `api.openai.com`). Secret `OPENAI_API_KEY` | ✅ activo (requiere saldo) |
-| **Anthropic Claude** | Análisis NLP de las transcripciones | Edge Function `process-audio` (fetch `api.anthropic.com`). Secret `ANTHROPIC_API_KEY`, `CLAUDE_MODEL` | ✅ activo |
-| **AutenTIC (Veriff)** | KYC de panelistas | SDK Veriff (cdn.veriff.me) + webhook `/api/identidad/webhook` (HMAC). Cuenta `saas-3` | ⏸️ en simulación (credenciales validadas, webhook sin configurar) |
-| **Vercel** | Hosting/deploy | proyecto `geodatavoice-dashboard`, scope `jaime-criales-projects`. Dominio `geodatavoice.grialtech.co` | ✅ activo |
+| **OpenAI Whisper-1** | Transcripción de notas de voz | Edge Function `process-audio`. Secret `OPENAI_API_KEY` | ✅ activo (requiere saldo) |
+| **Anthropic Claude** | Análisis NLP de transcripciones | Edge Function `process-audio`. Secret `ANTHROPIC_API_KEY`, `CLAUDE_MODEL` | ✅ activo |
+| **AutenTIC (Veriff)** | KYC de panelistas | SDK Veriff + webhook `/api/identidad/webhook` (HMAC). Cuenta `saas-3` | ⏸️ simulación (webhook sin configurar) |
+| **Vercel** | Hosting/deploy | proyecto `geodatavoice-dashboard`, scope `jaime-criales-projects`. `rootDirectory=frontend` | ✅ activo |
 
-**Edge Function `process-audio`** (Deno): Storage → Whisper → Claude → `nlp_outputs`. Disparo automático
-por trigger pg_net en INSERT de `audio_responses` (quality=pending). Deploy: `npx supabase functions deploy`.
+**Edge Function `process-audio`** (Deno): Storage → Whisper → Claude → `nlp_outputs`. Disparo automático por trigger pg_net en INSERT de `audio_responses` (quality=pending).
 
-**Route handlers** (`frontend/app/api/`): `email/{cliente-activado,nueva-encuesta,pago-procesado}`,
-`identidad/{simular,webhook}`, `audio/upload`. Service role vía `lib/supabase-service.ts`.
+**Route handlers** (`frontend/app/api/`): `email/*`, `identidad/*`, `audio/upload`, `encuesta-abierta`, `encuesta-abierta/audio`, `resultados`, `resultados/proyecto`, `admin/*`, `registro/*`. Service role vía `lib/supabase-service.ts`. Todos con `export const dynamic = "force-dynamic"` en GETs.
 
 ---
 
-## Tablas en Supabase (RLS desactivado — MVP)
+## Tablas en Supabase (RLS parcialmente implementado)
 
 | Tabla | Descripción |
 |---|---|
 | `clients` | Clientes contratantes. `status`: pending → active/inactive |
-| `projects` | Proyectos por cliente. `type`. **`field_identity_required`** (bool nullable=hereda global) |
-| `surveys` | Encuestas por proyecto. **`perfil_objetivo`** panelista/encuestador/ambos. **`audiencia`** (jsonb) filtros de público objetivo por variable (null=cualquiera). **`ponderacion`** (jsonb) pesos por valor de variable para balancear resultados (null=sin ponderar). `status`: draft/ready/sent/closed |
-| `questions` | Preguntas. `type`, `options`(jsonb), `order`. **`tracking_key`** (indicador entre olas), **`favorability`**, **`favorable_values`** |
-| `participants` | Personas. doc+phone SHA-256 (`document_hash`, `phone_hash`) para dedup. `id`=auth.users.id. **`user_id`**, **`recruited_by`**→field_operators. Contacto/pago en claro: **`phone`**, **`payment_wallet`** (nequi/daviplata), **`payment_number`**. Demografía: estrato, birth_year, nivel_estudios, actividades(jsonb), estado_civil, num_hijos, regimen_salud, sisben_grupo, tenencia_vivienda, grupo_etnico, antiguedad_barrio, recibe_subsidios, acceso_internet, registrado_votar. `name_encrypted` (texto plano por ahora). El panelista captura/edita el **mismo** set de campos que el flujo de campo |
-| `panel_memberships` | Participante ↔ proyecto ↔ cohorte |
-| `field_operators` | Encuestadores. `user_id`→auth, **`recruiter_code`** (código de reclutador) |
-| `field_visits` | GPS de visitas del encuestador (`operator_id`, lat/lon) |
+| `projects` | Proyectos por cliente. **`field_identity_required`** (bool nullable=hereda global) |
+| `surveys` | Encuestas. **`perfil_objetivo`** (panelista/encuestador/ambos/abierta). **`es_abierta`** bool, **`slug`** unique, **`abierta_identidad`**, **`abierta_pago`**, **`abierta_anonima`** bools. **`audiencia`** jsonb, **`ponderacion`** jsonb. `status`: draft/ready/sent/closed |
+| `questions` | Preguntas. `type`, `options`(jsonb), `order`, **`audio_prompt`**, **`tracking_key`**, **`favorability`**, **`favorable_values`** |
+| `participants` | Personas. SHA-256: `document_hash`, `phone_hash`. `user_id`=auth.users.id (null en encuesta abierta). **`departamento`**, **`municipio`** (Colombia). Contacto: `phone`, `payment_wallet`, `payment_number`. Demografía completa: estrato, birth_year, nivel_estudios, actividades(jsonb), estado_civil, num_hijos, regimen_salud, sisben_grupo, tenencia_vivienda, grupo_etnico, antiguedad_barrio, recibe_subsidios, acceso_internet, registrado_votar. `is_anonymous` bool |
+| `field_operators` | Encuestadores. `user_id`→auth, **`recruiter_code`** |
+| `field_visits` | GPS de visitas (`operator_id`, lat/lon, accuracy) |
 | `consents` | Consentimientos versionados (v1.0) |
-| `responses` | Respuestas. `participant_id`, `survey_id`, `question_id`, `value`, **`encuestador_id`** (si fue en campo), `responded_at` |
-| `audio_responses` | Audio. `response_id`, `audio_url`(path Storage), `transcription`, `quality`: pending/processed/error |
-| `nlp_outputs` | 9 variables IA (vincula por `audio_id`): sentiment, emotion, intensity, main_topic, topics, narrative, summary, citizen_quote, actor_mentioned, opinion_driver, confidence |
+| `responses` | Respuestas. `participant_id`, `survey_id`, `question_id`, `value`, **`encuestador_id`**, `responded_at` |
+| `audio_responses` | Audio. `response_id`, `audio_url`(Storage path), `quality`: pending/processed/error |
+| `nlp_outputs` | IA: sentiment, emotion, intensity, main_topic, narrative, citizen_quote, etc. |
 | `payments` | Pagos a panelistas (dispersión real pendiente) |
-| `payment_config` | Tarifas: encuesta_cop / audio_cop / encuesta_campo_cop / **bono_reclutamiento_cop** |
-| `client_payment_config` | Tarifa por cliente (override) |
-| `platform_config` | key/value jsonb. Keys: `identity_verification` (KYC panelista), `field_identity_verification` (identidad en calle) |
+| `payment_config` | Tarifas globales: encuesta_cop, audio_cop, encuesta_campo_cop, bono_reclutamiento_cop |
+| `client_payment_config` | Tarifa override por cliente |
+| `platform_config` | key/value jsonb. Keys: `identity_verification`, `field_identity_verification` |
+| `participant_profile_history` | Snapshots del perfil socioeconómico (jsonb + captured_at) |
 
-**Función RPC:** `claim_field_participant(...)` — al auto-registrarse un panelista ya encuestado en campo
-(mismo documento), reutiliza su registro + verificación + re-apunta su historial al nuevo id.
+**Columnas importantes en `participants` agregadas en esta sesión:** `departamento`, `municipio` (text, nullable).
 
-**Auth por correo (token_hash):** los enlaces de correo usan el flujo token_hash (`/auth/confirm` →
-`verifyOtp`), NO PKCE — funciona entre dispositivos. `/auth/reset-password` para recuperación.
-Plantillas configuradas en español vía Management API. Enlaces válidos 1 hora.
+**RLS implementado:** `responses_panelista_insert`, `audio_panelista_insert`, `surveys_cliente_update`, `surveys_open_authenticated`, `questions_open_authenticated`. Las demás tablas siguen en MVP sin RLS.
 
-**Segmentación de audiencia:** `lib/segmentacion.ts` define las variables (`SEGMENT_VARS`),
-el matcher `participanteCoincide(audiencia, participant)` y `resumenAudiencia()`. AND entre
-variables, OR dentro de cada una; listas (actividades) por intersección.
+**Función RPC:** `claim_field_participant(...)` — panelista que ya fue encuestado en campo reutiliza registro + verificación + historial.
+
+**Auth por correo (token_hash):** `/auth/confirm` → `verifyOtp`. Funciona entre dispositivos.
+
+---
+
+## Formularios de Captura de Datos (homologados)
+
+Los 3 formularios tienen el mismo set de campos demográficos y dropdowns consistentes:
+
+| Campo | Valores |
+|---|---|
+| Departamento | 33 departamentos Colombia (de `lib/colombia.ts`) |
+| Municipio | Filtrado por departamento (de `lib/colombia.ts`) |
+| Barrio | Texto libre |
+| Género | female/male/other |
+| Nivel estudios | bachiller / tecnico_tecnologo / profesional / posgrado |
+| Estado civil | soltero / casado / union_libre / separado / divorciado / viudo |
+| Régimen salud | subsidiado / contributivo / especial / ninguno |
+| SISBEN | no / A / B / C / D |
+| Vivienda | propia / arriendo / familiar |
+| Grupo étnico | ninguno / afro / indigena / raizal / otro |
+| Antigüedad barrio | menos_1 / 1_5 / 5_10 / mas_10 |
+| Actividades | empleado / independiente / desempleado / estudiante / ama_de_casa / pensionado / empresario / otro |
 
 ---
 
@@ -129,99 +149,40 @@ variables, OR dentro de cada una; listas (actividades) por intersección.
 
 | Rol | Acceso | Cómo llega |
 |---|---|---|
-| **admin** | `/dashboard` | Creado manualmente (no hay registro público) |
-| **cliente** | `/cliente` | Registro en `/registro/cliente` → aprobación admin |
-| **encuestador** | `/campo/encuestador` | Registro en `/registro/encuestador` (genera código reclutador) |
-| **panelista** | `/campo/panelista` | Registro en `/registro/panelista` (opcional código reclutador) → gate KYC |
+| **admin** | `/dashboard` | Creado manualmente |
+| **cliente** | `/cliente` | Registro → aprobación admin |
+| **encuestador** | `/campo/encuestador` | Registro → genera código reclutador |
+| **panelista** | `/campo/panelista` | Registro (opcional código reclutador) → gate KYC |
 
-Login redirige por `user_metadata.role`. Middleware: protege `/dashboard|/cliente|/campo` + gate KYC del panelista.
-
-### Modelo Encuestar vs Reclutar
-- **Encuestar en campo** (`/campo/encuestador/registrar`): encuestador encuesta a una persona (paga `encuesta_campo_cop`). NO recluta.
-- **Reclutar**: la persona se auto-registra desde su celular con el **código del encuestador** → `recruited_by` → bono. Si ya fue encuestada, se reutilizan sus datos (claim).
+Login redirige por `user_metadata.role`. Middleware protege `/dashboard|/cliente|/campo` + gate KYC panelista.
 
 ---
 
-## Flujos Implementados
+## Audio — Compatibilidad Safari/Chrome
 
-### Registro de usuarios
-- **Cliente**: signUp Supabase + insert `clients` (status=pending) → admin activa
-- **Panelista**: signUp Supabase + insert `participants` (SHA-256 doc+phone) → confirma email
-- **Encuestador**: signUp Supabase → pendiente insert en `field_operators`
-
-### Creación de encuestas (cliente)
-1. Cliente va a `/cliente/proyectos/[id]`
-2. Clic en "Nueva encuesta" → `/cliente/proyectos/[id]/encuestas/nueva`
-3. Define: nombre, ola, fecha cierre, **perfil_objetivo** (panelista/encuestador/ambos)
-4. Agrega preguntas: tipo + texto + opciones + prompt de voz opcional
-5. Guarda como borrador o publica directamente
-
-### perfil_objetivo en encuestas
-- `panelista` → solo panelistas la ven en su home y la responden solos
-- `encuestador` → el encuestador la aplica en campo a un panelista (respuesta va con `encuestador_id`)
-- `ambos` → cualquiera de los dos puede responderla
+Todos los formularios de captura usan `pickAudioMime()` para detectar el formato soportado:
+```typescript
+for (const t of ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg"]) {
+  if (MediaRecorder.isTypeSupported(t)) return t;
+}
+```
+Safari graba `audio/mp4`, Chrome `audio/webm`. La extensión del archivo se determina dinámicamente.
 
 ---
 
-## Estado Actual del Código
+## Encuestas Abiertas (`/encuesta/[slug]`)
 
-### Funciona correctamente
-- Landing comercial, login, registro de los 3 perfiles
-- Panel admin: CRUD clientes/panelistas/encuestadores, configuración de tarifas + bono reclutamiento + toggles de identidad
-- Panel cliente: crear proyectos, crear encuestas (preguntas, perfil_objetivo, audio por pregunta, tracking/favorabilidad), toggle identidad por proyecto
-- **Encuestar en campo** (encuestador): selección de encuesta → datos + perfil socioeconómico → identidad opcional → consentimientos → GPS → encuesta. Claim/reuso si el documento ya existe
-- **Auto-registro panelista**: captura mismo perfil socioeconómico que campo, código reclutador → bono, claim de datos si ya fue encuestado
-- **Panelista**: home con datos reales (encuestas pendientes, devengado), responder encuestas con audio, ver pagos, **editar perfil completo** (correo/teléfono/billetera/socioeconómico) + cerrar sesión
-- **Encuestador**: home con ganado del mes (reclutamiento + encuestas) y código reclutador
-- **Pipeline IA**: Edge Function `process-audio` (Whisper + Claude) con disparo automático por trigger
-- **Tableros de resultados**: por encuesta y por proyecto (agregación por ola, tracking, favorabilidad)
-- Emails: Resend API (negocio) + SMTP (sistema Auth), dominio propio
-- Middleware protege `/dashboard`, `/cliente`, `/campo` + gate KYC panelista
-- Build limpio, deploy en Vercel
+Ruta pública sin auth. El flujo:
+1. **Bienvenida** — nombre de la encuesta, qué esperar
+2. **Anonimato** (si `!abierta_anonima`) — elige participar anónimo o identificado
+3. **Demografía** — perfil socioeconómico completo (departamento + municipio filtrado + todos los campos)
+4. **Preguntas** — con audio por pregunta si tiene `audio_prompt`
+5. **Pago** (si `abierta_pago` y anónimo) — billetera Nequi/Daviplata
+6. **Gracias**
 
-### Parcialmente implementado
-- KYC: funcional en modo simulación; AutenTIC real requiere configurar webhook
-- Pagos: se muestra **devengado** (calculado de actividad); dispersión real a Nequi/Daviplata pendiente
-- Resultados: falta segmentación por demografía (P1-04b)
+Datos cargados vía `/api/encuesta-abierta` (service role, `force-dynamic`). Respuestas guardadas vía POST al mismo endpoint. Audio vía `/api/encuesta-abierta/audio`. El participante se crea con `user_id=null`.
 
-### Pendiente de construir
-- RLS en todas las tablas (tarea dedicada y cuidadosa — todo usa anon key hoy)
-- Dispersión real de pagos (tabla `payments` + flujo de pago)
-- Segmentación de tableros por variables demográficas
-- AGORA (red de pares) — fase posterior
-- Histórico de perfil socioeconómico (hoy se sobrescribe al editar)
-
----
-
-## Pendientes Prioritarios
-
-### Alta prioridad
-1. **RLS en todas las tablas** — hoy todo usa anon key. Tarea dedicada y cuidadosa (riesgo de romper la app en producción). Priorizar datos sensibles (salud, `registrado_votar`, `payment_number`) — Ley 1581
-2. **Dispersión real de pagos** — tabla `payments` + flujo; hoy solo se muestra devengado calculado
-
-### Media prioridad
-3. **Segmentación de tableros por demografía** (P1-04b) — cruzar resultados por estrato/edad/género/etc.
-4. **Configurar AutenTIC Decision Webhook** para KYC real (hoy en simulación)
-5. **Histórico de perfil socioeconómico** — al editar hoy se sobrescribe; decidir si se versiona para análisis longitudinal
-6. **Variables de entorno en Preview de Vercel** (quedó solo Production)
-
-### Baja prioridad
-7. Landing: tarifas desde `payment_config` (hoy fijas)
-8. Paginación en listados
-9. Supabase Vault para cifrar `name_encrypted` (Ley 1581)
-10. AGORA (red de pares) — fase posterior
-
----
-
-## Bugs Conocidos
-
-| # | Descripción | Impacto | Estado |
-|---|---|---|---|
-| B1 | Login redirige siempre a `/dashboard` sin importar el rol | Alto | ✅ Resuelto — redirige por `user_metadata.role` |
-| B2 | Registro encuestador no inserta en `field_operators` | Medio | ✅ Resuelto — inserta + genera `recruiter_code` |
-| B3 | Montos fijos hardcodeados en landing y panelista | Bajo | ⏳ Parcial — paneles usan `payment_config`; landing aún fija |
-| B4 | Home panelista con datos mock | Alto | ✅ Resuelto — datos reales por usuario |
-| B5 | Sin validación de sesión en `/campo/*` | Medio | ✅ Resuelto — middleware protege `/campo` + gate KYC |
+Slug auto-generado con sufijo aleatorio de 5 chars. El cliente puede copiar el link desde los resultados de la encuesta.
 
 ---
 
@@ -232,56 +193,103 @@ Login redirige por `user_metadata.role`. Middleware: protege `/dashboard|/client
 NEXT_PUBLIC_SUPABASE_URL=https://bsjiqatcqbjqmtytlgll.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-# Resend (emails transaccionales)
-RESEND_API_KEY=re_...                         # key "sending only" (restringida)
+RESEND_API_KEY=re_...
 ADMIN_EMAIL=jaimecriales8@icloud.com
 NEXT_PUBLIC_APP_URL=https://geodatavoice.grialtech.co
 ```
 
-### Variables en Vercel (Production) — proyecto `geodatavoice-dashboard`
-Scope: `jaime-criales-projects`. Las mismas 6 variables están en Production.
-`NEXT_PUBLIC_API_URL` que aparece es **legacy** del backend FastAPI descontinuado — ignorar.
-⚠️ Preview quedó pendiente (bug del CLI 54.9.1 con `--yes`); agregar por dashboard si se usan deploys de rama.
-
-### Emails — dos sistemas separados
-1. **API de Resend** (`frontend/lib/email.ts`, init lazy) → emails de negocio disparados por route handlers:
-   - `POST /api/email/cliente-activado` (admin activa cliente)
-   - `POST /api/email/nueva-encuesta` (cliente publica encuesta → notifica panelistas, batch de 10)
-   - `POST /api/email/pago-procesado` (admin aprueba pago)
-2. **SMTP de Resend en Supabase Auth** → emails de sistema (confirmar registro, recuperar
-   contraseña). Config: host `smtp.resend.com`, port `465`, user `resend`, pass = API key,
-   sender `geodatavoice@grialtech.co`.
-
-**Remitente (FROM):** `GeoDataVoice <geodatavoice@grialtech.co>`.
-El subdominio `geodatavoice.grialtech.co` **NO está verificado** en Resend (requiere plan
-superior). Solo el dominio raíz `grialtech.co` está verificado. DNS en GoDaddy (`ns45/ns46.domaincontrol.com`).
-
-### KYC / Verificación de identidad (AutenTIC — igual que CertiLaboral)
-Página `frontend/app/campo/verificar-identidad/page.tsx`. **Doble modo:**
-- **Simulación** (sin `NEXT_PUBLIC_AUTENTIC_API_KEY`): captura frente/reverso/selfie con cámara
-  real → `POST /api/identidad/simular` marca `participants.kyc_status=approved, status=verified`.
-- **AutenTIC real** (con API key): SDK Veriff (cdn.veriff.me) → webhook
-  `POST /api/identidad/webhook` (HMAC `AUTENTIC_SECRET_KEY`) marca verificado por `vendorData`.
-
-Solo aplica a **panelistas** (`platform_config.identity_verification.required_for=["panelista"]`).
-Vínculo: `participants.id === auth.users.id`. Route handlers usan `lib/supabase-service.ts`.
-Variables AutenTIC: comentadas en `.env.local` → modo simulación activo.
-**Pendiente:** gate en middleware para forzar verificación antes de `/campo/panelista` (P0-01).
+### Vercel
+- Proyecto: `geodatavoice-dashboard`, scope `jaime-criales-projects`
+- **`rootDirectory: frontend`** — crítico, configurado vía API (no dashboard)
+- Las mismas 6 variables en Production. Preview pendiente.
+- ⚠️ `NEXT_PUBLIC_API_URL` legacy del FastAPI — ignorar.
 
 ### Comandos
 ```bash
 # Desarrollo local
 cd frontend && npm run dev -- --port 3010
 
-# Build
+# Build local
 cd frontend && npm run build
 
-# Deploy (auto en push a main via Vercel)
+# Deploy (auto en push a main)
 git push origin main
 
-# Vercel CLI (Node vía nvm — cargar primero: source ~/.nvm/nvm.sh)
-npx vercel env ls production
+# Configurar rootDirectory en Vercel (si se pierde)
+TOKEN=$(cat "/Users/jaimecriales/Library/Application Support/com.vercel.cli/auth.json" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('token',''))")
+curl -X PATCH "https://api.vercel.com/v9/projects/prj_uMy66cfixy7kZMdfzVGIB4FrUYQ1" \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"rootDirectory": "frontend"}'
 ```
+
+---
+
+## Estado Actual del Código
+
+### Funciona correctamente
+- Landing, login, registro de los 3 perfiles con validaciones completas
+- Panel admin: CRUD clientes/panelistas/encuestadores, tarifas, toggles de identidad, KPIs
+- Panel cliente: crear proyectos y encuestas (preguntas, perfil_objetivo, audio, tracking/favorabilidad, toggle abierta + slug), publicar/cerrar/reabrir, copiar link encuesta abierta
+- **Encuesta abierta** (`/encuesta/[slug]`): flujo completo con demografía (departamento+municipio), audio multi-pregunta, anonimato opcional, pago al final
+- **Encuestar en campo** (encuestador): departamento+municipio filtrado, audio con MIME detectado, guarda en `audio_responses`
+- **Auto-registro panelista**: departamento+municipio filtrado, audio, claim de datos si ya fue encuestado, código reclutador
+- **Pipeline IA**: Edge Function `process-audio` (Whisper + Claude) con trigger automático
+- **Tableros de resultados**: por encuesta (filtro demográfico + ponderación + CSV/PDF) y por proyecto (tracking por ola, favorabilidad, series ponderadas)
+- Emails: Resend API + SMTP Auth, dominio propio
+- Middleware + gate KYC panelista
+- Build limpio, deploy estable en Vercel
+
+### Parcialmente implementado
+- KYC: funcional en simulación; AutenTIC real requiere configurar webhook
+- Pagos: devengado calculado; dispersión real a Nequi/Daviplata pendiente
+- RLS: políticas críticas en su lugar; quedan ~10 tablas sin políticas
+
+### Pendiente de construir
+- Dispersión real de pagos (tabla `payments`)
+- Email pago-procesado integrado en dashboard/pagos
+- Webhook AutenTIC configurado en panel de AutenTIC
+- AGORA (red de pares)
+- Mapa interactivo
+- Post-estratificación DANE (raking)
+
+---
+
+## Pendientes Prioritarios
+
+### Alta prioridad
+1. **Dispersión real de pagos** — tabla `payments` + flujo Nequi/Daviplata
+2. **RLS en tablas restantes** — priorizar datos sensibles (salud, payment_number, registrado_votar) — Ley 1581
+3. **Webhook AutenTIC** — configurar URL en panel AutenTIC para activar KYC real
+
+### Media prioridad
+4. **Email pago-procesado** — integrar `/api/email/pago-procesado` en `dashboard/pagos`
+5. **Variables Preview Vercel** — agregar env vars al entorno Preview
+6. **Verificar subdominio Resend** — `geodatavoice.grialtech.co` (requiere plan superior)
+
+### Baja prioridad
+7. Paginación en listados
+8. Supabase Vault para cifrar `name_encrypted` (Ley 1581)
+9. AGORA (red de pares)
+10. CI/CD GitHub Actions
+
+---
+
+## Bugs Conocidos / Resueltos
+
+| # | Descripción | Estado |
+|---|---|---|
+| B1 | Login redirige por rol | ✅ Resuelto |
+| B2 | Insert field_operators al registrar encuestador | ✅ Resuelto |
+| B3 | Montos en landing fijos | ⏳ Parcial — paneles usan payment_config; landing fija |
+| B4 | Home panelista con datos mock | ✅ Resuelto |
+| B5 | Sin validación sesión en /campo/* | ✅ Resuelto |
+| B6 | Audio MIME hardcoded (fallaba en Safari) | ✅ Resuelto — pickAudioMime() en los 3 formularios |
+| B7 | responded_at vs created_at en responses | ✅ Resuelto |
+| B8 | municipio/barrio/description no existen en participants | ✅ Resuelto |
+| B9 | document_hash/phone_hash/name_encrypted NOT NULL en anónimos | ✅ Resuelto |
+| B10 | encuesta-abierta GET cacheado estáticamente | ✅ Resuelto — force-dynamic |
+| B11 | /api/resultados y otros routes no commiteados a git | ✅ Resuelto |
+| B12 | Vercel rootDirectory perdido (se resetea a null) | ✅ Resuelto — configurado vía API, no dashboard |
 
 ---
 
@@ -289,11 +297,11 @@ npx vercel env ls production
 
 | # | Tarea | Archivo principal |
 |---|---|---|
-| 1 | RLS en todas las tablas (tarea dedicada y cuidadosa) | Supabase (policies) |
-| 2 | Dispersión real de pagos | `frontend/app/dashboard/pagos/` + tabla `payments` |
-| 3 | Segmentación de tableros por demografía | `frontend/lib/resultados.ts`, `components/resultados-*` |
-| 4 | Configurar webhook AutenTIC para KYC real | `app/api/identidad/webhook` + panel AutenTIC |
-| 5 | Histórico de perfil socioeconómico | esquema `participants` / tabla histórica |
+| 1 | Dispersión real de pagos | `app/dashboard/pagos/` + tabla `payments` |
+| 2 | RLS en tablas restantes (tarea dedicada) | Supabase policies |
+| 3 | Email pago-procesado en dashboard/pagos | `app/dashboard/pagos/page.tsx` |
+| 4 | Webhook AutenTIC | Panel AutenTIC + `app/api/identidad/webhook` |
+| 5 | AGORA — módulo de pares | Esquema + UI nueva |
 
 ---
 
@@ -303,38 +311,34 @@ npx vercel env ls production
 Estoy desarrollando GeoDataVoice, plataforma de inteligencia territorial para Colombia.
 Ruta local: /Users/jaimecriales/Sites/GeoDataVoice/frontend
 GitHub: https://github.com/jaimecriales8-prog/GeoDataVoice.git
-Producción: geodatavoice-dashboard-git-main-jaime-criales-projects.vercel.app
+Producción: https://geodatavoice.grialtech.co (Vercel, rootDirectory=frontend)
 
 ## ARQUITECTURA
 Next.js 16 → Supabase directamente. Sin backend intermedio.
 El directorio backend/ está DESCONTINUADO — no tocar.
-
-## SUPABASE
-Proyecto: bsjiqatcqbjqmtytlgll (us-west-2)
-Tablas creadas (RLS desactivado): clients, projects, surveys, questions,
-participants, panel_memberships, field_operators, field_visits, consents,
-responses, audio_responses, nlp_outputs, payments, payment_config, client_payment_config
-
-## ESTRUCTURA DE RUTAS
-/dashboard/*     → Admin (sidebar azul)
-/cliente/*       → Cliente (sidebar violeta)
-/campo/*         → Encuestador + Panelista (mobile-first)
-/registro/*      → Registro público (3 perfiles)
-/login           → Supabase Auth
-Middleware protege /dashboard y /cliente
+Supabase: bsjiqatcqbjqmtytlgll (us-west-2)
 
 ## ROLES (user_metadata.role en Supabase Auth)
 admin → /dashboard | cliente → /cliente | panelista → /campo/panelista | encuestador → /campo/encuestador
 
-## CONCEPTO CLAVE: perfil_objetivo en surveys
-panelista → solo panelistas responden (desde su web)
-encuestador → encuestador aplica a panelista en campo (response.encuestador_id ≠ null)
-ambos → cualquiera
+## TABLAS CLAVE
+clients, projects, surveys (es_abierta/slug/abierta_*), questions (audio_prompt/tracking_key),
+participants (departamento/municipio/document_hash/phone_hash/is_anonymous),
+field_operators (recruiter_code), responses (encuestador_id/responded_at),
+audio_responses, nlp_outputs, payment_config, platform_config
 
-## ESTADO
-Flujo end-to-end operativo (~70%). Pendiente clave: RLS (todo usa anon key),
-dispersión real de pagos, segmentación de tableros por demografía.
-RLS es tarea dedicada — no improvisar, puede romper producción.
+## ESTADO (~85%)
+Flujo end-to-end operativo: registro 3 perfiles, encuestas abiertas vía link,
+audio en los 3 formularios (MIME detectado), departamento+municipio filtrado,
+tableros con filtros y ponderación, pipeline IA (Whisper+Claude).
+RLS parcialmente implementado. Pagos: solo devengado calculado.
+
+## CONVENCIONES IMPORTANTES
+- Route handlers: siempre export const dynamic = "force-dynamic" en GETs
+- Audio: usar pickAudioMime() — Safari=mp4, Chrome=webm
+- Datos anónimos: sha256(randomUUID()) para document_hash y phone_hash cuando no hay documento
+- colombia.ts: DEPARTAMENTOS, getMunicipios(dept) — usar en formularios de captura
+- Service role: createServiceClient() para cualquier operación que bypasee RLS
 
 ## PRÓXIMA TAREA
 [describe aquí lo que quieres hacer]
