@@ -234,7 +234,7 @@ export default function ProyectoDetalle({ params }: { params: Promise<{ id: stri
                     {/* Selector de ola — solo local, no guarda hasta lanzar */}
                     <div className="flex items-center gap-1.5 shrink-0">
                       <span className="text-xs text-slate-500">Ola</span>
-                      {activa || e.status === "closed" ? (
+                      {activa ? (
                         <span className="rounded-lg bg-slate-800 border border-white/10 px-3 py-1 text-xs text-white w-14 text-center">{e.wave}</span>
                       ) : (
                         <select
@@ -271,7 +271,18 @@ export default function ProyectoDetalle({ params }: { params: Promise<{ id: stri
                           </button>
                         );
                       }
-                      if (e.status === "closed") return null;
+                      if (e.status === "closed") {
+                        if (hayActiva) return null;
+                        return (
+                          <button
+                            onClick={() => lanzarOla(e.id, olaSeleccionada)}
+                            disabled={isSaving || olaSeleccionada <= e.wave}
+                            title={olaSeleccionada <= e.wave ? "Selecciona una ola mayor a la actual" : `Lanzar Ola ${olaSeleccionada}`}
+                            className="shrink-0 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold bg-violet-500/15 text-violet-300 hover:bg-violet-500/25 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                            <Send className="h-3.5 w-3.5" /> Lanzar Ola {olaSeleccionada}
+                          </button>
+                        );
+                      }
 
                       if (esOlaNueva) {
                         return (
