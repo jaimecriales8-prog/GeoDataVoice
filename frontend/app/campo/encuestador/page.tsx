@@ -72,12 +72,12 @@ export default function EncuestadorHome() {
       const hoy = new Date().toISOString().split("T")[0];
       const mesInicio = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
       if (op) {
-        // Panelistas reclutados hoy con el código de este encuestador
+        // Panelistas reclutados este mes con el código de este encuestador
         const { count: reclutadosHoy } = await supabase
           .from("participants")
           .select("id", { count: "exact", head: true })
           .eq("recruited_by", op.id)
-          .gte("created_at", hoy + "T00:00:00");
+          .gte("created_at", mesInicio);
 
         // Encuestas aplicadas hoy (únicas por participante+encuesta)
         const { data: respHoy } = await supabase
@@ -151,7 +151,7 @@ export default function EncuestadorHome() {
         {/* Stats del día */}
         <div className="grid grid-cols-3 gap-3">
           {[
-            { label: "Reclutados\nhoy", value: stats.reclutados, color: "text-emerald-300" },
+            { label: "Reclutados\neste mes", value: stats.reclutados, color: "text-emerald-300" },
             { label: "Encuestas\nhoy", value: stats.encuestas, color: "text-yellow-300" },
             { label: "Encuestas\neste mes", value: stats.mes, color: "text-white" },
           ].map(({ label, value, color }) => (
