@@ -44,20 +44,24 @@ export default function NuevoProyecto() {
     if (!clienteId) { setError("No se pudo identificar tu cuenta."); return; }
 
     setSaving(true); setError("");
-    const supabase = createClient();
-    const { data, error: dbErr } = await supabase.from("projects").insert({
-      id: crypto.randomUUID(),
-      client_id: clienteId,
-      name: form.name.trim(),
-      type: form.type,
-      purpose: form.purpose,
-      start_date: form.start_date || null,
-      end_date: form.end_date || null,
-      status: "active",
-    }).select("id").single();
-
-    if (dbErr || !data) { setError(dbErr?.message ?? "Error al crear el proyecto."); setSaving(false); return; }
-    router.push(`/cliente/proyectos/${data.id}`);
+    const newId = crypto.randomUUID();
+    const res = await fetch("/api/cliente/proyectos", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: newId,
+        client_id: clienteId,
+        name: form.name.trim(),
+        type: form.type,
+        purpose: form.purpose,
+        start_date: form.start_date || null,
+        end_date: form.end_date || null,
+        status: "active",
+      }),
+    });
+    const json = await res.json();
+    if (!res.ok || json.error) { setError(json.error ?? "Error al crear el proyecto."); setSaving(false); return; }
+    router.push(`/cliente/proyectos/${newId}`);
   }
 
   return (
