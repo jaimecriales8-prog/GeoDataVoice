@@ -3,7 +3,7 @@
 import { useEffect, useState, use } from "react";
 import { createClient } from "@/lib/supabase";
 import Link from "next/link";
-import { ArrowLeft, Plus, ClipboardList, Users, Mic, MapPin, ChevronRight, Clock, BarChart3, Target } from "lucide-react";
+import { ArrowLeft, Plus, ClipboardList, Users, Mic, MapPin, ChevronRight, Clock, BarChart3, Target, Send, StopCircle, RotateCcw } from "lucide-react";
 import { resumenAudiencia, audienciaVacia, type Audiencia } from "@/lib/segmentacion";
 
 type Proyecto = {
@@ -40,6 +40,7 @@ export default function ProyectoDetalle({ params }: { params: Promise<{ id: stri
   const [loading, setLoading] = useState(true);
   const [panelSize, setPanelSize] = useState(0);
   const [identityGlobal, setIdentityGlobal] = useState(true);
+  const [savingId, setSavingId] = useState<string | null>(null);
 
   useEffect(() => { load(); }, [id]);
 
@@ -56,6 +57,17 @@ export default function ProyectoDetalle({ params }: { params: Promise<{ id: stri
     setPanelSize(count ?? 0);
     setIdentityGlobal(((cfg?.value as { enabled?: boolean } | null)?.enabled) ?? true);
     setLoading(false);
+  }
+
+  async function updateEncuesta(eid: string, patch: Partial<Encuesta>) {
+    setSavingId(eid);
+    setEncuestas(prev => prev.map(e => e.id === eid ? { ...e, ...patch } : e));
+    await fetch("/api/cliente/encuestas", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: eid, ...patch }),
+    });
+    setSavingId(null);
   }
 
   async function toggleFieldIdentity() {
@@ -170,41 +182,83 @@ export default function ProyectoDetalle({ params }: { params: Promise<{ id: stri
               const perfil = PERFIL_CONF[e.perfil_objetivo] ?? PERFIL_CONF.ambos;
               const status = STATUS_CONF[e.status] ?? STATUS_CONF.draft;
               const PerfilIcon = perfil.icon;
+              const isSaving = savingId === e.id;
+              const activa = e.status === "sent" || e.status === "ready";
               return (
-                <Link key={e.id} href={`/cliente/proyectos/${id}/encuestas/${e.id}`}
-                  className="flex items-center gap-4 px-6 py-4 hover:bg-white/[0.02] transition-colors">
-                  <div className="h-10 w-10 rounded-xl bg-slate-800 flex items-center justify-center shrink-0">
-                    <ClipboardList className="h-5 w-5 text-slate-400" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="text-sm font-medium text-white">{e.name}</p>
-                      <span className="text-xs text-slate-600">Ola {e.wave}</span>
+                <div key={e.id} className="px-6 py-4 hover:bg-white/[0.02] transition-colors">
+                  <div className="flex items-center gap-4">
+                    {/* Ícono */}
+                    <div className="h-10 w-10 rounded-xl bg-slate-800 flex items-center justify-center shrink-0">
+                      <ClipboardList className="h-5 w-5 text-slate-400" />
                     </div>
-                    <div className="flex items-center gap-3 mt-1 flex-wrap">
-                      <span className={`flex items-center gap-1 text-xs ${perfil.color}`}>
-                        <PerfilIcon className="h-3 w-3" />
-                        {perfil.label}
-                      </span>
-                      {e.closes_at && (
-                        <span className="flex items-center gap-1 text-xs text-slate-500">
-                          <Clock className="h-3 w-3" />
-                          Cierra {new Date(e.closes_at).toLocaleDateString("es-CO", { day: "numeric", month: "short" })}
+
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Link href={`/cliente/proyectos/${id}/encuestas/${e.id}`}
+                          className="text-sm font-medium text-white hover:text-violet-300 transition-colors">
+                          {e.name}
+                        </Link>
+                        {!audienciaVacia(e.audiencia) && (
+                          <span className="flex items-center gap-1 text-xs text-pink-400">
+                            <Target className="h-3 w-3" /> Segmentada
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-3 mt-1 flex-wrap">
+                        <span className={`flex items-center gap-1 text-xs ${perfil.color}`}>
+                          <PerfilIcon className="h-3 w-3" />{perfil.label}
                         </span>
-                      )}
-                      {!audienciaVacia(e.audiencia) && (
-                        <span className="flex items-center gap-1 text-xs text-pink-400" title={resumenAudiencia(e.audiencia)}>
-                          <Target className="h-3 w-3" />
-                          Segmentada
-                        </span>
-                      )}
+                        {e.closes_at && (
+                          <span className="flex items-center gap-1 text-xs text-slate-500">
+                            <Clock className="h-3 w-3" />
+                            Cierra {new Date(e.closes_at).toLocaleDateString("es-CO", { day: "numeric", month: "short" })}
+                          </span>
+                        )}
+                      </div>
                     </div>
+
+                    {/* Selector de ola */}
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <span className="text-xs text-slate-500">Ola</span>
+                      <select
+                        value={e.wave}
+                        onChange={ev => updateEncuesta(e.id, { wave: parseInt(ev.target.value) })}
+                        disabled={isSaving}
+                        className="rounded-lg bg-slate-800 border border-white/10 px-2 py-1 text-xs text-white focus:outline-none focus:border-violet-500 disabled:opacity-50 w-14">
+                        {[1,2,3,4,5,6,7,8,9,10].map(n => (
+                          <option key={n} value={n}>{n}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Badge estado */}
+                    <span className={`rounded-full px-2.5 py-1 text-xs font-semibold shrink-0 ${status.color}`}>
+                      {status.label}
+                    </span>
+
+                    {/* Botón activar/desactivar */}
+                    <button
+                      onClick={() => updateEncuesta(e.id, { status: activa ? "draft" : "sent" })}
+                      disabled={isSaving || e.status === "closed"}
+                      title={activa ? "Desactivar encuesta" : "Activar encuesta"}
+                      className={`shrink-0 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-40 ${
+                        activa
+                          ? "bg-red-500/10 text-red-400 hover:bg-red-500/20"
+                          : "bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20"
+                      }`}>
+                      {activa
+                        ? <><StopCircle className="h-3.5 w-3.5" /> Desactivar</>
+                        : <><Send className="h-3.5 w-3.5" /> Activar</>}
+                    </button>
+
+                    {/* Link detalle */}
+                    <Link href={`/cliente/proyectos/${id}/encuestas/${e.id}`}
+                      className="text-slate-600 hover:text-white transition-colors shrink-0">
+                      <ChevronRight className="h-4 w-4" />
+                    </Link>
                   </div>
-                  <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${status.color}`}>
-                    {status.label}
-                  </span>
-                  <ChevronRight className="h-4 w-4 text-slate-600 shrink-0" />
-                </Link>
+                </div>
               );
             })}
           </div>
