@@ -70,6 +70,17 @@ export default function ProyectoDetalle({ params }: { params: Promise<{ id: stri
     setSavingId(null);
   }
 
+  async function lanzarOla(eid: string, wave: number) {
+    setSavingId(eid);
+    const res = await fetch("/api/cliente/encuestas/duplicar", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ survey_id: eid, wave }),
+    });
+    setSavingId(null);
+    if (res.ok) await load();
+  }
+
   async function toggleFieldIdentity() {
     if (!proyecto) return;
     const efectivo = proyecto.field_identity_required ?? identityGlobal;
@@ -237,20 +248,31 @@ export default function ProyectoDetalle({ params }: { params: Promise<{ id: stri
                       {status.label}
                     </span>
 
-                    {/* Botón activar/desactivar */}
-                    <button
-                      onClick={() => updateEncuesta(e.id, { status: activa ? "draft" : "sent" })}
-                      disabled={isSaving || e.status === "closed"}
-                      title={activa ? "Desactivar encuesta" : "Activar encuesta"}
-                      className={`shrink-0 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-40 ${
-                        activa
-                          ? "bg-red-500/10 text-red-400 hover:bg-red-500/20"
-                          : "bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20"
-                      }`}>
-                      {activa
-                        ? <><StopCircle className="h-3.5 w-3.5" /> Desactivar</>
-                        : <><Send className="h-3.5 w-3.5" /> Activar</>}
-                    </button>
+                    {/* Botón acción principal */}
+                    {(() => {
+                      const olaActual = encuestas.filter(x => x.id !== e.id && (x.status === "sent" || x.status === "closed")).reduce((max, x) => Math.max(max, x.wave), 0);
+                      const esOlaNueva = e.wave > olaActual && (e.status === "draft" || e.status === "ready");
+                      if (esOlaNueva) {
+                        return (
+                          <button
+                            onClick={() => lanzarOla(e.id, e.wave)}
+                            disabled={isSaving}
+                            className="shrink-0 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold bg-violet-500/15 text-violet-300 hover:bg-violet-500/25 transition-colors disabled:opacity-40">
+                            <Send className="h-3.5 w-3.5" /> Lanzar Ola {e.wave}
+                          </button>
+                        );
+                      }
+                      return (
+                        <button
+                          onClick={() => updateEncuesta(e.id, { status: activa ? "draft" : "sent" })}
+                          disabled={isSaving || e.status === "closed"}
+                          className={`shrink-0 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-40 ${
+                            activa ? "bg-red-500/10 text-red-400 hover:bg-red-500/20" : "bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20"
+                          }`}>
+                          {activa ? <><StopCircle className="h-3.5 w-3.5" /> Desactivar</> : <><Send className="h-3.5 w-3.5" /> Activar</>}
+                        </button>
+                      );
+                    })()}
 
                     {/* Link detalle */}
                     <Link href={`/cliente/proyectos/${id}/encuestas/${e.id}`}
