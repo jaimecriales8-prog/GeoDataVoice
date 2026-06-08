@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import { MapPin, Loader2, Eye, EyeOff, ArrowLeft, CheckCircle } from "lucide-react";
 import { PasswordStrength } from "@/components/password-strength";
+import { DEPARTAMENTOS, getMunicipios } from "@/lib/colombia";
 
 function generarCodigo(nombre: string): string {
   const letras = ((nombre.replace(/[^A-Za-z]/g, "").toUpperCase()) + "GD").slice(0, 2);
@@ -25,6 +26,7 @@ export default function RegistroEncuestadorPage() {
     full_name: "",
     documento: "",
     phone: "",
+    departamento: "",
     municipio: "",
     email: "",
     password: "",
@@ -57,6 +59,7 @@ export default function RegistroEncuestadorPage() {
           role: "encuestador",
           documento: form.documento,
           phone: form.phone,
+          departamento: form.departamento,
           municipio: form.municipio,
           experiencia: form.experiencia,
           status: "pending_approval",
@@ -151,9 +154,18 @@ export default function RegistroEncuestadorPage() {
               </Field>
             </div>
 
-            <Field label="Municipio donde puedes trabajar" color="emerald">
-              <input value={form.municipio} onChange={e => update("municipio", e.target.value)}
-                placeholder="Ej: Barranquilla, Soledad" className={input("emerald")} />
+            <Field label="Departamento donde puedes trabajar" color="emerald">
+              <select value={form.departamento} onChange={e => { update("departamento", e.target.value); update("municipio", ""); }} className={input("emerald")}>
+                <option value="">Selecciona departamento...</option>
+                {DEPARTAMENTOS.map(d => <option key={d} value={d}>{d}</option>)}
+              </select>
+            </Field>
+
+            <Field label="Municipio" color="emerald">
+              <select value={form.municipio} onChange={e => update("municipio", e.target.value)} className={input("emerald")} disabled={!form.departamento}>
+                <option value="">{form.departamento ? "Selecciona municipio..." : "Primero selecciona departamento"}</option>
+                {getMunicipios(form.departamento).map(m => <option key={m} value={m}>{m}</option>)}
+              </select>
             </Field>
 
             <Field label="¿Tienes experiencia en trabajo de campo?" color="emerald">
