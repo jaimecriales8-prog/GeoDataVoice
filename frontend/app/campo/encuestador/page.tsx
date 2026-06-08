@@ -68,56 +68,14 @@ export default function EncuestadorHome() {
 
       setSurveys(sv ?? []);
 
-      // Stats del día
-      const hoy = new Date().toISOString().split("T")[0];
-      const mesInicio = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
+      // Stats y ganancias via API (service role para bypassear RLS en responses)
       if (op) {
-        // Panelistas reclutados este mes con el código de este encuestador
-        const { count: reclutadosHoy } = await supabase
-          .from("participants")
-          .select("id", { count: "exact", head: true })
-          .eq("recruited_by", op.id)
-          .gte("created_at", mesInicio);
-
-        // Encuestas aplicadas hoy (únicas por participante+encuesta)
-        const { data: respHoy } = await supabase
-          .from("responses")
-          .select("participant_id, survey_id")
-          .eq("encuestador_id", op.id)
-          .gte("responded_at", hoy + "T00:00:00");
-        const encHoy = new Set((respHoy ?? []).map(r => `${r.participant_id}|${r.survey_id}`)).size;
-
-        // Encuestas aplicadas este mes
-        const { data: respMesData } = await supabase
-          .from("responses")
-          .select("participant_id, survey_id")
-          .eq("encuestador_id", op.id)
-          .gte("responded_at", mesInicio);
-        const encMes = new Set((respMesData ?? []).map(r => `${r.participant_id}|${r.survey_id}`)).size;
-
-        setStats({
-          reclutados: reclutadosHoy ?? 0,
-          encuestas: encHoy,
-          mes: encMes,
-        });
-
-        // Ganancias del mes (devengado): reclutamiento + encuestas en campo
-        const { data: cfg } = await supabase
-          .from("payment_config").select("encuesta_campo_cop, bono_reclutamiento_cop")
-          .order("created_at", { ascending: false }).limit(1).maybeSingle();
-        const campoCop = cfg?.encuesta_campo_cop ?? 0;
-        const bonoCop = cfg?.bono_reclutamiento_cop ?? 0;
-
-        const { count: reclutadosMes } = await supabase
-          .from("participants").select("id", { count: "exact", head: true })
-          .eq("recruited_by", op.id).gte("created_at", mesInicio);
-
-        setMes({
-          reclutados: reclutadosMes ?? 0,
-          encuestas: encMes,
-          ganadoReclutamiento: (reclutadosMes ?? 0) * bonoCop,
-          ganadoEncuestas: encMes * campoCop,
-        });
+        const res = await fetch(`/api/campo/encuestador/stats?operador_id=${op.id}`);
+        if (res.ok) {
+          const json = await res.json();
+          setStats(json.stats);
+          setMes(json.mes);
+        }
       }
 
       setLoading(false);
