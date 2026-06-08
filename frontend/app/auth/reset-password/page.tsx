@@ -85,11 +85,39 @@ export default function ResetPasswordPage() {
                     {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
+
+                {/* Indicador de requisitos */}
+                {pass.length > 0 && (
+                  <div className="space-y-1.5 px-1">
+                    {[
+                      { ok: pass.length >= 8, label: "Mínimo 8 caracteres" },
+                      { ok: /[A-Z]/.test(pass), label: "Una letra mayúscula" },
+                      { ok: /[0-9]/.test(pass), label: "Un número" },
+                    ].map(({ ok, label }) => (
+                      <div key={label} className="flex items-center gap-2">
+                        <div className={`h-1.5 w-1.5 rounded-full ${ok ? "bg-emerald-400" : "bg-slate-600"}`} />
+                        <span className={`text-xs ${ok ? "text-emerald-400" : "text-slate-500"}`}>{label}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                   <input type={show ? "text" : "password"} value={pass2} onChange={e => setPass2(e.target.value)}
                     placeholder="Repite tu contraseña" className={`${inputCls} pl-10`} />
                 </div>
+
+                {/* Coincidencia */}
+                {pass2.length > 0 && (
+                  <div className="flex items-center gap-2 px-1">
+                    <div className={`h-1.5 w-1.5 rounded-full ${pass === pass2 ? "bg-emerald-400" : "bg-red-400"}`} />
+                    <span className={`text-xs ${pass === pass2 ? "text-emerald-400" : "text-red-400"}`}>
+                      {pass === pass2 ? "Las contraseñas coinciden" : "Las contraseñas no coinciden"}
+                    </span>
+                  </div>
+                )}
+
                 {error && <div className="rounded-xl bg-red-500/10 border border-red-500/30 px-4 py-3 text-sm text-red-300">{error}</div>}
                 <button type="submit" disabled={saving}
                   className="w-full flex items-center justify-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 py-3.5 text-white font-semibold transition-colors">
