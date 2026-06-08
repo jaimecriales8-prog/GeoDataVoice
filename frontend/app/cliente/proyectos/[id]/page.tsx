@@ -250,26 +250,42 @@ export default function ProyectoDetalle({ params }: { params: Promise<{ id: stri
 
                     {/* Botón acción principal */}
                     {(() => {
-                      const olaActual = encuestas.filter(x => x.id !== e.id && (x.status === "sent" || x.status === "closed")).reduce((max, x) => Math.max(max, x.wave), 0);
-                      const esOlaNueva = e.wave > olaActual && (e.status === "draft" || e.status === "ready");
+                      const hayActiva = encuestas.some(x => x.id !== e.id && x.status === "sent");
+                      const maxOlaUsada = encuestas.filter(x => x.id !== e.id).reduce((max, x) => Math.max(max, x.wave), 0);
+                      const esBorrador = e.status === "draft" || e.status === "ready";
+                      const esOlaNueva = esBorrador && e.wave > maxOlaUsada;
+
+                      if (e.status === "sent") {
+                        return (
+                          <button
+                            onClick={() => updateEncuesta(e.id, { status: "closed" })}
+                            disabled={isSaving}
+                            className="shrink-0 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors disabled:opacity-40">
+                            <StopCircle className="h-3.5 w-3.5" /> Cerrar Ola {e.wave}
+                          </button>
+                        );
+                      }
+                      if (e.status === "closed") return null;
+
                       if (esOlaNueva) {
                         return (
                           <button
-                            onClick={() => lanzarOla(e.id, e.wave)}
-                            disabled={isSaving}
-                            className="shrink-0 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold bg-violet-500/15 text-violet-300 hover:bg-violet-500/25 transition-colors disabled:opacity-40">
+                            onClick={() => !hayActiva && lanzarOla(e.id, e.wave)}
+                            disabled={isSaving || hayActiva}
+                            title={hayActiva ? "Cierra la ola activa antes de lanzar una nueva" : `Lanzar Ola ${e.wave}`}
+                            className="shrink-0 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold bg-violet-500/15 text-violet-300 hover:bg-violet-500/25 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
                             <Send className="h-3.5 w-3.5" /> Lanzar Ola {e.wave}
                           </button>
                         );
                       }
+
                       return (
                         <button
-                          onClick={() => updateEncuesta(e.id, { status: activa ? "draft" : "sent" })}
-                          disabled={isSaving || e.status === "closed"}
-                          className={`shrink-0 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-40 ${
-                            activa ? "bg-red-500/10 text-red-400 hover:bg-red-500/20" : "bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20"
-                          }`}>
-                          {activa ? <><StopCircle className="h-3.5 w-3.5" /> Desactivar</> : <><Send className="h-3.5 w-3.5" /> Activar</>}
+                          onClick={() => !hayActiva && updateEncuesta(e.id, { status: "sent" })}
+                          disabled={isSaving || hayActiva}
+                          title={hayActiva ? "Cierra la ola activa antes de activar otra" : "Activar"}
+                          className="shrink-0 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                          <Send className="h-3.5 w-3.5" /> Activar
                         </button>
                       );
                     })()}
