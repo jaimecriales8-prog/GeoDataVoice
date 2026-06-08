@@ -18,9 +18,9 @@ type Survey = {
 };
 
 type DayStats = {
-  registrados: number;
-  verificados: number;
+  reclutados: number;
   encuestas: number;
+  mes: number;
 };
 
 export default function EncuestadorHome() {
@@ -28,7 +28,7 @@ export default function EncuestadorHome() {
   const [operadorId, setOperadorId] = useState<string | null>(null);
   const [nombre, setNombre] = useState("");
   const [surveys, setSurveys] = useState<Survey[]>([]);
-  const [stats, setStats] = useState<DayStats>({ registrados: 0, verificados: 0, encuestas: 0 });
+  const [stats, setStats] = useState<DayStats>({ reclutados: 0, encuestas: 0, mes: 0 });
   const [mes, setMes] = useState({ reclutados: 0, encuestas: 0, ganadoReclutamiento: 0, ganadoEncuestas: 0 });
   const [codigo, setCodigo] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -70,27 +70,38 @@ export default function EncuestadorHome() {
 
       // Stats del día
       const hoy = new Date().toISOString().split("T")[0];
+      const mesInicio = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
       if (op) {
-        const { count: regCount } = await supabase
-          .from("field_visits")
+        // Panelistas reclutados hoy con el código de este encuestador
+        const { count: reclutadosHoy } = await supabase
+          .from("participants")
           .select("id", { count: "exact", head: true })
-          .eq("operator_id", op.id)
-          .gte("visited_at", hoy);
+          .eq("recruited_by", op.id)
+          .gte("created_at", hoy + "T00:00:00");
 
-        const { count: encCount } = await supabase
+        // Encuestas aplicadas hoy (únicas por participante+encuesta)
+        const { data: respHoy } = await supabase
           .from("responses")
-          .select("id", { count: "exact", head: true })
+          .select("participant_id, survey_id")
           .eq("encuestador_id", op.id)
           .gte("responded_at", hoy + "T00:00:00");
+        const encHoy = new Set((respHoy ?? []).map(r => `${r.participant_id}|${r.survey_id}`)).size;
+
+        // Encuestas aplicadas este mes
+        const { data: respMesData } = await supabase
+          .from("responses")
+          .select("participant_id, survey_id")
+          .eq("encuestador_id", op.id)
+          .gte("responded_at", mesInicio);
+        const encMes = new Set((respMesData ?? []).map(r => `${r.participant_id}|${r.survey_id}`)).size;
 
         setStats({
-          registrados: regCount ?? 0,
-          verificados: regCount ?? 0,
-          encuestas: encCount ?? 0,
+          reclutados: reclutadosHoy ?? 0,
+          encuestas: encHoy,
+          mes: encMes,
         });
 
         // Ganancias del mes (devengado): reclutamiento + encuestas en campo
-        const mesInicio = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
         const { data: cfg } = await supabase
           .from("payment_config").select("encuesta_campo_cop, bono_reclutamiento_cop")
           .order("created_at", { ascending: false }).limit(1).maybeSingle();
@@ -101,16 +112,11 @@ export default function EncuestadorHome() {
           .from("participants").select("id", { count: "exact", head: true })
           .eq("recruited_by", op.id).gte("created_at", mesInicio);
 
-        const { data: respMes } = await supabase
-          .from("responses").select("participant_id, survey_id")
-          .eq("encuestador_id", op.id).gte("responded_at", mesInicio);
-        const encuestasMes = new Set((respMes ?? []).map(r => `${r.participant_id}|${r.survey_id}`)).size;
-
         setMes({
           reclutados: reclutadosMes ?? 0,
-          encuestas: encuestasMes,
+          encuestas: encMes,
           ganadoReclutamiento: (reclutadosMes ?? 0) * bonoCop,
-          ganadoEncuestas: encuestasMes * campoCop,
+          ganadoEncuestas: encMes * campoCop,
         });
       }
 
@@ -145,9 +151,9 @@ export default function EncuestadorHome() {
         {/* Stats del día */}
         <div className="grid grid-cols-3 gap-3">
           {[
-            { label: "Registrados\nhoy", value: stats.registrados, color: "text-emerald-300" },
-            { label: "Verificados\nhoy", value: stats.verificados, color: "text-white" },
-            { label: "Encuestas\naplicadas", value: stats.encuestas, color: "text-yellow-300" },
+            { label: "Reclutados\nhoy", value: stats.reclutados, color: "text-emerald-300" },
+            { label: "Encuestas\nhoy", value: stats.encuestas, color: "text-yellow-300" },
+            { label: "Encuestas\neste mes", value: stats.mes, color: "text-white" },
           ].map(({ label, value, color }) => (
             <div key={label} className="rounded-2xl bg-white/10 p-3 text-center">
               <div className={`text-2xl font-bold ${color}`}>
@@ -267,7 +273,7 @@ export default function EncuestadorHome() {
         </section>
 
         {/* Progreso del día */}
-        {!loading && stats.registrados > 0 && (
+        {!loading && (stats.reclutados > 0 || stats.encuestas > 0) && (
           <section className="rounded-2xl bg-gradient-to-r from-emerald-800 to-emerald-900 p-5 text-white">
             <div className="flex items-center gap-2 mb-4">
               <TrendingUp className="h-4 w-4 text-emerald-300" />
@@ -275,8 +281,8 @@ export default function EncuestadorHome() {
             </div>
             <div className="space-y-3">
               {[
-                { label: "Personas registradas", value: stats.registrados, total: 10 },
-                { label: "Encuestas aplicadas", value: stats.encuestas, total: 10 },
+                { label: "Panelistas reclutados", value: stats.reclutados, total: 10 },
+                { label: "Encuestas aplicadas hoy", value: stats.encuestas, total: 10 },
               ].map(({ label, value, total }) => (
                 <div key={label}>
                   <div className="flex justify-between text-xs mb-1">
