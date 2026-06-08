@@ -35,9 +35,9 @@ export default function OlvideContrasenaPage() {
         {sent ? (
           <div className="rounded-2xl bg-white/5 border border-white/10 p-8 text-center">
             <CheckCircle className="h-12 w-12 text-emerald-400 mx-auto mb-4" />
-            <h2 className="text-white font-bold text-lg mb-2">Correo enviado</h2>
+            <h2 className="text-white font-bold text-lg mb-2">Revisa tu correo</h2>
             <p className="text-slate-400 text-sm mb-6">
-              Revisa tu bandeja de entrada y sigue el link para crear una nueva contraseña.
+              Si ese email está registrado, recibirás un link para restablecer tu contraseña en los próximos minutos.
             </p>
             <Link href="/login" className="text-blue-400 text-sm hover:text-blue-300 transition-colors">
               Volver al inicio de sesión
