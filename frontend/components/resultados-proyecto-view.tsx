@@ -48,6 +48,7 @@ export default function ResultadosProyectoView({ data }: { data: ResultadosProye
                     <Legend wrapperStyle={{ fontSize: 12 }} />
                     <Line type="monotone" dataKey="positivo" name="Positivo" stroke="#10b981" strokeWidth={2} dot />
                     <Line type="monotone" dataKey="negativo" name="Negativo" stroke="#ef4444" strokeWidth={2} dot />
+                    <Line type="monotone" dataKey="neutral" name="Neutral" stroke="#94a3b8" strokeWidth={2} dot strokeDasharray="4 3" />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
