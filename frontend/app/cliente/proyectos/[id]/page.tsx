@@ -129,7 +129,7 @@ export default function ProyectoDetalle({ params }: { params: Promise<{ id: stri
         </div>
         <div className="rounded-2xl border border-white/5 bg-slate-900 p-4">
           <p className="text-xs text-slate-500 mb-1">Olas enviadas</p>
-          <p className="text-2xl font-bold text-white">{encuestas.filter(e => e.status === "sent" || e.status === "closed").length}</p>
+          <p className="text-2xl font-bold text-white">{encuestas.filter(e => ["ready","sent","closed"].includes(e.status)).length}</p>
           <p className="text-xs text-slate-500 mt-0.5">de medición</p>
         </div>
       </div>
