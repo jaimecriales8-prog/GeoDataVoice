@@ -101,12 +101,12 @@ export default function RegistroEncuestadorPage() {
           <div className="h-20 w-20 rounded-full bg-amber-500/20 flex items-center justify-center mx-auto mb-5">
             <CheckCircle className="h-10 w-10 text-amber-400" />
           </div>
-          <h1 className="text-2xl font-bold text-white mb-3">Solicitud enviada</h1>
+          <h1 className="text-2xl font-bold text-white mb-3">¡Solicitud enviada!</h1>
           <p className="text-slate-300 mb-2">
-            Tu registro está <strong className="text-amber-300">pendiente de aprobación</strong> por el administrador.
+            Te enviamos un correo de verificación a <strong className="text-white">{form.email}</strong>. Confírmalo para activar tu cuenta.
           </p>
           <p className="text-slate-400 text-sm mb-6">
-            Recibirás acceso a la aplicación una vez que tu cuenta sea aprobada.
+            Mientras tanto, estaremos revisando tu registro para aprobarte. Una vez aprobado podrás ingresar a la aplicación de campo.
           </p>
           <button onClick={() => router.push("/")}
             className="rounded-xl bg-emerald-600 hover:bg-emerald-700 px-7 py-3 text-white font-semibold transition-colors">
