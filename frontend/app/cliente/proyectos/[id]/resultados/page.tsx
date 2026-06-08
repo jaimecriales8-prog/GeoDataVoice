@@ -43,7 +43,16 @@ export default function ResultadosProyectoPage({ params }: { params: Promise<{ i
         .from("surveys").select("id, wave, name").eq("project_id", id).order("wave");
       const lista: SurveyRef[] = (sv ?? []).map(s => ({ id: s.id, wave: s.wave ?? 1, name: s.name }));
       setSurveys(lista);
-      setAllData(await fetchResultados(lista.map(s => ({ id: s.id, wave: s.wave }))));
+
+      // Fetch all data + per-ola data in parallel
+      const [all, ...perOla] = await Promise.all([
+        fetchResultados(lista.map(s => ({ id: s.id, wave: s.wave }))),
+        ...lista.map(s => fetchResultados([{ id: s.id, wave: s.wave }])),
+      ]);
+      setAllData(all);
+      const byWave: Record<number, ResultadosProyecto> = {};
+      lista.forEach((s, i) => { byWave[s.wave] = perOla[i]; });
+      setOlaData(byWave);
       setLoading(false);
     })();
   }, [id]);
@@ -115,7 +124,27 @@ export default function ResultadosProyectoPage({ params }: { params: Promise<{ i
 
       {/* Content */}
       {selectedWave === "comparacion" ? (
-        allData && <ResultadosProyectoView data={allData} />
+        <>
+          {allData && <ResultadosProyectoView data={allData} />}
+          {waves.length > 1 && Object.keys(olaData).length === waves.length && (
+            <section className="mt-10">
+              <h2 className="text-sm font-semibold text-white mb-5 flex items-center gap-2">
+                <GitCompare className="h-4 w-4 text-violet-400" /> Resultados por ola — comparación
+              </h2>
+              <div className={`grid gap-6 ${waves.length === 2 ? "lg:grid-cols-2" : "lg:grid-cols-3"}`}>
+                {waves.map(w => (
+                  <div key={w} className="rounded-2xl border border-white/5 bg-slate-900/50 p-5">
+                    <div className="flex items-center gap-2 mb-4">
+                      <span className="text-xs font-bold text-violet-400 bg-violet-500/10 px-2.5 py-1 rounded-full">Ola {w}</span>
+                      <span className="text-xs text-slate-500">{olaData[w]?.agregado.respuestas ?? 0} respuestas</span>
+                    </div>
+                    {olaData[w] && <ResultadosView r={olaData[w].agregado} />}
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+        </>
       ) : loadingOla ? (
         <div className="flex justify-center py-16"><Loader2 className="h-7 w-7 text-violet-400 animate-spin" /></div>
       ) : olaData[selectedWave] ? (
