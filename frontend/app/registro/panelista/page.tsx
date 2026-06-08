@@ -300,7 +300,7 @@ export default function RegistroPanelistaPage() {
   }
 
   return (
-    <div className="min-h-screen overflow-y-auto bg-gradient-to-b from-slate-950 via-amber-950/50 to-slate-950 px-4 pb-10 pt-[max(2rem,env(safe-area-inset-top))]">
+    <div className="min-h-screen bg-gradient-to-b from-slate-950 via-amber-950/50 to-slate-950 px-4 pb-10 pt-[max(2rem,env(safe-area-inset-top))]">
       <div className="mx-auto w-full max-w-md">
 
         <button onClick={() => router.push("/registro")} className="flex items-center gap-2 text-amber-300 hover:text-white transition-colors mb-8 text-sm">
