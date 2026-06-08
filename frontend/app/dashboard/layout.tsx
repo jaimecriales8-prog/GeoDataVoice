@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase";
 import {
   LayoutDashboard, Users, Mic, MapPin, Settings,
@@ -20,6 +21,13 @@ const NAV = [
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  const [pendientesEncuestadores, setPendientesEncuestadores] = useState(0);
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.from("field_operators").select("id", { count: "exact", head: true }).eq("status", "pending")
+      .then(({ count }) => setPendientesEncuestadores(count ?? 0));
+  }, [pathname]);
 
   async function logout() {
     const supabase = createClient();
@@ -52,6 +60,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <nav className="flex-1 px-3 py-4 space-y-0.5">
           {NAV.map(({ href, label, icon: Icon, exact }) => {
             const active = isActive(href, exact);
+            const badge = href === "/dashboard/encuestadores" && pendientesEncuestadores > 0
+              ? pendientesEncuestadores : null;
             return (
               <Link key={href} href={href}
                 className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
@@ -61,7 +71,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 }`}>
                 <Icon className="h-4 w-4 shrink-0" />
                 {label}
-                {active && <ChevronRight className="h-3.5 w-3.5 ml-auto" />}
+                {badge && (
+                  <span className="ml-auto bg-amber-500 text-white text-xs font-bold rounded-full h-5 min-w-5 flex items-center justify-center px-1.5">
+                    {badge}
+                  </span>
+                )}
+                {active && !badge && <ChevronRight className="h-3.5 w-3.5 ml-auto" />}
               </Link>
             );
           })}

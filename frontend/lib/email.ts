@@ -100,6 +100,54 @@ export async function emailClienteActivado(clienteEmail: string, clienteNombre: 
   });
 }
 
+/** Admin: nuevo encuestador pendiente de aprobación */
+export async function emailAdminNuevoEncuestador(nombre: string, documento: string, municipio: string) {
+  return getResend().emails.send({
+    from: FROM,
+    to: process.env.ADMIN_EMAIL ?? "jaimecriales8@icloud.com",
+    subject: `Nuevo encuestador pendiente de aprobación — ${nombre}`,
+    html: baseTemplate(`
+      <h2 style="color:#ffffff;margin:0 0 8px;font-size:22px;">Nuevo encuestador registrado</h2>
+      <p style="color:#94a3b8;margin:0 0 24px;font-size:15px;">Hay un encuestador esperando aprobación en GeoDataVoice.</p>
+      <table width="100%" style="background:#0f172a;border-radius:12px;padding:20px;margin-bottom:24px;">
+        <tr><td style="color:#64748b;font-size:13px;padding-bottom:8px;">Nombre</td></tr>
+        <tr><td style="color:#ffffff;font-size:16px;font-weight:600;padding-bottom:16px;">${nombre}</td></tr>
+        <tr><td style="color:#64748b;font-size:13px;padding-bottom:8px;">Documento</td></tr>
+        <tr><td style="color:#ffffff;font-size:15px;padding-bottom:16px;">${documento}</td></tr>
+        <tr><td style="color:#64748b;font-size:13px;padding-bottom:8px;">Municipio</td></tr>
+        <tr><td style="color:#94a3b8;font-size:14px;">${municipio || "No especificado"}</td></tr>
+      </table>
+      <a href="${process.env.NEXT_PUBLIC_APP_URL ?? "https://geodatavoice.grialtech.co"}/dashboard/encuestadores"
+        style="display:block;background:#10b981;color:#ffffff;text-decoration:none;text-align:center;padding:14px 24px;border-radius:10px;font-weight:600;font-size:15px;">
+        Aprobar encuestador →
+      </a>
+    `),
+  });
+}
+
+/** Encuestador: cuenta aprobada */
+export async function emailEncuestadorAprobado(encuestadorEmail: string, nombre: string) {
+  return getResend().emails.send({
+    from: FROM,
+    to: encuestadorEmail,
+    subject: "Tu cuenta de encuestador ha sido aprobada — GeoDataVoice",
+    html: baseTemplate(`
+      <div style="text-align:center;margin-bottom:24px;">
+        <div style="background:rgba(16,185,129,0.15);border-radius:50%;width:64px;height:64px;margin:0 auto 16px;display:inline-block;line-height:64px;font-size:32px;">✅</div>
+        <h2 style="color:#ffffff;margin:0 0 8px;font-size:22px;">¡Tu cuenta fue aprobada!</h2>
+        <p style="color:#94a3b8;margin:0;font-size:15px;">Hola ${nombre}, ya puedes ingresar a la aplicación de campo.</p>
+      </div>
+      <a href="${process.env.NEXT_PUBLIC_APP_URL ?? "https://geodatavoice.grialtech.co"}/login"
+        style="display:block;background:#10b981;color:#ffffff;text-decoration:none;text-align:center;padding:14px 24px;border-radius:10px;font-weight:600;font-size:15px;margin-bottom:20px;">
+        Ingresar a la app de campo →
+      </a>
+      <p style="color:#64748b;font-size:13px;text-align:center;margin:0;">
+        Desde la app podrás ver tus encuestas asignadas, registrar personas en campo y consultar tus ganancias.
+      </p>
+    `),
+  });
+}
+
 /** Panelista: encuesta disponible */
 export async function emailPanelistaNuevaEncuesta(
   panelistaEmail: string,

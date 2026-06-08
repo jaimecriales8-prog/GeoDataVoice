@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase-service";
+import { emailEncuestadorAprobado } from "@/lib/email";
 
 export async function GET() {
   const supabase = createServiceClient();
@@ -28,5 +29,22 @@ export async function PATCH(req: Request) {
   const supabase = createServiceClient();
   const { error } = await supabase.from("field_operators").update({ status }).eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Si se aprueba, notificar al encuestador por correo
+  if (status === "active") {
+    const { data: op } = await supabase
+      .from("field_operators")
+      .select("name, user_id")
+      .eq("id", id)
+      .maybeSingle();
+    if (op?.user_id) {
+      const { data: user } = await supabase.auth.admin.getUserById(op.user_id);
+      const email = user?.user?.email;
+      if (email) {
+        emailEncuestadorAprobado(email, op.name ?? "Encuestador").catch(console.error);
+      }
+    }
+  }
+
   return NextResponse.json({ ok: true });
 }
