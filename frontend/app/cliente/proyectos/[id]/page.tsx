@@ -41,6 +41,7 @@ export default function ProyectoDetalle({ params }: { params: Promise<{ id: stri
   const [panelSize, setPanelSize] = useState(0);
   const [identityGlobal, setIdentityGlobal] = useState(true);
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [olaLocal, setOlaLocal] = useState<Record<string, number>>({});
 
   useEffect(() => { load(); }, [id]);
 
@@ -195,6 +196,7 @@ export default function ProyectoDetalle({ params }: { params: Promise<{ id: stri
               const PerfilIcon = perfil.icon;
               const isSaving = savingId === e.id;
               const activa = e.status === "sent" || e.status === "ready";
+              const olaSeleccionada = olaLocal[e.id] ?? e.wave;
               return (
                 <div key={e.id} className="px-6 py-4 hover:bg-white/[0.02] transition-colors">
                   <div className="flex items-center gap-4">
@@ -229,18 +231,22 @@ export default function ProyectoDetalle({ params }: { params: Promise<{ id: stri
                       </div>
                     </div>
 
-                    {/* Selector de ola */}
+                    {/* Selector de ola — solo local, no guarda hasta lanzar */}
                     <div className="flex items-center gap-1.5 shrink-0">
                       <span className="text-xs text-slate-500">Ola</span>
-                      <select
-                        value={e.wave}
-                        onChange={ev => updateEncuesta(e.id, { wave: parseInt(ev.target.value) })}
-                        disabled={isSaving}
-                        className="rounded-lg bg-slate-800 border border-white/10 px-2 py-1 text-xs text-white focus:outline-none focus:border-violet-500 disabled:opacity-50 w-14">
-                        {[1,2,3,4,5,6,7,8,9,10].map(n => (
-                          <option key={n} value={n}>{n}</option>
-                        ))}
-                      </select>
+                      {activa || e.status === "closed" ? (
+                        <span className="rounded-lg bg-slate-800 border border-white/10 px-3 py-1 text-xs text-white w-14 text-center">{e.wave}</span>
+                      ) : (
+                        <select
+                          value={olaSeleccionada}
+                          onChange={ev => setOlaLocal(prev => ({ ...prev, [e.id]: parseInt(ev.target.value) }))}
+                          disabled={isSaving}
+                          className="rounded-lg bg-slate-800 border border-white/10 px-2 py-1 text-xs text-white focus:outline-none focus:border-violet-500 disabled:opacity-50 w-14">
+                          {[1,2,3,4,5,6,7,8,9,10].map(n => (
+                            <option key={n} value={n}>{n}</option>
+                          ))}
+                        </select>
+                      )}
                     </div>
 
                     {/* Badge estado */}
@@ -250,10 +256,10 @@ export default function ProyectoDetalle({ params }: { params: Promise<{ id: stri
 
                     {/* Botón acción principal */}
                     {(() => {
-                      const hayActiva = encuestas.some(x => x.id !== e.id && x.status === "sent");
-                      const maxOlaUsada = encuestas.filter(x => x.id !== e.id).reduce((max, x) => Math.max(max, x.wave), 0);
+                      const hayActiva = encuestas.some(x => x.status === "sent");
+                      const maxOlaUsada = encuestas.reduce((max, x) => Math.max(max, x.wave), 0);
                       const esBorrador = e.status === "draft" || e.status === "ready";
-                      const esOlaNueva = esBorrador && e.wave > maxOlaUsada;
+                      const esOlaNueva = esBorrador && olaSeleccionada > maxOlaUsada;
 
                       if (e.status === "sent") {
                         return (
@@ -270,11 +276,11 @@ export default function ProyectoDetalle({ params }: { params: Promise<{ id: stri
                       if (esOlaNueva) {
                         return (
                           <button
-                            onClick={() => !hayActiva && lanzarOla(e.id, e.wave)}
+                            onClick={() => !hayActiva && lanzarOla(e.id, olaSeleccionada)}
                             disabled={isSaving || hayActiva}
                             title={hayActiva ? "Cierra la ola activa antes de lanzar una nueva" : `Lanzar Ola ${e.wave}`}
                             className="shrink-0 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold bg-violet-500/15 text-violet-300 hover:bg-violet-500/25 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-                            <Send className="h-3.5 w-3.5" /> Lanzar Ola {e.wave}
+                            <Send className="h-3.5 w-3.5" /> Lanzar Ola {olaSeleccionada}
                           </button>
                         );
                       }
