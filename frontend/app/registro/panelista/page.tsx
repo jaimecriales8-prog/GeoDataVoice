@@ -361,8 +361,12 @@ export default function RegistroPanelistaPage() {
                   placeholder="N° documento" inputMode="numeric" className={inputCls} />
               </Field>
               <Field label="Año nacimiento *">
-                <input value={form.birth_year} onChange={e => update("birth_year", e.target.value.slice(0, 4))}
-                  placeholder="Ej: 1990" inputMode="numeric" maxLength={4} className={inputCls} />
+                <select value={form.birth_year} onChange={e => update("birth_year", e.target.value)} className={inputCls}>
+                  <option value="">Selecciona año</option>
+                  {Array.from({ length: 2008 - 1920 + 1 }, (_, i) => 2008 - i).map(y => (
+                    <option key={y} value={y}>{y}</option>
+                  ))}
+                </select>
               </Field>
             </div>
 
