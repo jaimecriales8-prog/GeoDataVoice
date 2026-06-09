@@ -122,14 +122,14 @@
 ### Pagos a panelistas
 - [x] **Ganancias devengadas en vivo** — home panelista ("ganado este mes" + "total" = encuestas × `encuesta_cop` + audios × `audio_cop`); home encuestador ("ganado este mes" = reclutados × bono + encuestas campo × `encuesta_campo_cop`). Calculado desde la actividad, no desde `payments`.
 - [x] **P1-10** Configuración de tarifas en `dashboard/pagos` conectada a `payment_config` (incl. bono reclutamiento)
-- [ ] **P1-08/09** Dispersión real de pagos: registrar cada pago en `payments` (Nequi/Daviplata) para distinguir devengado vs pagado vs por cobrar. Hoy se muestra solo lo devengado.
+- [ ] **P1-08/09** Dispersión real de pagos: registrar cada pago en `payments` (Nequi/Daviplata) para distinguir devengado vs pagado vs por cobrar. Hoy se muestra solo lo devengado. ⏸ **Bloqueado: requiere convenio con Nequi/Daviplata.**
 
 ### Verificación de identidad
 - [x] **P1-11** KYC con **AutenTIC** (Veriff Colombia) en `/campo/verificar-identidad` — doble modo (simulación + SDK real), igual que CertiLaboral
 - [x] **P1-12** Webhook `/api/identidad/webhook` (HMAC) → marca `participants.kyc_status=approved, status=verified`
 - [x] **P1-11b** Credenciales AutenTIC obtenidas y **validadas** (cuenta saas-3): API key crea sesiones (HTTP 201), secret firma HMAC OK (HTTP 200). Guardadas comentadas en `.env.local`.
-- [ ] **P1-11b2** ⚠️ BLOQUEANTE para modo real: configurar Decision Webhook URL en panel AutenTIC → `https://geodatavoice.grialtech.co/api/identidad/webhook`. Hasta entonces se queda en SIMULACIÓN. Cuenta saas-3 compartida con CertiLaboral (que está en simulación, sin conflicto).
-- [ ] **P1-11b3** Cuando el webhook esté listo: descomentar vars en `.env.local`, cargarlas en Vercel Production, deploy.
+- [ ] **P1-11b2** Configurar Decision Webhook URL en panel AutenTIC → `https://geodatavoice.grialtech.co/api/identidad/webhook`. ⏸ **Bloqueado: requiere convenio con AutenTIC.**
+- [ ] **P1-11b3** Activar vars AutenTIC en `.env.local` + Vercel Production + deploy. ⏸ **Bloqueado: depende de P1-11b2.**
 - [x] **P1-11c** Gate en middleware: bloquea `/campo/*` si `kyc_status != approved` (ver P0-01)
 - [x] **Fix registro panelista**: insert usaba `name` (columna inexistente) → corregido a `name_encrypted` + captura de error. Antes el insert fallaba silenciosamente y `participants` quedaba vacía.
 
