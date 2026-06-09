@@ -82,7 +82,7 @@
 - [x] **P1-06** Email de activación al cliente cuando admin aprueba su cuenta — `/api/email/cliente-activado` + integrado en `dashboard/clientes`
 - [x] **P1-07** Notificación al panelista cuando hay nueva encuesta — `/api/email/nueva-encuesta` + integrado al publicar encuesta
 - [ ] **P1-06b** Integrar `/api/email/pago-procesado` en `dashboard/pagos` (endpoint listo, falta llamarlo al aprobar pago)
-- [~] **P1-06c** Templates de email Supabase Auth — SMTP configurado. **PENDIENTE MANUAL**: cambiar 2 templates en Supabase Dashboard → Authentication → Email Templates: (1) Confirm signup: `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=signup`; (2) Reset Password: `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery&next=/auth/reset-password`. Fix el bug de "Enlace inválido" cross-device (PKCE).
+- [x] **P1-06c** Templates de email Supabase Auth — SMTP configurado + templates corregidos (token_hash, no PKCE). Confirm signup: `type=email`, Reset Password: `type=recovery&next=/auth/reset-password`. Fix bug "Enlace inválido" cross-device. Verificado 2026-06-08.
 - [ ] **P1-06d** Verificar subdominio `geodatavoice.grialtech.co` en Resend cuando se suba de plan (hoy se envía desde la raíz `grialtech.co`)
 - [ ] **P1-06e** Agregar variables de email a Preview en Vercel (hoy solo en Production)
 
