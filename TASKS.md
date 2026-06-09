@@ -150,7 +150,7 @@
   - **Cómo:** algoritmo IPF (Iterative Proportional Fitting / raking) que itera hasta cuadrar varias variables a la vez (sexo, estrato, edad, etc.) contra las cifras del censo.
   - **Necesita:** (1) cargar tablas del censo DANE por municipio; (2) implementar IPF; (3) definir variables ancla por proyecto; (4) decidir tabla/estructura para guardar los marginales del censo.
   - **Combinación ideal:** raking corrige el sesgo muestral y, encima, el cliente puede aplicar su ponderación editorial (P1-25) si quiere dar más peso a un grupo según el tema.
-- [ ] **P2-10** CI/CD con GitHub Actions (lint + type-check + deploy preview)
+- [x] **P2-10** CI/CD con GitHub Actions — `.github/workflows/ci.yml`: type-check (`tsc --noEmit`) + ESLint en cada push/PR a `main`. No bloquea el deploy (continue-on-error), solo reporta en GitHub. 2026-06-09.
 - [ ] **P2-11** Monitoreo de errores — Sentry o Vercel Analytics
 
 ---
