@@ -1,5 +1,5 @@
 # TASKS.md — GeoDataVoice Backlog
-> Última actualización: 2026-06-07
+> Última actualización: 2026-06-08
 
 ## Leyenda
 - `[ ]` Pendiente
@@ -82,12 +82,18 @@
 - [x] **P1-06** Email de activación al cliente cuando admin aprueba su cuenta — `/api/email/cliente-activado` + integrado en `dashboard/clientes`
 - [x] **P1-07** Notificación al panelista cuando hay nueva encuesta — `/api/email/nueva-encuesta` + integrado al publicar encuesta
 - [ ] **P1-06b** Integrar `/api/email/pago-procesado` en `dashboard/pagos` (endpoint listo, falta llamarlo al aprobar pago)
-- [ ] **P1-06c** Configurar SMTP de Resend en Supabase Auth (confirmar registro / recuperar contraseña) — en progreso
+- [~] **P1-06c** Templates de email Supabase Auth — SMTP configurado. **PENDIENTE MANUAL**: cambiar 2 templates en Supabase Dashboard → Authentication → Email Templates: (1) Confirm signup: `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=signup`; (2) Reset Password: `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery&next=/auth/reset-password`. Fix el bug de "Enlace inválido" cross-device (PKCE).
 - [ ] **P1-06d** Verificar subdominio `geodatavoice.grialtech.co` en Resend cuando se suba de plan (hoy se envía desde la raíz `grialtech.co`)
 - [ ] **P1-06e** Agregar variables de email a Preview en Vercel (hoy solo en Production)
 
 ### Auth / onboarding por correo
-- [x] **P1-19** Confirmación de email vía **token_hash + verifyOtp** (no PKCE) — arregla "Enlace inválido o expirado" que fallaba siempre al abrir el enlace en otro dispositivo. Ruta `/auth/confirm`, plantillas reescritas (confirmación/recuperación/cambio correo/magic link), página `/auth/reset-password`. Ver ADR-019.
+- [x] **P1-19** Confirmación de email vía **token_hash + verifyOtp**
+- [x] **P1-28** Gestión de olas inline en detalle de proyecto — selector de ola local, "Lanzar Ola X" (duplica encuesta + preguntas), "Cerrar Ola X", bloqueo si hay ola activa. Fix duplicación: columnas explícitas en `questions` (sin `created_at`).
+- [x] **P1-29** Resultados por ola — tabs "Comparación entre olas" + "Ola N" en `/cliente/proyectos/[id]/resultados`. Comparación lado a lado. Línea Neutral en gráfico de sentimiento.
+- [x] **P1-30** Flujo "olvidé mi contraseña" — página `/auth/olvide-contrasena` + indicadores fortaleza/coincidencia en `/auth/reset-password`.
+- [x] **P1-31** Notificaciones admin encuestadores pendientes — badge con conteo en sidebar + email al admin al registrarse nuevo encuestador + email al encuestador al ser aprobado.
+- [x] **P1-32** Registro encuestador con dropdowns departamento/municipio (Colombia).
+- [x] **P1-33** Stats encuestador vía service role API (`/api/campo/encuestador/stats`) — bypasa RLS en `responses`. Contadores correctos: reclutados mes / encuestas hoy / encuestas mes / ganancias devengadas. (no PKCE) — arregla "Enlace inválido o expirado" que fallaba siempre al abrir el enlace en otro dispositivo. Ruta `/auth/confirm`, plantillas reescritas (confirmación/recuperación/cambio correo/magic link), página `/auth/reset-password`. Ver ADR-019.
 
 ### Segmentación de encuestas
 - [x] **P1-20** Público objetivo segmentado por variables del panelista (`surveys.audiencia` jsonb + `lib/segmentacion.ts`). Creación: "Cualquier persona" vs "Segmentar"; home panelista filtra por coincidencia; detalle de proyecto muestra "Segmentada". Ver ADR-020.
@@ -131,7 +137,7 @@
 
 ## P2 — Post-validación
 
-- [~] **P2-01** RLS policies en todas las tablas (desactivado — MVP). PARCIAL: guard de ownership client-side en tableros de resultados (cliente solo ve sus proyectos; admin todo). FALTA: RLS real a nivel BD en las 15 tablas con políticas por rol (panelista/encuestador/cliente/admin) + probar cada flujo. Tarea dedicada (riesgosa, no apurar).
+- [x] **P2-01** RLS policies en todas las tablas — **APLICADO en producción 2026-06-08**. 16 tablas con políticas por rol (admin/cliente/panelista/encuestador). Migration `supabase/migrations/20260607_rls.sql` corrida + políticas adicionales de soporte. Verificado con `pg_policies`.
 - [ ] **P2-02** Cifrado AES-256-GCM para `name` de participantes (Supabase Vault) — ver ADR-004
 - [ ] **P2-03** OTP SMS para verificación de celular de panelistas
 - [ ] **P2-04** AGORA — módulo de pares: `peers`, `peer_tasks`, `peer_evidences`, banco de mensajes con aprobación
