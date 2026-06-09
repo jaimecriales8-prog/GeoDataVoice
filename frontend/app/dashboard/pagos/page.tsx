@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase";
-import { Wallet, Save, Info, ChevronDown, ChevronUp } from "lucide-react";
+import { Wallet, Save, Info, ChevronDown, ChevronUp, CheckCircle, Clock } from "lucide-react";
 
 type TarifaGlobal = {
   id?: string;
@@ -14,6 +14,16 @@ type TarifaGlobal = {
 };
 
 type BonoEncuestador = { id: string; name: string; recruiter_code: string | null; reclutados: number };
+
+type PagoPendiente = {
+  id: string;
+  amount: number;
+  concept: string | null;
+  status: string;
+  created_at: string;
+  participant_id: string;
+  participant_name: string;
+};
 
 type TarifaCliente = {
   client_id: string;
@@ -32,6 +42,8 @@ export default function PagosPage() {
   const [saved, setSaved] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [clienteTarifas, setClienteTarifas] = useState<Record<string, { encuesta_cop: string; audio_cop: string; encuesta_campo_cop: string }>>({});
+  const [pagos, setPagos] = useState<PagoPendiente[]>([]);
+  const [aprobando, setAprobando] = useState<string | null>(null);
 
   useEffect(() => { load(); }, []);
 
@@ -89,7 +101,44 @@ export default function PagosPage() {
       };
     });
     setClienteTarifas(init);
+
+    // Pagos pendientes
+    const { data: pagosData } = await supabase
+      .from("payments")
+      .select("id, amount, concept, status, created_at, participant_id, participants(name_encrypted)")
+      .eq("status", "pending")
+      .order("created_at", { ascending: false });
+
+    setPagos((pagosData ?? []).map((p: Record<string, unknown>) => ({
+      id: p.id as string,
+      amount: p.amount as number,
+      concept: p.concept as string | null,
+      status: p.status as string,
+      created_at: p.created_at as string,
+      participant_id: p.participant_id as string,
+      participant_name: (p.participants as Record<string, string> | null)?.name_encrypted ?? "Panelista",
+    })));
+
     setLoading(false);
+  }
+
+  async function aprobarPago(pagoId: string) {
+    setAprobando(pagoId);
+    const supabase = createClient();
+    // Marcar como pagado
+    await supabase.from("payments").update({ status: "paid" }).eq("id", pagoId);
+    // Enviar email de notificación
+    try {
+      await fetch("/api/email/pago-procesado", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pagoId }),
+      });
+    } catch (e) {
+      console.error("[aprobarPago] Error enviando email:", e);
+    }
+    setAprobando(null);
+    await load();
   }
 
   async function guardarGlobal() {
@@ -231,6 +280,62 @@ export default function PagosPage() {
                   <td className="px-5 py-4 text-sm text-slate-300">{b.reclutados}</td>
                   <td className="px-5 py-4 text-right text-sm font-bold text-emerald-400">
                     ${(b.reclutados * global.bono_reclutamiento_cop).toLocaleString("es-CO")}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {/* Pagos pendientes */}
+      <div className="rounded-2xl border border-white/5 bg-slate-900 overflow-hidden mb-6">
+        <div className="px-6 py-4 border-b border-white/5 flex items-center gap-3">
+          <Clock className="h-4 w-4 text-amber-400" />
+          <div>
+            <h2 className="text-sm font-semibold text-white">Pagos pendientes</h2>
+            <p className="text-xs text-slate-500 mt-0.5">Al aprobar se marca como pagado y se notifica al panelista por email</p>
+          </div>
+          {pagos.length > 0 && (
+            <span className="ml-auto rounded-full bg-amber-500/20 text-amber-400 text-xs font-semibold px-2.5 py-1">
+              {pagos.length} pendiente{pagos.length > 1 ? "s" : ""}
+            </span>
+          )}
+        </div>
+        {pagos.length === 0 ? (
+          <div className="p-8 text-center">
+            <CheckCircle className="h-8 w-8 text-slate-700 mx-auto mb-2" />
+            <p className="text-sm text-slate-500">No hay pagos pendientes</p>
+          </div>
+        ) : (
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-white/5">
+                <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Panelista</th>
+                <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Concepto</th>
+                <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Fecha</th>
+                <th className="text-right px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Monto</th>
+                <th className="px-5 py-3" />
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/5">
+              {pagos.map(p => (
+                <tr key={p.id} className="hover:bg-white/[0.02] transition-colors">
+                  <td className="px-5 py-4 text-sm text-white">{p.participant_name}</td>
+                  <td className="px-5 py-4 text-xs text-slate-400">{p.concept ?? "—"}</td>
+                  <td className="px-5 py-4 text-xs text-slate-500">
+                    {new Date(p.created_at).toLocaleDateString("es-CO", { day: "numeric", month: "short", year: "numeric" })}
+                  </td>
+                  <td className="px-5 py-4 text-right text-sm font-bold text-emerald-400">
+                    ${p.amount.toLocaleString("es-CO")}
+                  </td>
+                  <td className="px-5 py-4 text-right">
+                    <button
+                      onClick={() => aprobarPago(p.id)}
+                      disabled={aprobando === p.id}
+                      className="rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 px-3 py-1.5 text-xs font-semibold text-white transition-colors">
+                      {aprobando === p.id ? "Aprobando..." : "Aprobar"}
+                    </button>
                   </td>
                 </tr>
               ))}

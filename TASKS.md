@@ -81,7 +81,7 @@
 ### Notificaciones y emails
 - [x] **P1-06** Email de activación al cliente cuando admin aprueba su cuenta — `/api/email/cliente-activado` + integrado en `dashboard/clientes`
 - [x] **P1-07** Notificación al panelista cuando hay nueva encuesta — `/api/email/nueva-encuesta` + integrado al publicar encuesta
-- [ ] **P1-06b** Integrar `/api/email/pago-procesado` en `dashboard/pagos` (endpoint listo, falta llamarlo al aprobar pago)
+- [x] **P1-06b** Integrar `/api/email/pago-procesado` en `dashboard/pagos` — sección "Pagos pendientes" con botón Aprobar: marca `payments.status=paid` + llama endpoint de email al panelista. 2026-06-09.
 - [x] **P1-06c** Templates de email Supabase Auth — SMTP configurado + templates corregidos (token_hash, no PKCE). Confirm signup: `type=email`, Reset Password: `type=recovery&next=/auth/reset-password`. Fix bug "Enlace inválido" cross-device. Verificado 2026-06-08.
 - [ ] **P1-06d** Verificar subdominio `geodatavoice.grialtech.co` en Resend cuando se suba de plan (hoy se envía desde la raíz `grialtech.co`)
 - [ ] **P1-06e** Agregar variables de email a Preview en Vercel (hoy solo en Production)
@@ -142,7 +142,7 @@
 - [ ] **P2-03** OTP SMS para verificación de celular de panelistas
 - [ ] **P2-04** AGORA — módulo de pares: `peers`, `peer_tasks`, `peer_evidences`, banco de mensajes con aprobación
 - [ ] **P2-05** Mapa interactivo en dashboard cliente — Mapbox GL o Leaflet con polígonos por zona
-- [ ] **P2-06** Paginación en listados de panelistas, encuestadores, proyectos
+- [x] **P2-06** Paginación en listados de panelistas, encuestadores, proyectos — 2026-06-08
 - [ ] **P2-07** WhatsApp Business API (360dialog o Twilio) para envío de links de encuesta
 - [ ] **P2-08** Panel rotativo automático: reglas de rotación, reemplazo por gemelos estadísticos
 - [ ] **P2-09** Post-estratificación y ponderación estadística (Raking contra censo DANE)
