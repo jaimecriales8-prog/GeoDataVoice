@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase";
 import Link from "next/link";
 import { BarChart3, Plus, ArrowRight } from "lucide-react";
+import Paginacion, { usePaginar } from "@/components/paginacion";
 
 type Proyecto = { id: string; name: string; type: string; purpose: string; status: string; start_date: string | null };
 
@@ -54,8 +55,17 @@ export default function ClienteProyectos() {
           <p className="text-xs text-slate-600 mt-1">Contacta al administrador para activar tu primer proyecto</p>
         </div>
       ) : (
+        <ProyectosList proyectos={proyectos} />
+      )}
+    </div>
+  );
+}
+
+function ProyectosList({ proyectos }: { proyectos: Proyecto[] }) {
+  const { paginados, pagina, setPagina, total } = usePaginar(proyectos, 20);
+  return (
         <div className="space-y-3">
-          {proyectos.map(p => (
+          {paginados.map(p => (
             <Link key={p.id} href={`/cliente/proyectos/${p.id}`}
               className="flex items-center gap-4 rounded-2xl border border-white/5 bg-slate-900 px-5 py-4 hover:bg-white/[0.02] transition-colors">
               <div className="h-10 w-10 rounded-xl bg-violet-500/20 flex items-center justify-center shrink-0">
@@ -77,8 +87,7 @@ export default function ClienteProyectos() {
               <ArrowRight className="h-4 w-4 text-slate-600 shrink-0" />
             </Link>
           ))}
+          <Paginacion total={total} pagina={pagina} porPagina={20} onChange={setPagina} />
         </div>
-      )}
-    </div>
   );
 }

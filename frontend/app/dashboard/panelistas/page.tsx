@@ -2,8 +2,8 @@
 
 import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { createClient } from "@/lib/supabase";
 import { Mic, Search, CheckCircle, Clock, XCircle, Filter } from "lucide-react";
+import Paginacion, { usePaginar } from "@/components/paginacion";
 
 type Panelista = {
   id: string;
@@ -40,18 +40,14 @@ function PanelistasContent() {
   useEffect(() => { load(); }, []);
 
   async function load() {
-    const supabase = createClient();
-    const { data } = await supabase
-      .from("participants")
-      .select("id, name, gender, birth_year, status, kyc_status, phone_verified, created_at")
-      .order("created_at", { ascending: false });
-    setPanelistas(data ?? []);
+    const res = await fetch("/api/admin/panelistas");
+    const data = await res.json();
+    setPanelistas((data ?? []).map((p: Record<string, unknown>) => ({ ...p, name: p.name_encrypted ?? "" })));
     setLoading(false);
   }
 
   async function cambiarEstado(id: string, nuevoEstado: string) {
-    const supabase = createClient();
-    await supabase.from("participants").update({ status: nuevoEstado }).eq("id", id);
+    await fetch("/api/admin/panelistas", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, status: nuevoEstado }) });
     await load();
   }
 
@@ -60,6 +56,7 @@ function PanelistasContent() {
     const matchEstado = filtroEstado === "all" || p.status === filtroEstado || p.kyc_status === filtroEstado;
     return matchBusqueda && matchEstado;
   });
+  const { paginados, pagina, setPagina, total } = usePaginar(filtrados);
 
   const counts = {
     all: panelistas.length,
@@ -126,7 +123,7 @@ function PanelistasContent() {
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
-              {filtrados.map(p => {
+              {paginados.map(p => {
                 const sc = STATUS_CONF[p.status] ?? STATUS_CONF.preregistered;
                 const kc = KYC_CONF[p.kyc_status] ?? KYC_CONF.pending;
                 return (
@@ -178,6 +175,9 @@ function PanelistasContent() {
             </tbody>
           </table>
         )}
+        <div className="px-5 pb-4">
+          <Paginacion total={total} pagina={pagina} porPagina={25} onChange={setPagina} />
+        </div>
       </div>
     </div>
   );

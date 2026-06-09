@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase";
 import { Plus, Search, Building2, ChevronRight, MoreHorizontal } from "lucide-react";
+import Paginacion, { usePaginar } from "@/components/paginacion";
 
 type Cliente = {
   id: string;
@@ -87,6 +88,7 @@ export default function ClientesPage() {
     c.name.toLowerCase().includes(busqueda.toLowerCase()) ||
     c.contact_email?.toLowerCase().includes(busqueda.toLowerCase())
   );
+  const { paginados, pagina, setPagina, total } = usePaginar(filtrados);
 
   return (
     <div className="p-8">
@@ -190,7 +192,7 @@ export default function ClientesPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
-              {filtrados.map(c => (
+              {paginados.map(c => (
                 <tr key={c.id} className="hover:bg-white/[0.02] transition-colors">
                   <td className="px-5 py-4">
                     <div className="flex items-center gap-3">
@@ -243,6 +245,9 @@ export default function ClientesPage() {
             </tbody>
           </table>
         )}
+        <div className="px-5 pb-4">
+          <Paginacion total={total} pagina={pagina} porPagina={25} onChange={setPagina} />
+        </div>
       </div>
     </div>
   );

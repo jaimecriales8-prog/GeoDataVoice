@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { MapPin, Plus, Search, CheckCircle, XCircle, Clock, Shield, Settings } from "lucide-react";
+import Paginacion, { usePaginar } from "@/components/paginacion";
 
 type Encuestador = {
   id: string;
@@ -111,6 +112,7 @@ export default function EncuestadoresPage() {
   const lista = (tab === "pendientes" ? pendientes : activos).filter(e =>
     e.name.toLowerCase().includes(busqueda.toLowerCase()) || e.document.includes(busqueda)
   );
+  const { paginados: listaPage, pagina, setPagina, total } = usePaginar(lista);
 
   return (
     <div className="p-8">
@@ -258,7 +260,7 @@ export default function EncuestadoresPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
-              {lista.map(e => (
+              {listaPage.map(e => (
                 <tr key={e.id} className="hover:bg-white/[0.02] transition-colors">
                   <td className="px-5 py-4">
                     <div className="flex items-center gap-3">
@@ -315,6 +317,9 @@ export default function EncuestadoresPage() {
             </tbody>
           </table>
         )}
+        <div className="px-5 pb-4">
+          <Paginacion total={total} pagina={pagina} porPagina={25} onChange={setPagina} />
+        </div>
       </div>
     </div>
   );
