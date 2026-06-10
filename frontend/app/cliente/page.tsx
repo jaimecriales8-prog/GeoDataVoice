@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase";
 import Link from "next/link";
 import { BarChart3, ClipboardList, Users, ArrowRight, MapPinned } from "lucide-react";
+import CaracterizacionPanel from "@/components/caracterizacion-panel";
 
 type Proyecto = { id: string; name: string; type: string; status: string };
 type Stats = { proyectos: number; encuestas: number; panelistas: number };
@@ -18,6 +19,7 @@ export default function ClienteHome() {
   const [stats, setStats] = useState<Stats>({ proyectos: 0, encuestas: 0, panelistas: 0 });
   const [clienteId, setClienteId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [panelData, setPanelData] = useState<Record<string, unknown> | null>(null);
 
   useEffect(() => {
     const supabase = createClient();
@@ -38,6 +40,7 @@ export default function ClienteHome() {
         panelistas: panCount ?? 0,
       });
       setLoading(false);
+      fetch("/api/cliente/panel-disponible").then(r => r.json()).then(setPanelData).catch(() => null);
     });
   }, []);
 
@@ -105,6 +108,14 @@ export default function ClienteHome() {
           </div>
         )}
       </div>
+      {panelData && (
+        <div className="mt-6">
+          <CaracterizacionPanel
+            data={panelData as Parameters<typeof CaracterizacionPanel>[0]["data"]}
+            titulo="Panel disponible"
+          />
+        </div>
+      )}
     </div>
   );
 }
