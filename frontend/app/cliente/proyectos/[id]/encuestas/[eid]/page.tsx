@@ -188,9 +188,9 @@ export default function ResultadosEncuesta({ params }: { params: Promise<{ id: s
         <ArrowLeft className="h-4 w-4" /> Volver al proyecto
       </Link>
 
-      {/* Tabs de olas */}
+      {/* Pills de olas + botón evolución */}
       {olas.length > 1 && (
-        <div className="flex gap-1 mb-4 flex-wrap">
+        <div className="flex gap-1 mb-4 flex-wrap items-center">
           {olas.map(o => (
             <button key={o.id} onClick={() => router.push(`/cliente/proyectos/${id}/encuestas/${o.id}`)}
               className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-colors ${
@@ -201,6 +201,14 @@ export default function ResultadosEncuesta({ params }: { params: Promise<{ id: s
               Ola {o.wave}
             </button>
           ))}
+          <button onClick={toggleEvolucion}
+            className={`inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-semibold transition-colors border ${
+              mostrarEvolucion
+                ? "bg-violet-600/30 border-violet-500/50 text-violet-300"
+                : "bg-slate-800 border-white/10 text-slate-400 hover:text-white hover:bg-slate-700"
+            }`}>
+            <TrendingUp className="h-3.5 w-3.5" /> Evolución
+          </button>
         </div>
       )}
 
@@ -254,18 +262,6 @@ export default function ResultadosEncuesta({ params }: { params: Promise<{ id: s
           </div>
         )}
         <div className="flex items-center gap-2 print:hidden">
-          {olas.length > 1 && (
-            <button
-              onClick={toggleEvolucion}
-              className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${
-                mostrarEvolucion
-                  ? "bg-violet-600/30 border-violet-500/50 text-violet-300"
-                  : "bg-slate-800 border-white/10 text-slate-300 hover:text-white hover:bg-slate-700"
-              }`}
-            >
-              <TrendingUp className="h-3.5 w-3.5" /> Evolución por ola
-            </button>
-          )}
           {res && res.individuales.length > 0 && (<>
             <button
               onClick={() => exportarCSV(nombre, res)}
