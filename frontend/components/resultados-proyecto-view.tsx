@@ -100,7 +100,10 @@ export default function ResultadosProyectoView({ data, hideAgregado }: { data: R
 
               return (
                 <div key={ind.key} className="rounded-2xl border border-white/5 bg-slate-900 p-5">
-                  <p className="text-sm font-medium text-white mb-4">{ind.text}</p>
+                  <div className="flex items-start gap-2 mb-4">
+                    <span className="mt-0.5 shrink-0 rounded-full bg-violet-500/20 text-violet-400 text-[10px] font-bold px-2 py-0.5">P{indicadores.indexOf(ind) + 1}</span>
+                    <p className="text-sm font-semibold text-white leading-snug">{ind.text}</p>
+                  </div>
                   {ind.esFavorabilidad ? (
                     <div style={{ height: 200 }}>
                       <ResponsiveContainer width="100%" height="100%">
