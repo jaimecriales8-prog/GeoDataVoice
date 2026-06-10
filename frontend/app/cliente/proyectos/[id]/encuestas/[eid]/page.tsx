@@ -192,9 +192,9 @@ export default function ResultadosEncuesta({ params }: { params: Promise<{ id: s
       {olas.length > 1 && (
         <div className="flex gap-1 mb-4 flex-wrap items-center">
           {olas.map(o => (
-            <button key={o.id} onClick={() => router.push(`/cliente/proyectos/${id}/encuestas/${o.id}`)}
+            <button key={o.id} onClick={() => { setMostrarEvolucion(false); router.push(`/cliente/proyectos/${id}/encuestas/${o.id}`); }}
               className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-colors ${
-                o.id === eid
+                o.id === eid && !mostrarEvolucion
                   ? "bg-violet-600 text-white"
                   : "bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700"
               }`}>
