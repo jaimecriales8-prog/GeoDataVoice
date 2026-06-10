@@ -71,7 +71,7 @@ export default function CaracterizacionPanel({ data, titulo = "Caracterización 
     { grupos: data.registrado_votar, titulo: "Registro electoral" },
     { grupos: data.recibe_subsidios, titulo: "Recibe subsidios" },
     { grupos: data.acceso_internet,  titulo: "Acceso a internet" },
-  ].filter(s => s.grupos && s.grupos.filter(g => g.label !== "Sin dato").length > 0);
+  ].filter(s => s.grupos && s.grupos.length > 0);
 
   return (
     <div className="rounded-2xl border border-white/5 bg-slate-900 p-6">
