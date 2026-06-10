@@ -4,16 +4,17 @@ import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
-import { type Resultados, type Ponderacion, type FiltroDemo } from "@/lib/resultados";
+import { type Resultados, type Ponderacion, type FiltroDemo, type ResultadosProyecto, fetchResultadosProyecto } from "@/lib/resultados";
 
 async function fetchResultados(surveyIds: string[], filtro?: FiltroDemo | null): Promise<Resultados> {
   const res = await fetch("/api/resultados", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ surveyIds, filtro }) });
   return res.json();
 }
 import ResultadosView from "@/components/resultados-view";
+import ResultadosProyectoView from "@/components/resultados-proyecto-view";
 import { PonderacionEditor } from "@/components/ponderacion-editor";
 import { FiltroDemografico } from "@/components/filtro-demografico";
-import { ArrowLeft, Loader2, Download, Printer, Send, StopCircle, Pencil, Link2, Check, Users, ShieldCheck, ShieldOff, Mic } from "lucide-react";
+import { ArrowLeft, Loader2, Download, Printer, Send, StopCircle, Pencil, Link2, Check, Users, ShieldCheck, ShieldOff, TrendingUp } from "lucide-react";
 import Paginacion from "@/components/paginacion";
 import CaracterizacionPanel from "@/components/caracterizacion-panel";
 
@@ -63,9 +64,10 @@ export default function ResultadosEncuesta({ params }: { params: Promise<{ id: s
   const [cambiandoEstado, setCambiandoEstado] = useState(false);
   const [slug, setSlug] = useState<string | null>(null);
   const [linkCopiado, setLinkCopiado] = useState(false);
-  const [tab, setTab] = useState<"resultados" | "comparacion" | "respondentes">("resultados");
-  const [resOlas, setResOlas] = useState<{ wave: number; r: Resultados }[]>([]);
-  const [cargandoComp, setCargandoComp] = useState(false);
+  const [tab, setTab] = useState<"resultados" | "respondentes">("resultados");
+  const [mostrarEvolucion, setMostrarEvolucion] = useState(false);
+  const [resProyecto, setResProyecto] = useState<ResultadosProyecto | null>(null);
+  const [cargandoEvol, setCargandoEvol] = useState(false);
 
   // Respondentes (server-side pagination)
   type Respondente = { id: string; nombre: string; tipo: string; gender: string | null; edad: number | null; estrato: number | null; municipio: string | null; departamento: string | null; kyc_status: string; fecha: string };
@@ -118,18 +120,23 @@ export default function ResultadosEncuesta({ params }: { params: Promise<{ id: s
     })();
   }, [eid]);
 
-  async function handleTab(t: "resultados" | "comparacion" | "respondentes") {
+  function handleTab(t: "resultados" | "respondentes") {
     setTab(t);
     if (t === "respondentes" && respondentes.length === 0) {
       cargarRespondentes(0);
       fetch(`/api/cliente/encuestas/caracterizacion?surveyId=${eid}`)
         .then(r => r.json()).then(setCaract).catch(() => null);
     }
-    if (t === "comparacion" && resOlas.length === 0 && olas.length > 1) {
-      setCargandoComp(true);
-      const resultados = await Promise.all(olas.map(o => fetchResultados([o.id])));
-      setResOlas(olas.map((o, i) => ({ wave: o.wave, r: resultados[i] })));
-      setCargandoComp(false);
+  }
+
+  async function toggleEvolucion() {
+    if (mostrarEvolucion) { setMostrarEvolucion(false); return; }
+    setMostrarEvolucion(true);
+    if (!resProyecto && olas.length > 1) {
+      setCargandoEvol(true);
+      const data = await fetchResultadosProyecto(olas);
+      setResProyecto(data);
+      setCargandoEvol(false);
     }
   }
 
@@ -246,8 +253,20 @@ export default function ResultadosEncuesta({ params }: { params: Promise<{ id: s
             )}
           </div>
         )}
-        {res && res.individuales.length > 0 && (
-          <div className="flex items-center gap-2 print:hidden">
+        <div className="flex items-center gap-2 print:hidden">
+          {olas.length > 1 && (
+            <button
+              onClick={toggleEvolucion}
+              className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                mostrarEvolucion
+                  ? "bg-violet-600/30 border-violet-500/50 text-violet-300"
+                  : "bg-slate-800 border-white/10 text-slate-300 hover:text-white hover:bg-slate-700"
+              }`}
+            >
+              <TrendingUp className="h-3.5 w-3.5" /> Evolución por ola
+            </button>
+          )}
+          {res && res.individuales.length > 0 && (<>
             <button
               onClick={() => exportarCSV(nombre, res)}
               className="inline-flex items-center gap-1.5 rounded-lg bg-slate-800 border border-white/10 px-3 py-1.5 text-xs text-slate-300 hover:text-white hover:bg-slate-700 transition-colors"
@@ -260,19 +279,31 @@ export default function ResultadosEncuesta({ params }: { params: Promise<{ id: s
             >
               <Printer className="h-3.5 w-3.5" /> PDF
             </button>
-          </div>
-        )}
+          </>)}
+        </div>
       </div>
       <p className="text-slate-400 text-sm mb-4">Resultados de la encuesta · Ola {wave}</p>
+
+      {/* Panel evolución por ola */}
+      {mostrarEvolucion && (
+        <div className="mb-6 rounded-2xl border border-violet-500/20 bg-violet-500/5 p-5">
+          {cargandoEvol ? (
+            <div className="flex items-center gap-2 text-sm text-slate-400 py-6 justify-center">
+              <Loader2 className="h-4 w-4 animate-spin" /> Cargando evolución…
+            </div>
+          ) : resProyecto ? (
+            <ResultadosProyectoView data={resProyecto} />
+          ) : null}
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex gap-1 mb-6 border-b border-white/5">
         {[
           { key: "resultados", label: "Resultados" },
-          ...(olas.length > 1 ? [{ key: "comparacion", label: "Comparación de olas" }] : []),
           { key: "respondentes", label: `Respondentes${respTotal > 0 ? ` (${respTotal.toLocaleString()})` : ""}` },
         ].map(t => (
-          <button key={t.key} onClick={() => handleTab(t.key as "resultados" | "comparacion" | "respondentes")}
+          <button key={t.key} onClick={() => handleTab(t.key as "resultados" | "respondentes")}
             className={`px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px ${
               tab === t.key ? "border-violet-500 text-white" : "border-transparent text-slate-500 hover:text-slate-300"
             }`}>
@@ -281,25 +312,7 @@ export default function ResultadosEncuesta({ params }: { params: Promise<{ id: s
         ))}
       </div>
 
-      {tab === "comparacion" ? (
-        cargandoComp ? (
-          <div className="flex items-center gap-2 text-sm text-slate-400 py-10 justify-center">
-            <Loader2 className="h-4 w-4 animate-spin" /> Cargando comparación…
-          </div>
-        ) : (
-          <div className="grid gap-6" style={{ gridTemplateColumns: `repeat(${resOlas.length}, minmax(0, 1fr))` }}>
-            {resOlas.map(({ wave, r }) => (
-              <div key={wave}>
-                <div className="flex items-center gap-2 mb-4">
-                  <span className="rounded-full bg-violet-600 px-3 py-1 text-xs font-bold text-white">Ola {wave}</span>
-                  <span className="text-xs text-slate-500">{r.respuestas} respuesta{r.respuestas === 1 ? "" : "s"}</span>
-                </div>
-                <ResultadosView r={r} />
-              </div>
-            ))}
-          </div>
-        )
-      ) : tab === "respondentes" ? (
+      {tab === "respondentes" ? (
         <>
           {caract && <CaracterizacionPanel data={caract as Parameters<typeof CaracterizacionPanel>[0]["data"]} titulo="Caracterización de respondentes" />}
           <div className="mt-6">
