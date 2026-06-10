@@ -4,7 +4,7 @@ import { ResultadosProyecto } from "@/lib/resultados";
 import ResultadosView from "@/components/resultados-view";
 import { TrendingUp, Target } from "lucide-react";
 import {
-  LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, Legend,
+  LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, Legend, BarChart, Bar, Cell,
 } from "recharts";
 
 function Card({ title, icon: Icon, hint, children }: {
@@ -73,34 +73,88 @@ export default function ResultadosProyectoView({ data, hideAgregado }: { data: R
         </section>
       )}
 
-      {/* 2. Indicadores de seguimiento (misma pregunta entre olas) */}
+      {/* 2. Evolución por pregunta */}
       {indicadores.length > 0 && (
         <section>
           <h2 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
-            <Target className="h-4 w-4 text-violet-400" /> Indicadores de seguimiento
+            <Target className="h-4 w-4 text-violet-400" /> Evolución por pregunta
           </h2>
-          <div className="space-y-3">
-            {indicadores.map(ind => (
-              <div key={ind.key} className="rounded-2xl border border-white/5 bg-slate-900 p-5">
-                <div className="flex items-center justify-between mb-3">
-                  <p className="text-sm font-medium text-white">{ind.text}</p>
-                  <span className="text-[11px] font-mono text-violet-400 bg-violet-500/10 px-2 py-0.5 rounded">{ind.key}</span>
-                </div>
-                <div className="flex flex-wrap gap-3">
-                  {ind.olas.map(o => (
-                    <div key={o.wave} className="rounded-xl bg-white/[0.03] border border-white/5 px-4 py-3 min-w-[120px]">
-                      <p className="text-xs text-slate-500 mb-1">Ola {o.wave}</p>
-                      {ind.esFavorabilidad && o.favorablePct != null ? (
-                        <p className="text-2xl font-bold text-emerald-400">{o.favorablePct}%</p>
-                      ) : (
-                        <p className="text-sm text-slate-300">{o.distribucion[0]?.label ?? "—"}</p>
-                      )}
-                      <p className="text-[11px] text-slate-600 mt-0.5">{o.total} resp.</p>
+          <div className="space-y-4">
+            {indicadores.map(ind => {
+              // Recolectar todas las opciones únicas que aparecen en alguna ola
+              const opciones = [...new Set(ind.olas.flatMap(o => o.distribucion.map(d => d.label)))];
+              // Construir serie: una fila por ola con % de cada opción
+              const serie = ind.olas.map(o => {
+                const total = o.distribucion.reduce((s, d) => s + d.count, 0) || 1;
+                const row: Record<string, string | number> = { name: `Ola ${o.wave}` };
+                opciones.forEach(op => {
+                  const d = o.distribucion.find(d => d.label === op);
+                  row[op] = d ? Math.round((d.count / total) * 100) : 0;
+                });
+                if (ind.esFavorabilidad && o.favorablePct != null) row["Favorabilidad"] = o.favorablePct;
+                return row;
+              });
+
+              // Paleta de colores
+              const COLORS = ["#8b5cf6","#10b981","#f59e0b","#3b82f6","#ef4444","#ec4899","#14b8a6","#f97316"];
+
+              return (
+                <div key={ind.key} className="rounded-2xl border border-white/5 bg-slate-900 p-5">
+                  <p className="text-sm font-medium text-white mb-4">{ind.text}</p>
+                  {ind.esFavorabilidad ? (
+                    <div style={{ height: 200 }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={serie} margin={{ left: -20, right: 8, top: 4, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
+                          <XAxis dataKey="name" tick={{ fill: "#94a3b8", fontSize: 12 }} axisLine={false} tickLine={false} />
+                          <YAxis domain={[0, 100]} tick={{ fill: "#94a3b8", fontSize: 11 }} axisLine={false} tickLine={false} unit="%" />
+                          <Tooltip contentStyle={{ background: "#0f172a", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, fontSize: 12 }} formatter={(v: number) => [`${v}%`]} />
+                          <Line type="monotone" dataKey="Favorabilidad" stroke="#10b981" strokeWidth={2.5} dot />
+                        </LineChart>
+                      </ResponsiveContainer>
                     </div>
-                  ))}
+                  ) : opciones.length <= 8 ? (
+                    <div style={{ height: Math.max(200, opciones.length * 28) }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={serie} margin={{ left: -20, right: 8, top: 4, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
+                          <XAxis dataKey="name" tick={{ fill: "#94a3b8", fontSize: 12 }} axisLine={false} tickLine={false} />
+                          <YAxis domain={[0, 100]} tick={{ fill: "#94a3b8", fontSize: 11 }} axisLine={false} tickLine={false} unit="%" />
+                          <Tooltip contentStyle={{ background: "#0f172a", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, fontSize: 12 }} formatter={(v: number) => [`${v}%`]} />
+                          <Legend wrapperStyle={{ fontSize: 11 }} />
+                          {opciones.map((op, i) => (
+                            <Line key={op} type="monotone" dataKey={op} stroke={COLORS[i % COLORS.length]} strokeWidth={2} dot />
+                          ))}
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  ) : (
+                    // Muchas opciones: mostrar barras por ola
+                    <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${ind.olas.length}, minmax(0,1fr))` }}>
+                      {ind.olas.map(o => {
+                        const total = o.distribucion.reduce((s, d) => s + d.count, 0) || 1;
+                        const barData = o.distribucion.slice(0, 8).map(d => ({ name: d.label, pct: Math.round((d.count / total) * 100) }));
+                        return (
+                          <div key={o.wave}>
+                            <p className="text-xs text-slate-500 mb-2 text-center">Ola {o.wave}</p>
+                            <ResponsiveContainer width="100%" height={180}>
+                              <BarChart data={barData} layout="vertical" margin={{ left: 4, right: 8 }}>
+                                <XAxis type="number" domain={[0,100]} tick={{ fill:"#94a3b8", fontSize:10 }} unit="%" axisLine={false} tickLine={false} />
+                                <YAxis type="category" dataKey="name" tick={{ fill:"#94a3b8", fontSize:10 }} axisLine={false} tickLine={false} width={80} />
+                                <Tooltip contentStyle={{ background:"#0f172a", border:"1px solid rgba(255,255,255,0.1)", borderRadius:8, fontSize:11 }} formatter={(v:number) => [`${v}%`]} />
+                                <Bar dataKey="pct" radius={[0,4,4,0]}>
+                                  {barData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                                </Bar>
+                              </BarChart>
+                            </ResponsiveContainer>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </section>
       )}

@@ -47,6 +47,7 @@ export async function POST(req: Request) {
       text: q.text,
       options: q.options,
       required: q.required,
+      tracking_key: q.tracking_key ?? q.id,  // propagar tracking_key o usar id original como clave
       order: q.order,
       tracking_key: q.tracking_key,
       favorability: q.favorability,
