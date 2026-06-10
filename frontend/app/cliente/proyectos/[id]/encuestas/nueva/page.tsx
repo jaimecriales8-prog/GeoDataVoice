@@ -152,6 +152,11 @@ export default function NuevaEncuesta({ params }: { params: Promise<{ id: string
   async function guardar(estado: "draft" | "ready") {
     if (!nombre.trim()) { setError("El nombre de la encuesta es obligatorio."); return; }
     if (preguntas.some(p => !p.text.trim())) { setError("Todas las preguntas deben tener texto."); return; }
+    const sinOpciones = preguntas.find(p =>
+      ["single_choice", "multiple_choice", "scale"].includes(p.type) &&
+      p.options.filter(o => o.trim()).length < 2
+    );
+    if (sinOpciones) { setError(`La pregunta "${sinOpciones.text.trim() || "sin texto"}" necesita al menos 2 opciones. El audio es solo un complemento.`); return; }
 
     setSaving(true); setError("");
     const supabase = createClient();
