@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
-import { LayoutDashboard, MapPinned, BarChart3, LogOut, ChevronRight } from "lucide-react";
+import { LayoutDashboard, MapPinned, BarChart3, LogOut, ChevronRight, UserCircle } from "lucide-react";
 
 const NAV = [
   { href: "/cliente", label: "Inicio", icon: LayoutDashboard, exact: true },
   { href: "/cliente/proyectos", label: "Proyectos", icon: MapPinned },
   { href: "/cliente/resultados", label: "Resultados", icon: BarChart3 },
+  { href: "/cliente/perfil", label: "Mi perfil", icon: UserCircle },
 ];
 
 export default function ClienteLayout({ children }: { children: React.ReactNode }) {
