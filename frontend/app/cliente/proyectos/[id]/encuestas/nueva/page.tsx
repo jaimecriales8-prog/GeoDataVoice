@@ -359,14 +359,14 @@ export default function NuevaEncuesta({ params }: { params: Promise<{ id: string
                 </button>
                 {slug && (
                   <button type="button" onClick={() => {
-                    navigator.clipboard.writeText(`${window.location.origin}/encuesta/${slug}`);
+                    navigator.clipboard.writeText(`${process.env.NEXT_PUBLIC_APP_URL ?? window.location.origin}/encuesta/${slug}`);
                     setSlugCopied(true); setTimeout(() => setSlugCopied(false), 2000);
                   }} className="rounded-xl border border-white/10 px-3 py-2.5 text-xs text-slate-400 hover:text-white hover:bg-white/5 transition-colors">
                     {slugCopied ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
                   </button>
                 )}
               </div>
-              {slug && <p className="text-[11px] text-blue-400 mt-1">{typeof window !== "undefined" ? window.location.origin : ""}/encuesta/{slug}</p>}
+              {slug && <p className="text-[11px] text-blue-400 mt-1">{process.env.NEXT_PUBLIC_APP_URL ?? (typeof window !== "undefined" ? window.location.origin : "")}/encuesta/{slug}</p>}
             </Field>
 
             {/* Anonimato */}

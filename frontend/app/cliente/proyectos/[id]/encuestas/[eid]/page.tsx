@@ -153,7 +153,7 @@ export default function ResultadosEncuesta({ params }: { params: Promise<{ id: s
             )}
             {slug && (status === "ready" || status === "sent") && (
               <button
-                onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/encuesta/${slug}`); setLinkCopiado(true); setTimeout(() => setLinkCopiado(false), 2000); }}
+                onClick={() => { navigator.clipboard.writeText(`${process.env.NEXT_PUBLIC_APP_URL ?? window.location.origin}/encuesta/${slug}`); setLinkCopiado(true); setTimeout(() => setLinkCopiado(false), 2000); }}
                 className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600/20 border border-blue-500/30 hover:bg-blue-600/30 px-3 py-1.5 text-xs text-blue-300 transition-colors"
               >
                 {linkCopiado ? <><Check className="h-3.5 w-3.5 text-emerald-400" /> Copiado</> : <><Link2 className="h-3.5 w-3.5" /> Copiar link</>}
