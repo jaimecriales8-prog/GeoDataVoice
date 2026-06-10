@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase";
 import { Users, Mic, MapPin, BarChart3, TrendingUp, Clock, CheckCircle, AlertCircle } from "lucide-react";
 import { AdminConfigToggles } from "@/components/admin-config-toggles";
+import CaracterizacionPanel from "@/components/caracterizacion-panel";
 
 type Stats = {
   clientes: number;
@@ -16,6 +17,7 @@ type Stats = {
 export default function DashboardHome() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [panelDisponible, setPanelDisponible] = useState<Record<string, unknown> | null>(null);
 
   useEffect(() => {
     const supabase = createClient();
@@ -25,6 +27,8 @@ export default function DashboardHome() {
       supabase.from("participants").select("id", { count: "exact", head: true }).eq("status", "verified"),
       supabase.from("field_operators").select("id", { count: "exact", head: true }).eq("status", "active"),
       supabase.from("projects").select("id", { count: "exact", head: true }).eq("status", "active"),
+    fetch("/api/admin/panel-disponible").then(r => r.json()).then(setPanelDisponible).catch(() => null);
+
     ]).then(([c, p, pv, e, pr]) => {
       setStats({
         clientes: c.count ?? 0,
@@ -128,6 +132,15 @@ export default function DashboardHome() {
           </div>
         </div>
       </div>
+
+      {panelDisponible && (
+        <div className="mt-6">
+          <CaracterizacionPanel
+            data={panelDisponible as Parameters<typeof CaracterizacionPanel>[0]["data"]}
+            titulo="Panel disponible"
+          />
+        </div>
+      )}
     </div>
   );
 }

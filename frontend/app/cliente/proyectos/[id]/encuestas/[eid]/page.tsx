@@ -14,6 +14,7 @@ import { PonderacionEditor } from "@/components/ponderacion-editor";
 import { FiltroDemografico } from "@/components/filtro-demografico";
 import { ArrowLeft, Loader2, Download, Printer, Send, StopCircle, Pencil, Link2, Check, Users, ShieldCheck, ShieldOff, Mic } from "lucide-react";
 import Paginacion from "@/components/paginacion";
+import CaracterizacionPanel from "@/components/caracterizacion-panel";
 
 function exportarCSV(nombre: string, res: Resultados) {
   const preguntas = res.preguntas;
@@ -68,6 +69,7 @@ export default function ResultadosEncuesta({ params }: { params: Promise<{ id: s
   const [respPagina, setRespPagina] = useState(0);
   const [respLoading, setRespLoading] = useState(false);
   const POR_PAGINA = 50;
+  const [caract, setCaract] = useState<Record<string, unknown> | null>(null);
 
   async function cargarRespondentes(pagina: number) {
     setRespLoading(true);
@@ -107,7 +109,11 @@ export default function ResultadosEncuesta({ params }: { params: Promise<{ id: s
 
   function handleTab(t: "resultados" | "respondentes") {
     setTab(t);
-    if (t === "respondentes" && respondentes.length === 0) cargarRespondentes(0);
+    if (t === "respondentes" && respondentes.length === 0) {
+      cargarRespondentes(0);
+      fetch(`/api/cliente/encuestas/caracterizacion?surveyId=${eid}`)
+        .then(r => r.json()).then(setCaract).catch(() => null);
+    }
   }
 
   async function recalcular(p: Ponderacion | null) {
@@ -241,10 +247,15 @@ export default function ResultadosEncuesta({ params }: { params: Promise<{ id: s
       </div>
 
       {tab === "respondentes" ? (
-        <RespondentesTab
-          respondentes={respondentes} total={respTotal} pagina={respPagina}
-          porPagina={POR_PAGINA} loading={respLoading} onPage={cargarRespondentes}
-        />
+        <>
+          {caract && <CaracterizacionPanel data={caract as Parameters<typeof CaracterizacionPanel>[0]["data"]} titulo="Caracterización de respondentes" />}
+          <div className="mt-6">
+            <RespondentesTab
+              respondentes={respondentes} total={respTotal} pagina={respPagina}
+              porPagina={POR_PAGINA} loading={respLoading} onPage={cargarRespondentes}
+            />
+          </div>
+        </>
       ) : (<>
       {puedeEditar && (
         <PonderacionEditor surveyId={eid} inicial={ponderacion} onSaved={recalcular} />
