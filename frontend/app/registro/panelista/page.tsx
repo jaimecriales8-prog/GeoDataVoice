@@ -255,7 +255,7 @@ export default function RegistroPanelistaPage() {
           acceso_internet: accesoInternet,
           registrado_votar: registradoVotar,
         })
-        .eq("id", authData.user.id);
+        .eq("user_id", authData.user.id);
     }
 
     setEmail(form.email || form.email);
