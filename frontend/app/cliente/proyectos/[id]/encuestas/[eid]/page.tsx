@@ -12,7 +12,8 @@ async function fetchResultados(surveyIds: string[], filtro?: FiltroDemo | null):
 import ResultadosView from "@/components/resultados-view";
 import { PonderacionEditor } from "@/components/ponderacion-editor";
 import { FiltroDemografico } from "@/components/filtro-demografico";
-import { ArrowLeft, Loader2, Download, Printer, Send, StopCircle, Pencil, Link2, Check } from "lucide-react";
+import { ArrowLeft, Loader2, Download, Printer, Send, StopCircle, Pencil, Link2, Check, Users, ShieldCheck, ShieldOff, Mic } from "lucide-react";
+import Paginacion from "@/components/paginacion";
 
 function exportarCSV(nombre: string, res: Resultados) {
   const preguntas = res.preguntas;
@@ -58,6 +59,25 @@ export default function ResultadosEncuesta({ params }: { params: Promise<{ id: s
   const [cambiandoEstado, setCambiandoEstado] = useState(false);
   const [slug, setSlug] = useState<string | null>(null);
   const [linkCopiado, setLinkCopiado] = useState(false);
+  const [tab, setTab] = useState<"resultados" | "respondentes">("resultados");
+
+  // Respondentes (server-side pagination)
+  type Respondente = { id: string; nombre: string; tipo: string; gender: string | null; edad: number | null; estrato: number | null; municipio: string | null; departamento: string | null; kyc_status: string; fecha: string };
+  const [respondentes, setRespondentes] = useState<Respondente[]>([]);
+  const [respTotal, setRespTotal] = useState(0);
+  const [respPagina, setRespPagina] = useState(0);
+  const [respLoading, setRespLoading] = useState(false);
+  const POR_PAGINA = 50;
+
+  async function cargarRespondentes(pagina: number) {
+    setRespLoading(true);
+    setRespPagina(pagina);
+    const r = await fetch(`/api/cliente/encuestas/respondentes?surveyId=${eid}&page=${pagina}`);
+    const data = await r.json();
+    setRespondentes(data.respondentes ?? []);
+    setRespTotal(data.total ?? 0);
+    setRespLoading(false);
+  }
 
   useEffect(() => {
     (async () => {
@@ -84,6 +104,11 @@ export default function ResultadosEncuesta({ params }: { params: Promise<{ id: s
       setLoading(false);
     })();
   }, [eid]);
+
+  function handleTab(t: "resultados" | "respondentes") {
+    setTab(t);
+    if (t === "respondentes" && respondentes.length === 0) cargarRespondentes(0);
+  }
 
   async function recalcular(p: Ponderacion | null) {
     setPonderacion(p);
@@ -198,8 +223,29 @@ export default function ResultadosEncuesta({ params }: { params: Promise<{ id: s
           </div>
         )}
       </div>
-      <p className="text-slate-400 text-sm mb-8">Resultados de la encuesta · Ola {wave}</p>
+      <p className="text-slate-400 text-sm mb-4">Resultados de la encuesta · Ola {wave}</p>
 
+      {/* Tabs */}
+      <div className="flex gap-1 mb-6 border-b border-white/5">
+        {[
+          { key: "resultados", label: "Resultados" },
+          { key: "respondentes", label: `Respondentes${respTotal > 0 ? ` (${respTotal.toLocaleString()})` : ""}` },
+        ].map(t => (
+          <button key={t.key} onClick={() => handleTab(t.key as "resultados" | "respondentes")}
+            className={`px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px ${
+              tab === t.key ? "border-violet-500 text-white" : "border-transparent text-slate-500 hover:text-slate-300"
+            }`}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "respondentes" ? (
+        <RespondentesTab
+          respondentes={respondentes} total={respTotal} pagina={respPagina}
+          porPagina={POR_PAGINA} loading={respLoading} onPage={cargarRespondentes}
+        />
+      ) : (<>
       {puedeEditar && (
         <PonderacionEditor surveyId={eid} inicial={ponderacion} onSaved={recalcular} />
       )}
@@ -219,6 +265,74 @@ export default function ResultadosEncuesta({ params }: { params: Promise<{ id: s
           {recalculando ? "Recalculando con la nueva ponderación…" : "Filtrando resultados…"}
         </div>
       ) : res && <ResultadosView r={res} />}
+      </>)}
+    </div>
+  );
+}
+
+const TIPO_CONF = {
+  panelista: { label: "Panelista", cls: "bg-violet-500/20 text-violet-400" },
+  campo:     { label: "Campo",     cls: "bg-blue-500/20 text-blue-400" },
+  abierta:   { label: "Abierta",   cls: "bg-amber-500/20 text-amber-400" },
+};
+
+function RespondentesTab({ respondentes, total, pagina, porPagina, loading, onPage }: {
+  respondentes: { id: string; nombre: string; tipo: string; gender: string | null; edad: number | null; estrato: number | null; municipio: string | null; departamento: string | null; kyc_status: string; fecha: string }[];
+  total: number; pagina: number; porPagina: number; loading: boolean;
+  onPage: (p: number) => void;
+}) {
+  if (loading) return (
+    <div className="space-y-3">{[1,2,3,4,5].map(n => <div key={n} className="h-12 animate-pulse rounded-xl bg-slate-900" />)}</div>
+  );
+  if (total === 0) return (
+    <div className="rounded-2xl border border-dashed border-white/10 py-16 text-center">
+      <Users className="h-10 w-10 text-slate-700 mx-auto mb-3" />
+      <p className="text-slate-400 text-sm">Aún no hay respondentes</p>
+    </div>
+  );
+  return (
+    <div>
+      <div className="rounded-2xl border border-white/5 bg-slate-900 overflow-hidden mb-4">
+        <table className="w-full">
+          <thead>
+            <tr className="border-b border-white/5">
+              <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Nombre</th>
+              <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Tipo</th>
+              <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Perfil</th>
+              <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Identidad</th>
+              <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Fecha</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-white/5">
+            {respondentes.map(r => {
+              const tc = TIPO_CONF[r.tipo as keyof typeof TIPO_CONF] ?? TIPO_CONF.abierta;
+              return (
+                <tr key={r.id} className="hover:bg-white/[0.02] transition-colors">
+                  <td className="px-5 py-3">
+                    <p className="text-sm text-white">{r.nombre}</p>
+                    <p className="text-xs text-slate-500">{r.municipio ?? r.departamento ?? "—"}</p>
+                  </td>
+                  <td className="px-5 py-3">
+                    <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${tc.cls}`}>{tc.label}</span>
+                  </td>
+                  <td className="px-5 py-3 text-xs text-slate-400">
+                    {[r.gender, r.edad ? `${r.edad} años` : null, r.estrato ? `Estrato ${r.estrato}` : null].filter(Boolean).join(" · ") || "—"}
+                  </td>
+                  <td className="px-5 py-3">
+                    {r.kyc_status === "approved"
+                      ? <span className="flex items-center gap-1 text-xs text-emerald-400"><ShieldCheck className="h-3.5 w-3.5" /> Verificado</span>
+                      : <span className="flex items-center gap-1 text-xs text-slate-500"><ShieldOff className="h-3.5 w-3.5" /> Sin verificar</span>}
+                  </td>
+                  <td className="px-5 py-3 text-xs text-slate-500">
+                    {new Date(r.fecha).toLocaleDateString("es-CO", { day: "numeric", month: "short", year: "numeric" })}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      <Paginacion total={total} pagina={pagina} porPagina={porPagina} onChange={onPage} />
     </div>
   );
 }
