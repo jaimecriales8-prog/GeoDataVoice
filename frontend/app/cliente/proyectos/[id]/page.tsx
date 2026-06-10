@@ -256,7 +256,7 @@ export default function ProyectoDetalle({ params }: { params: Promise<{ id: stri
                           const PerfilIcon = perfil.icon;
                           const isSaving = savingId === e.id;
                           const activa = e.status === "sent" || e.status === "ready";
-                          const olaSeleccionada = olaLocal[e.id] ?? e.wave;
+                          const olaSeleccionada = olaLocal[e.id] ?? (e.wave + 1);
 
                           return (
                             <div key={e.id} className="flex items-center gap-3 px-6 py-3 border-b border-white/5 last:border-0">
