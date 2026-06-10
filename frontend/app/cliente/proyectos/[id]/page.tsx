@@ -3,7 +3,7 @@
 import { useEffect, useState, use } from "react";
 import { createClient } from "@/lib/supabase";
 import Link from "next/link";
-import { ArrowLeft, Plus, ClipboardList, Users, Mic, MapPin, ChevronRight, ChevronDown, Clock, BarChart3, Target, Send, StopCircle } from "lucide-react";
+import { ArrowLeft, Plus, ClipboardList, Users, Mic, MapPin, ChevronRight, ChevronDown, Clock, BarChart3, Target, Send, StopCircle, Link2, Check } from "lucide-react";
 import { resumenAudiencia, audienciaVacia, type Audiencia } from "@/lib/segmentacion";
 
 type Proyecto = {
@@ -18,6 +18,7 @@ type Encuesta = {
   audiencia: Audiencia | null;
   created_at: string;
   es_abierta: boolean | null;
+  slug: string | null;
   _count?: { responses: number };
 };
 
@@ -44,6 +45,14 @@ export default function ProyectoDetalle({ params }: { params: Promise<{ id: stri
   const [savingId, setSavingId] = useState<string | null>(null);
   const [olaLocal, setOlaLocal] = useState<Record<string, number>>({});
   const [expandido, setExpandido] = useState<Set<string>>(new Set());
+  const [copiado, setCopiado] = useState<string | null>(null);
+
+  function copiarLink(slug: string) {
+    const url = `${process.env.NEXT_PUBLIC_APP_URL ?? window.location.origin}/encuesta/${slug}`;
+    navigator.clipboard.writeText(url);
+    setCopiado(slug);
+    setTimeout(() => setCopiado(null), 2000);
+  }
 
   useEffect(() => { load(); }, [id]);
 
@@ -316,6 +325,14 @@ export default function ProyectoDetalle({ params }: { params: Promise<{ id: stri
                                 <button onClick={() => updateEncuesta(e.id, { status: "sent" })} disabled={isSaving}
                                   className="shrink-0 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition-colors disabled:opacity-40">
                                   <Send className="h-3.5 w-3.5" /> Activar
+                                </button>
+                              )}
+                              {e.es_abierta && e.slug && (e.status === "sent" || e.status === "ready") && (
+                                <button onClick={() => copiarLink(e.slug!)}
+                                  className="shrink-0 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold bg-sky-500/10 text-sky-400 hover:bg-sky-500/20 transition-colors">
+                                  {copiado === e.slug
+                                    ? <><Check className="h-3.5 w-3.5 text-emerald-400" /> Copiado</>
+                                    : <><Link2 className="h-3.5 w-3.5" /> Copiar link</>}
                                 </button>
                               )}
                               <Link href={`/cliente/proyectos/${id}/encuestas/${e.id}`}
