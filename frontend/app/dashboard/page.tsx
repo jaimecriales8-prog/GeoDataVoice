@@ -27,8 +27,6 @@ export default function DashboardHome() {
       supabase.from("participants").select("id", { count: "exact", head: true }).eq("status", "verified"),
       supabase.from("field_operators").select("id", { count: "exact", head: true }).eq("status", "active"),
       supabase.from("projects").select("id", { count: "exact", head: true }).eq("status", "active"),
-    fetch("/api/admin/panel-disponible").then(r => r.json()).then(setPanelDisponible).catch(() => null);
-
     ]).then(([c, p, pv, e, pr]) => {
       setStats({
         clientes: c.count ?? 0,
@@ -39,6 +37,7 @@ export default function DashboardHome() {
       });
       setLoading(false);
     });
+    fetch("/api/admin/panel-disponible").then(r => r.json()).then(setPanelDisponible).catch(() => null);
   }, []);
 
   const kpis = [
