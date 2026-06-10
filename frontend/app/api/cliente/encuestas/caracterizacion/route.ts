@@ -48,7 +48,7 @@ export async function GET(req: NextRequest) {
 
   const { data: rows } = await supabase
     .from("responses")
-    .select(`participant_id, encuestador_id, participants!inner(gender, birth_year, estrato, departamento, municipio, nivel_estudios, estado_civil, actividades, regimen_salud, tenencia_vivienda, grupo_etnico, registrado_votar, recibe_subsidios, acceso_internet, kyc_status, user_id)`)
+    .select(`participant_id, encuestador_id, participants(gender, birth_year, estrato, departamento, municipio, nivel_estudios, estado_civil, actividades, regimen_salud, tenencia_vivienda, grupo_etnico, registrado_votar, recibe_subsidios, acceso_internet, kyc_status, user_id)`)
     .eq("survey_id", surveyId);
 
   // Deduplicar por participant_id

@@ -34,13 +34,12 @@ export async function GET(req: NextRequest) {
   // Paso 1: IDs únicos de participantes que respondieron esta encuesta
   const { data: pidRows } = await supabase
     .from("responses")
-    .select("participant_id, encuestador_id, created_at")
-    .eq("survey_id", surveyId)
-    .order("created_at", { ascending: false });
+    .select("participant_id, encuestador_id")
+    .eq("survey_id", surveyId);
 
   // Deduplicar manteniendo el primer registro (más reciente)
   const seen = new Set<string>();
-  const unique: { participant_id: string; encuestador_id: string | null; created_at: string }[] = [];
+  const unique: { participant_id: string; encuestador_id: string | null }[] = [];
   for (const r of pidRows ?? []) {
     if (!seen.has(r.participant_id)) {
       seen.add(r.participant_id);
@@ -58,7 +57,7 @@ export async function GET(req: NextRequest) {
   const ids = pageItems.map(r => r.participant_id);
   const { data: parts } = await supabase
     .from("participants")
-    .select("id, name_encrypted, gender, birth_year, estrato, municipio, departamento, kyc_status, user_id, is_anonymous")
+    .select("id, name_encrypted, gender, birth_year, estrato, municipio, departamento, kyc_status, user_id, is_anonymous, created_at")
     .in("id", ids);
 
   const partMap = new Map((parts ?? []).map(p => [p.id, p]));
@@ -76,7 +75,7 @@ export async function GET(req: NextRequest) {
       municipio: p?.municipio ?? null,
       departamento: p?.departamento ?? null,
       kyc_status: p?.kyc_status ?? "none",
-      fecha: r.created_at,
+      fecha: p?.created_at ?? null,
     };
   });
 
