@@ -3,7 +3,7 @@
 import { useEffect, useState, use } from "react";
 import { createClient } from "@/lib/supabase";
 import Link from "next/link";
-import { ArrowLeft, Plus, ClipboardList, Users, Mic, MapPin, ChevronRight, Clock, BarChart3, Target, Send, StopCircle, RotateCcw } from "lucide-react";
+import { ArrowLeft, Plus, ClipboardList, Users, Mic, MapPin, ChevronRight, ChevronDown, Clock, BarChart3, Target, Send, StopCircle } from "lucide-react";
 import { resumenAudiencia, audienciaVacia, type Audiencia } from "@/lib/segmentacion";
 
 type Proyecto = {
@@ -42,6 +42,7 @@ export default function ProyectoDetalle({ params }: { params: Promise<{ id: stri
   const [identityGlobal, setIdentityGlobal] = useState(true);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [olaLocal, setOlaLocal] = useState<Record<string, number>>({});
+  const [expandido, setExpandido] = useState<Set<string>>(new Set());
 
   useEffect(() => { load(); }, [id]);
 
@@ -189,136 +190,144 @@ export default function ProyectoDetalle({ params }: { params: Promise<{ id: stri
               <Plus className="h-4 w-4" /> Crear primera encuesta
             </Link>
           </div>
-        ) : (
-          <div className="divide-y divide-white/5">
-            {encuestas.map(e => {
-              const perfil = PERFIL_CONF[e.perfil_objetivo] ?? PERFIL_CONF.ambos;
-              const status = STATUS_CONF[e.status] ?? STATUS_CONF.draft;
-              const PerfilIcon = perfil.icon;
-              const isSaving = savingId === e.id;
-              const activa = e.status === "sent" || e.status === "ready";
-              const olaSeleccionada = olaLocal[e.id] ?? e.wave;
-              return (
-                <div key={e.id} className="px-6 py-4 hover:bg-white/[0.02] transition-colors">
-                  <div className="flex items-center gap-4">
-                    {/* Ícono */}
-                    <div className="h-10 w-10 rounded-xl bg-slate-800 flex items-center justify-center shrink-0">
-                      <ClipboardList className="h-5 w-5 text-slate-400" />
-                    </div>
+        ) : (() => {
+          // Agrupar por nombre
+          const grupos = new Map<string, Encuesta[]>();
+          [...encuestas].sort((a, b) => a.wave - b.wave).forEach(e => {
+            const key = e.name;
+            if (!grupos.has(key)) grupos.set(key, []);
+            grupos.get(key)!.push(e);
+          });
+          const hayActiva = encuestas.some(x => x.status === "sent");
 
-                    {/* Info */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <Link href={`/cliente/proyectos/${id}/encuestas/${e.id}`}
-                          className="text-sm font-medium text-white hover:text-violet-300 transition-colors">
-                          {e.name}
-                        </Link>
-                        {!audienciaVacia(e.audiencia) && (
-                          <span className="flex items-center gap-1 text-xs text-pink-400">
-                            <Target className="h-3 w-3" /> Segmentada
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-3 mt-1 flex-wrap">
-                        <span className={`flex items-center gap-1 text-xs ${perfil.color}`}>
-                          <PerfilIcon className="h-3 w-3" />{perfil.label}
-                        </span>
-                        {e.closes_at && (
-                          <span className="flex items-center gap-1 text-xs text-slate-500">
-                            <Clock className="h-3 w-3" />
-                            Cierra {new Date(e.closes_at).toLocaleDateString("es-CO", { day: "numeric", month: "short" })}
-                          </span>
-                        )}
-                      </div>
-                    </div>
+          return (
+            <div className="divide-y divide-white/5">
+              {[...grupos.entries()].map(([nombre, olas]) => {
+                const estaExpandido = expandido.has(nombre);
+                const ultimaOla = olas[olas.length - 1];
+                const olaActiva = olas.find(o => o.status === "sent");
+                const maxWave = Math.max(...olas.map(o => o.wave));
 
-                    {/* Selector de ola — solo local, no guarda hasta lanzar */}
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <span className="text-xs text-slate-500">Ola</span>
-                      {activa ? (
-                        <span className="rounded-lg bg-slate-800 border border-white/10 px-3 py-1 text-xs text-white w-14 text-center">{e.wave}</span>
+                return (
+                  <div key={nombre}>
+                    {/* Fila agrupada */}
+                    <button
+                      onClick={() => setExpandido(prev => {
+                        const next = new Set(prev);
+                        next.has(nombre) ? next.delete(nombre) : next.add(nombre);
+                        return next;
+                      })}
+                      className="w-full flex items-center gap-4 px-6 py-4 hover:bg-white/[0.02] transition-colors text-left">
+                      <div className="h-10 w-10 rounded-xl bg-slate-800 flex items-center justify-center shrink-0">
+                        <ClipboardList className="h-5 w-5 text-slate-400" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-white">{nombre}</p>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          {olas.length} ola{olas.length > 1 ? "s" : ""}
+                          {olaActiva ? ` · Ola ${olaActiva.wave} activa` : ` · Última: Ola ${maxWave}`}
+                        </p>
+                      </div>
+                      {olaActiva ? (
+                        <span className="rounded-full px-2.5 py-1 text-xs font-semibold bg-emerald-500/20 text-emerald-400 shrink-0">Activa</span>
+                      ) : ultimaOla.status === "closed" ? (
+                        <span className="rounded-full px-2.5 py-1 text-xs font-semibold bg-slate-700 text-slate-400 shrink-0">Cerrada</span>
                       ) : (
-                        <select
-                          value={olaSeleccionada}
-                          onChange={ev => setOlaLocal(prev => ({ ...prev, [e.id]: parseInt(ev.target.value) }))}
-                          disabled={isSaving}
-                          className="rounded-lg bg-slate-800 border border-white/10 px-2 py-1 text-xs text-white focus:outline-none focus:border-violet-500 disabled:opacity-50 w-14">
-                          {[1,2,3,4,5,6,7,8,9,10].map(n => (
-                            <option key={n} value={n}>{n}</option>
-                          ))}
-                        </select>
+                        <span className={`rounded-full px-2.5 py-1 text-xs font-semibold shrink-0 ${(STATUS_CONF[ultimaOla.status] ?? STATUS_CONF.draft).color}`}>
+                          {(STATUS_CONF[ultimaOla.status] ?? STATUS_CONF.draft).label}
+                        </span>
                       )}
-                    </div>
+                      {estaExpandido
+                        ? <ChevronDown className="h-4 w-4 text-slate-500 shrink-0" />
+                        : <ChevronRight className="h-4 w-4 text-slate-500 shrink-0" />}
+                    </button>
 
-                    {/* Badge estado */}
-                    <span className={`rounded-full px-2.5 py-1 text-xs font-semibold shrink-0 ${status.color}`}>
-                      {status.label}
-                    </span>
+                    {/* Olas expandidas */}
+                    {estaExpandido && (
+                      <div className="bg-white/[0.02] border-t border-white/5">
+                        {olas.map(e => {
+                          const perfil = PERFIL_CONF[e.perfil_objetivo] ?? PERFIL_CONF.ambos;
+                          const status = STATUS_CONF[e.status] ?? STATUS_CONF.draft;
+                          const PerfilIcon = perfil.icon;
+                          const isSaving = savingId === e.id;
+                          const activa = e.status === "sent" || e.status === "ready";
+                          const olaSeleccionada = olaLocal[e.id] ?? e.wave;
 
-                    {/* Botón acción principal */}
-                    {(() => {
-                      const hayActiva = encuestas.some(x => x.status === "sent");
-                      const maxOlaUsada = encuestas.reduce((max, x) => Math.max(max, x.wave), 0);
-                      const esBorrador = e.status === "draft" || e.status === "ready";
-                      const esOlaNueva = esBorrador && olaSeleccionada > maxOlaUsada;
+                          return (
+                            <div key={e.id} className="flex items-center gap-3 px-6 py-3 border-b border-white/5 last:border-0">
+                              <span className="text-xs font-bold text-violet-400 bg-violet-500/10 px-2 py-0.5 rounded-full shrink-0 w-14 text-center">
+                                Ola {e.wave}
+                              </span>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className={`flex items-center gap-1 text-xs ${perfil.color}`}>
+                                    <PerfilIcon className="h-3 w-3" />{perfil.label}
+                                  </span>
+                                  {e.closes_at && (
+                                    <span className="flex items-center gap-1 text-xs text-slate-500">
+                                      <Clock className="h-3 w-3" />
+                                      Cierra {new Date(e.closes_at).toLocaleDateString("es-CO", { day: "numeric", month: "short" })}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <span className={`rounded-full px-2.5 py-1 text-xs font-semibold shrink-0 ${status.color}`}>
+                                {status.label}
+                              </span>
 
-                      if (e.status === "sent") {
-                        return (
-                          <button
-                            onClick={() => updateEncuesta(e.id, { status: "closed" })}
-                            disabled={isSaving}
-                            className="shrink-0 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors disabled:opacity-40">
-                            <StopCircle className="h-3.5 w-3.5" /> Cerrar Ola {e.wave}
-                          </button>
-                        );
-                      }
-                      if (e.status === "closed") {
-                        if (hayActiva) return null;
-                        return (
-                          <button
-                            onClick={() => lanzarOla(e.id, olaSeleccionada)}
-                            disabled={isSaving || olaSeleccionada <= e.wave}
-                            title={olaSeleccionada <= e.wave ? "Selecciona una ola mayor a la actual" : `Lanzar Ola ${olaSeleccionada}`}
-                            className="shrink-0 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold bg-violet-500/15 text-violet-300 hover:bg-violet-500/25 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-                            <Send className="h-3.5 w-3.5" /> Lanzar Ola {olaSeleccionada}
-                          </button>
-                        );
-                      }
-
-                      if (esOlaNueva) {
-                        return (
-                          <button
-                            onClick={() => !hayActiva && lanzarOla(e.id, olaSeleccionada)}
-                            disabled={isSaving || hayActiva}
-                            title={hayActiva ? "Cierra la ola activa antes de lanzar una nueva" : `Lanzar Ola ${e.wave}`}
-                            className="shrink-0 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold bg-violet-500/15 text-violet-300 hover:bg-violet-500/25 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-                            <Send className="h-3.5 w-3.5" /> Lanzar Ola {olaSeleccionada}
-                          </button>
-                        );
-                      }
-
-                      return (
-                        <button
-                          onClick={() => !hayActiva && updateEncuesta(e.id, { status: "sent" })}
-                          disabled={isSaving || hayActiva}
-                          title={hayActiva ? "Cierra la ola activa antes de activar otra" : "Activar"}
-                          className="shrink-0 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-                          <Send className="h-3.5 w-3.5" /> Activar
-                        </button>
-                      );
-                    })()}
-
-                    {/* Link detalle */}
-                    <Link href={`/cliente/proyectos/${id}/encuestas/${e.id}`}
-                      className="text-slate-600 hover:text-white transition-colors shrink-0">
-                      <ChevronRight className="h-4 w-4" />
-                    </Link>
+                              {/* Acciones */}
+                              {e.status === "sent" && (
+                                <button onClick={() => updateEncuesta(e.id, { status: "closed" })} disabled={isSaving}
+                                  className="shrink-0 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors disabled:opacity-40">
+                                  <StopCircle className="h-3.5 w-3.5" /> Cerrar
+                                </button>
+                              )}
+                              {e.status === "closed" && !hayActiva && (
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                  <span className="text-xs text-slate-500">Ola</span>
+                                  <select value={olaSeleccionada}
+                                    onChange={ev => setOlaLocal(prev => ({ ...prev, [e.id]: parseInt(ev.target.value) }))}
+                                    disabled={isSaving}
+                                    className="rounded-lg bg-slate-800 border border-white/10 px-2 py-1 text-xs text-white focus:outline-none focus:border-violet-500 disabled:opacity-50 w-14">
+                                    {[1,2,3,4,5,6,7,8,9,10].filter(n => n > e.wave).map(n => (
+                                      <option key={n} value={n}>{n}</option>
+                                    ))}
+                                  </select>
+                                  <button onClick={() => lanzarOla(e.id, olaSeleccionada)} disabled={isSaving || olaSeleccionada <= e.wave}
+                                    className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold bg-violet-500/15 text-violet-300 hover:bg-violet-500/25 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                                    <Send className="h-3.5 w-3.5" /> Lanzar
+                                  </button>
+                                </div>
+                              )}
+                              {(e.status === "draft" || e.status === "ready") && !hayActiva && (
+                                <button onClick={() => updateEncuesta(e.id, { status: "sent" })} disabled={isSaving}
+                                  className="shrink-0 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition-colors disabled:opacity-40">
+                                  <Send className="h-3.5 w-3.5" /> Activar
+                                </button>
+                              )}
+                              {!activa && (
+                                <Link href={`/cliente/proyectos/${id}/encuestas/${e.id}`}
+                                  className="text-slate-600 hover:text-white transition-colors shrink-0">
+                                  <ChevronRight className="h-4 w-4" />
+                                </Link>
+                              )}
+                              {activa && (
+                                <Link href={`/cliente/proyectos/${id}/encuestas/${e.id}`}
+                                  className="text-slate-600 hover:text-white transition-colors shrink-0">
+                                  <ChevronRight className="h-4 w-4" />
+                                </Link>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+                );
+              })}
+            </div>
+          );
+        })()}
       </div>
     </div>
   );
