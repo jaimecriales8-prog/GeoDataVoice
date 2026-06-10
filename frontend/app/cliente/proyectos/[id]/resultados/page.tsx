@@ -80,34 +80,48 @@ export default function ResultadosProyectoPage({ params }: { params: Promise<{ i
           <ClipboardList className="h-10 w-10 text-slate-700 mx-auto mb-3" />
           <p className="text-slate-400 text-sm">Este proyecto aún no tiene encuestas</p>
         </div>
-      ) : (
-        <div className="space-y-3">
-          {surveys.map(s => {
-            const st = STATUS_LABELS[s.status] ?? STATUS_LABELS.draft;
-            return (
-              <Link
-                key={s.id}
-                href={`/cliente/proyectos/${id}/encuestas/${s.id}`}
-                className="flex items-center gap-4 rounded-2xl border border-white/5 bg-slate-900 px-5 py-4 hover:bg-white/[0.02] transition-colors"
-              >
-                <div className="h-10 w-10 rounded-xl bg-violet-500/20 flex items-center justify-center shrink-0">
-                  <BarChart3 className="h-5 w-5 text-violet-400" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-white">{s.name}</p>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Ola {s.wave} · {(s.respuestas ?? 0).toLocaleString("es-CO")} respuesta{s.respuestas === 1 ? "" : "s"}
-                  </p>
-                </div>
-                <span className={`rounded-full px-2.5 py-1 text-xs font-semibold shrink-0 ${st.cls}`}>
-                  {st.label}
-                </span>
-                <ArrowRight className="h-4 w-4 text-slate-600 shrink-0" />
-              </Link>
-            );
-          })}
-        </div>
-      )}
+      ) : (() => {
+        // Agrupar por nombre
+        const grupos = new Map<string, Survey[]>();
+        [...surveys].sort((a, b) => a.wave - b.wave).forEach(s => {
+          if (!grupos.has(s.name)) grupos.set(s.name, []);
+          grupos.get(s.name)!.push(s);
+        });
+        return (
+          <div className="space-y-3">
+            {[...grupos.entries()].map(([nombre, olas]) => {
+              const activa = olas.find(o => o.status === "sent");
+              const destino = activa ?? olas[olas.length - 1];
+              const totalResp = olas.reduce((sum, o) => sum + (o.respuestas ?? 0), 0);
+              const st = activa
+                ? { label: "Activa", cls: "bg-emerald-500/20 text-emerald-400" }
+                : (STATUS_LABELS[destino.status] ?? STATUS_LABELS.draft);
+              return (
+                <Link
+                  key={nombre}
+                  href={`/cliente/proyectos/${id}/encuestas/${destino.id}`}
+                  className="flex items-center gap-4 rounded-2xl border border-white/5 bg-slate-900 px-5 py-4 hover:bg-white/[0.02] transition-colors"
+                >
+                  <div className="h-10 w-10 rounded-xl bg-violet-500/20 flex items-center justify-center shrink-0">
+                    <BarChart3 className="h-5 w-5 text-violet-400" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-white">{nombre}</p>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      {olas.length} ola{olas.length > 1 ? "s" : ""} · {totalResp.toLocaleString("es-CO")} respuesta{totalResp === 1 ? "" : "s"}
+                      {activa ? ` · Ola ${activa.wave} activa` : ""}
+                    </p>
+                  </div>
+                  <span className={`rounded-full px-2.5 py-1 text-xs font-semibold shrink-0 ${st.cls}`}>
+                    {st.label}
+                  </span>
+                  <ArrowRight className="h-4 w-4 text-slate-600 shrink-0" />
+                </Link>
+              );
+            })}
+          </div>
+        );
+      })()}
     </div>
   );
 }

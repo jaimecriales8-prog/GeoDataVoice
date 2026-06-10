@@ -2,6 +2,7 @@
 
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import { type Resultados, type Ponderacion, type FiltroDemo } from "@/lib/resultados";
 
@@ -45,8 +46,10 @@ const STATUS_LABELS: Record<string, { label: string; cls: string }> = {
 
 export default function ResultadosEncuesta({ params }: { params: Promise<{ id: string; eid: string }> }) {
   const { id, eid } = use(params);
+  const router = useRouter();
   const [nombre, setNombre] = useState("");
   const [status, setStatus] = useState("");
+  const [olas, setOlas] = useState<{ id: string; wave: number }[]>([]);
   const [wave, setWave] = useState<number | null>(null);
   const [res, setRes] = useState<Resultados | null>(null);
   const [loading, setLoading] = useState(true);
@@ -102,6 +105,12 @@ export default function ResultadosEncuesta({ params }: { params: Promise<{ id: s
       setPonderacion((survey.ponderacion as Ponderacion) ?? null);
       setPuedeEditar(role === "admin" || proyecto?.client_id === user?.id);
       if (survey.es_abierta && survey.slug) setSlug(survey.slug);
+
+      // Cargar hermanos (misma encuesta, distintas olas)
+      const { data: hermanos } = await supabase
+        .from("surveys").select("id, wave").eq("project_id", survey.project_id).eq("name", survey.name).order("wave");
+      setOlas(hermanos ?? []);
+
       setRes(await fetchResultados([eid]));
       setLoading(false);
     })();
@@ -163,6 +172,23 @@ export default function ResultadosEncuesta({ params }: { params: Promise<{ id: s
       <Link href={`/cliente/proyectos/${id}`} className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-white transition-colors mb-4">
         <ArrowLeft className="h-4 w-4" /> Volver al proyecto
       </Link>
+
+      {/* Tabs de olas */}
+      {olas.length > 1 && (
+        <div className="flex gap-1 mb-4 flex-wrap">
+          {olas.map(o => (
+            <button key={o.id} onClick={() => router.push(`/cliente/proyectos/${id}/encuestas/${o.id}`)}
+              className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-colors ${
+                o.id === eid
+                  ? "bg-violet-600 text-white"
+                  : "bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700"
+              }`}>
+              Ola {o.wave}
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className="flex flex-wrap items-center gap-3 mb-1">
         <h1 className="text-2xl font-bold text-white flex-1">{nombre}</h1>
         <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${st.cls}`}>{st.label}</span>
