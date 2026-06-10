@@ -250,13 +250,12 @@ export default function ProyectoDetalle({ params }: { params: Promise<{ id: stri
                     {/* Olas expandidas */}
                     {estaExpandido && (
                       <div className="bg-white/[0.02] border-t border-white/5">
-                        {olas.map(e => {
+                        {olas.map((e, idx) => {
                           const perfil = PERFIL_CONF[e.perfil_objetivo] ?? PERFIL_CONF.ambos;
                           const status = STATUS_CONF[e.status] ?? STATUS_CONF.draft;
                           const PerfilIcon = perfil.icon;
                           const isSaving = savingId === e.id;
-                          const activa = e.status === "sent" || e.status === "ready";
-                          const olaSeleccionada = olaLocal[e.id] ?? (e.wave + 1);
+                          const esUltima = idx === olas.length - 1;
 
                           return (
                             <div key={e.id} className="flex items-center gap-3 px-6 py-3 border-b border-white/5 last:border-0">
@@ -280,48 +279,29 @@ export default function ProyectoDetalle({ params }: { params: Promise<{ id: stri
                                 {status.label}
                               </span>
 
-                              {/* Acciones */}
-                              {e.status === "sent" && (
+                              {/* Acciones — solo la última ola puede tener acciones */}
+                              {esUltima && e.status === "sent" && (
                                 <button onClick={() => updateEncuesta(e.id, { status: "closed" })} disabled={isSaving}
                                   className="shrink-0 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors disabled:opacity-40">
                                   <StopCircle className="h-3.5 w-3.5" /> Cerrar
                                 </button>
                               )}
-                              {e.status === "closed" && !hayActiva && (
-                                <div className="flex items-center gap-1.5 shrink-0">
-                                  <span className="text-xs text-slate-500">Ola</span>
-                                  <select value={olaSeleccionada}
-                                    onChange={ev => setOlaLocal(prev => ({ ...prev, [e.id]: parseInt(ev.target.value) }))}
-                                    disabled={isSaving}
-                                    className="rounded-lg bg-slate-800 border border-white/10 px-2 py-1 text-xs text-white focus:outline-none focus:border-violet-500 disabled:opacity-50 w-14">
-                                    {[1,2,3,4,5,6,7,8,9,10].filter(n => n > e.wave).map(n => (
-                                      <option key={n} value={n}>{n}</option>
-                                    ))}
-                                  </select>
-                                  <button onClick={() => lanzarOla(e.id, olaSeleccionada)} disabled={isSaving || olaSeleccionada <= e.wave}
-                                    className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold bg-violet-500/15 text-violet-300 hover:bg-violet-500/25 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-                                    <Send className="h-3.5 w-3.5" /> Lanzar
-                                  </button>
-                                </div>
+                              {esUltima && e.status === "closed" && !hayActiva && (
+                                <button onClick={() => lanzarOla(e.id, e.wave + 1)} disabled={isSaving}
+                                  className="shrink-0 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold bg-violet-500/15 text-violet-300 hover:bg-violet-500/25 transition-colors disabled:opacity-40">
+                                  <Send className="h-3.5 w-3.5" /> Nueva Ola {e.wave + 1}
+                                </button>
                               )}
-                              {(e.status === "draft" || e.status === "ready") && !hayActiva && (
+                              {esUltima && (e.status === "draft" || e.status === "ready") && !hayActiva && (
                                 <button onClick={() => updateEncuesta(e.id, { status: "sent" })} disabled={isSaving}
                                   className="shrink-0 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition-colors disabled:opacity-40">
                                   <Send className="h-3.5 w-3.5" /> Activar
                                 </button>
                               )}
-                              {!activa && (
-                                <Link href={`/cliente/proyectos/${id}/encuestas/${e.id}`}
-                                  className="text-slate-600 hover:text-white transition-colors shrink-0">
-                                  <ChevronRight className="h-4 w-4" />
-                                </Link>
-                              )}
-                              {activa && (
-                                <Link href={`/cliente/proyectos/${id}/encuestas/${e.id}`}
-                                  className="text-slate-600 hover:text-white transition-colors shrink-0">
-                                  <ChevronRight className="h-4 w-4" />
-                                </Link>
-                              )}
+                              <Link href={`/cliente/proyectos/${id}/encuestas/${e.id}`}
+                                className="text-slate-600 hover:text-white transition-colors shrink-0">
+                                <ChevronRight className="h-4 w-4" />
+                              </Link>
                             </div>
                           );
                         })}
