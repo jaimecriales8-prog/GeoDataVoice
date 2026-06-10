@@ -23,65 +23,62 @@ export async function GET(req: NextRequest) {
 
   const supabase = createServiceClient();
 
-  // Verificar ownership: encuesta → proyecto → cliente
-  const { data: survey } = await supabase
-    .from("surveys").select("project_id").eq("id", surveyId).maybeSingle();
+  // Verificar ownership
+  const { data: survey } = await supabase.from("surveys").select("project_id").eq("id", surveyId).maybeSingle();
   if (!survey) return NextResponse.json({ error: "Encuesta no encontrada" }, { status: 404 });
-
-  const { data: proyecto } = await supabase
-    .from("projects").select("client_id").eq("id", survey.project_id).maybeSingle();
-  if (!proyecto) return NextResponse.json({ error: "Proyecto no encontrado" }, { status: 404 });
-
+  const { data: proyecto } = await supabase.from("projects").select("client_id").eq("id", survey.project_id).maybeSingle();
   const role = user.user_metadata?.role;
-  if (role !== "admin" && proyecto.client_id !== user.id) {
+  if (role !== "admin" && proyecto?.client_id !== user.id)
     return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+
+  // Paso 1: IDs únicos de participantes que respondieron esta encuesta
+  const { data: pidRows } = await supabase
+    .from("responses")
+    .select("participant_id, encuestador_id, created_at")
+    .eq("survey_id", surveyId)
+    .order("created_at", { ascending: false });
+
+  // Deduplicar manteniendo el primer registro (más reciente)
+  const seen = new Set<string>();
+  const unique: { participant_id: string; encuestador_id: string | null; created_at: string }[] = [];
+  for (const r of pidRows ?? []) {
+    if (!seen.has(r.participant_id)) {
+      seen.add(r.participant_id);
+      unique.push(r);
+    }
   }
 
+  const total = unique.length;
   const from = page * POR_PAGINA;
-  const to = from + POR_PAGINA - 1;
+  const pageItems = unique.slice(from, from + POR_PAGINA);
 
-  // Traer respuestas únicas por participante para esta encuesta
-  const { data: rows, count, error } = await supabase
-    .from("responses")
-    .select(`
-      participant_id,
-      encuestador_id,
-      created_at,
-      participants!inner(
-        id, name_encrypted, gender, birth_year, estrato, municipio,
-        departamento, kyc_status, status, user_id, is_anonymous
-      )
-    `, { count: "exact" })
-    .eq("survey_id", surveyId)
-    .order("created_at", { ascending: false })
-    .range(from, to);
+  if (pageItems.length === 0) return NextResponse.json({ respondentes: [], total, pagina: page, porPagina: POR_PAGINA });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  // Paso 2: Detalles de los participantes de esta página
+  const ids = pageItems.map(r => r.participant_id);
+  const { data: parts } = await supabase
+    .from("participants")
+    .select("id, name_encrypted, gender, birth_year, estrato, municipio, departamento, kyc_status, user_id, is_anonymous")
+    .in("id", ids);
 
-  // Deduplicar por participant_id (un participante puede tener N respuestas)
-  const seen = new Set<string>();
-  const respondentes = (rows ?? [])
-    .filter(r => {
-      if (seen.has(r.participant_id)) return false;
-      seen.add(r.participant_id);
-      return true;
-    })
-    .map(r => {
-      const p = r.participants as Record<string, unknown>;
-      const tipo = p.user_id ? "panelista" : r.encuestador_id ? "campo" : "abierta";
-      return {
-        id: p.id,
-        nombre: p.is_anonymous ? "Anónimo" : (p.name_encrypted as string ?? "—"),
-        tipo,
-        gender: p.gender ?? null,
-        edad: p.birth_year ? new Date().getFullYear() - (p.birth_year as number) : null,
-        estrato: p.estrato ?? null,
-        municipio: p.municipio ?? null,
-        departamento: p.departamento ?? null,
-        kyc_status: p.kyc_status ?? "none",
-        fecha: r.created_at,
-      };
-    });
+  const partMap = new Map((parts ?? []).map(p => [p.id, p]));
 
-  return NextResponse.json({ respondentes, total: count ?? 0, pagina: page, porPagina: POR_PAGINA });
+  const respondentes = pageItems.map(r => {
+    const p = partMap.get(r.participant_id);
+    const tipo = p?.user_id ? "panelista" : r.encuestador_id ? "campo" : "abierta";
+    return {
+      id: r.participant_id,
+      nombre: p?.is_anonymous ? "Anónimo" : (p?.name_encrypted ?? "—"),
+      tipo,
+      gender: p?.gender ?? null,
+      edad: p?.birth_year ? new Date().getFullYear() - p.birth_year : null,
+      estrato: p?.estrato ?? null,
+      municipio: p?.municipio ?? null,
+      departamento: p?.departamento ?? null,
+      kyc_status: p?.kyc_status ?? "none",
+      fecha: r.created_at,
+    };
+  });
+
+  return NextResponse.json({ respondentes, total, pagina: page, porPagina: POR_PAGINA });
 }
