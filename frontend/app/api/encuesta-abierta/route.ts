@@ -48,6 +48,8 @@ export async function POST(req: NextRequest) {
       is_anonymous,
       // Respuestas: [{ question_id, value }]
       respuestas,
+      // Metadata de dispositivo
+      device_meta,
     } = body;
 
     if (!surveyId || !Array.isArray(respuestas)) {
@@ -108,6 +110,25 @@ export async function POST(req: NextRequest) {
       participantId = newId;
     }
 
+    // Enriquecer device_meta con geo-IP (fire-and-forget, no bloquea si falla)
+    let enrichedMeta = device_meta ?? null;
+    if (enrichedMeta) {
+      try {
+        const ip =
+          req.headers.get("x-forwarded-for")?.split(",")[0].trim() ||
+          req.headers.get("x-real-ip") ||
+          null;
+        if (ip && ip !== "127.0.0.1" && ip !== "::1") {
+          const geo = await fetch(`http://ip-api.com/json/${ip}?fields=country,regionName,city,isp,query`, {
+            signal: AbortSignal.timeout(2000),
+          }).then(r => r.json()).catch(() => null);
+          if (geo?.city) {
+            enrichedMeta = { ...enrichedMeta, ip_country: geo.country, ip_region: geo.regionName, ip_city: geo.city, ip_isp: geo.isp };
+          }
+        }
+      } catch { /* geo falla silenciosamente */ }
+    }
+
     // Insertar respuestas
     const rows = respuestas.map((r: { question_id: string; value: string }) => ({
       id: crypto.randomUUID(),
@@ -115,6 +136,7 @@ export async function POST(req: NextRequest) {
       participant_id: participantId,
       question_id: r.question_id,
       value: r.value ?? null,
+      device_meta: enrichedMeta,
     }));
 
     const { error: rErr } = await supabase.from("responses").insert(rows);

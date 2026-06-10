@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, use, useEffect, useCallback } from "react";
+import { useDeviceMeta } from "@/hooks/useDeviceMeta";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import {
@@ -38,6 +39,7 @@ function extFromMime(mime: string): string {
 export default function EncuestaPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: surveyId } = use(params);
   const router = useRouter();
+  const deviceMeta = useDeviceMeta();
 
   const [userId, setUserId] = useState<string | null>(null);
   const [surveyName, setSurveyName] = useState("");
@@ -183,6 +185,10 @@ export default function EncuestaPage({ params }: { params: Promise<{ id: string 
           value,
           quality: "complete",
           responded_at: new Date().toISOString(),
+          device_meta: deviceMeta.current ? {
+            ...deviceMeta.current,
+            finished_at: new Date().toISOString(),
+          } : null,
         });
         if (rErr) throw new Error(`Respuesta: ${rErr.message}`);
         respuestasOk++;

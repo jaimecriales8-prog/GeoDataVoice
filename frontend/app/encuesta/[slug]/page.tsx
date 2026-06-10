@@ -7,6 +7,7 @@ import {
   User, MapPin, Users, EyeOff, ChevronDown,
 } from "lucide-react";
 import { DEPARTAMENTOS, getMunicipios } from "@/lib/colombia";
+import { useDeviceMeta } from "@/hooks/useDeviceMeta";
 
 // ── tipos ─────────────────────────────────────────────────────────────────────
 type Survey = {
@@ -54,6 +55,7 @@ function Sel({ label, value, onChange, children, hint }: {
 
 export default function EncuestaAbiertaPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
+  const deviceMeta = useDeviceMeta();
   const [survey, setSurvey] = useState<Survey | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
@@ -236,6 +238,10 @@ export default function EncuestaAbiertaPage({ params }: { params: Promise<{ slug
       registrado_votar: registradoVotar,
       num_hijos: tieneHijos ? demo.num_hijos : "0",
       respuestas: questions.map(q => ({ question_id: q.id, value: respuestas[q.id] ?? "" })),
+      device_meta: deviceMeta.current ? {
+        ...deviceMeta.current,
+        finished_at: new Date().toISOString(),
+      } : undefined,
     };
 
     const res = await fetch("/api/encuesta-abierta", {
