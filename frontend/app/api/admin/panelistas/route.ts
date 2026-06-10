@@ -6,6 +6,7 @@ export async function GET() {
   const { data, error } = await supabase
     .from("participants")
     .select("id, name_encrypted, gender, birth_year, status, kyc_status, phone_verified, created_at")
+    .not("user_id", "is", null)
     .order("created_at", { ascending: false });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(data);
