@@ -288,7 +288,7 @@ export default function ResultadosEncuesta({ params }: { params: Promise<{ id: s
               <Loader2 className="h-4 w-4 animate-spin" /> Cargando evolución…
             </div>
           ) : resProyecto ? (
-            <ResultadosProyectoView data={resProyecto} />
+            <ResultadosProyectoView data={resProyecto} hideAgregado />
           ) : null}
         </div>
       )}

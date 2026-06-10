@@ -22,7 +22,7 @@ function Card({ title, icon: Icon, hint, children }: {
   );
 }
 
-export default function ResultadosProyectoView({ data }: { data: ResultadosProyecto }) {
+export default function ResultadosProyectoView({ data, hideAgregado }: { data: ResultadosProyecto; hideAgregado?: boolean }) {
   const { agregado, porOla, indicadores } = data;
   const hayOlas = porOla.some(o => o.total > 0 || o.favorabilidad != null);
   const serie = porOla.map(o => ({ ...o, name: `Ola ${o.wave}` }));
@@ -106,10 +106,12 @@ export default function ResultadosProyectoView({ data }: { data: ResultadosProye
       )}
 
       {/* 3. Foto agregada del proyecto */}
-      <section>
-        <h2 className="text-sm font-semibold text-white mb-3">Foto agregada del proyecto</h2>
-        <ResultadosView r={agregado} />
-      </section>
+      {!hideAgregado && (
+        <section>
+          <h2 className="text-sm font-semibold text-white mb-3">Foto agregada del proyecto</h2>
+          <ResultadosView r={agregado} />
+        </section>
+      )}
     </div>
   );
 }
