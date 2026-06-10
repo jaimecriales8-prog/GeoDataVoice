@@ -63,7 +63,9 @@ export default function ResultadosEncuesta({ params }: { params: Promise<{ id: s
   const [cambiandoEstado, setCambiandoEstado] = useState(false);
   const [slug, setSlug] = useState<string | null>(null);
   const [linkCopiado, setLinkCopiado] = useState(false);
-  const [tab, setTab] = useState<"resultados" | "respondentes">("resultados");
+  const [tab, setTab] = useState<"resultados" | "comparacion" | "respondentes">("resultados");
+  const [resOlas, setResOlas] = useState<{ wave: number; r: Resultados }[]>([]);
+  const [cargandoComp, setCargandoComp] = useState(false);
 
   // Respondentes (server-side pagination)
   type Respondente = { id: string; nombre: string; tipo: string; gender: string | null; edad: number | null; estrato: number | null; municipio: string | null; departamento: string | null; kyc_status: string; fecha: string };
@@ -116,12 +118,18 @@ export default function ResultadosEncuesta({ params }: { params: Promise<{ id: s
     })();
   }, [eid]);
 
-  function handleTab(t: "resultados" | "respondentes") {
+  async function handleTab(t: "resultados" | "comparacion" | "respondentes") {
     setTab(t);
     if (t === "respondentes" && respondentes.length === 0) {
       cargarRespondentes(0);
       fetch(`/api/cliente/encuestas/caracterizacion?surveyId=${eid}`)
         .then(r => r.json()).then(setCaract).catch(() => null);
+    }
+    if (t === "comparacion" && resOlas.length === 0 && olas.length > 1) {
+      setCargandoComp(true);
+      const resultados = await Promise.all(olas.map(o => fetchResultados([o.id])));
+      setResOlas(olas.map((o, i) => ({ wave: o.wave, r: resultados[i] })));
+      setCargandoComp(false);
     }
   }
 
@@ -261,9 +269,10 @@ export default function ResultadosEncuesta({ params }: { params: Promise<{ id: s
       <div className="flex gap-1 mb-6 border-b border-white/5">
         {[
           { key: "resultados", label: "Resultados" },
+          ...(olas.length > 1 ? [{ key: "comparacion", label: "Comparación de olas" }] : []),
           { key: "respondentes", label: `Respondentes${respTotal > 0 ? ` (${respTotal.toLocaleString()})` : ""}` },
         ].map(t => (
-          <button key={t.key} onClick={() => handleTab(t.key as "resultados" | "respondentes")}
+          <button key={t.key} onClick={() => handleTab(t.key as "resultados" | "comparacion" | "respondentes")}
             className={`px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px ${
               tab === t.key ? "border-violet-500 text-white" : "border-transparent text-slate-500 hover:text-slate-300"
             }`}>
@@ -272,7 +281,25 @@ export default function ResultadosEncuesta({ params }: { params: Promise<{ id: s
         ))}
       </div>
 
-      {tab === "respondentes" ? (
+      {tab === "comparacion" ? (
+        cargandoComp ? (
+          <div className="flex items-center gap-2 text-sm text-slate-400 py-10 justify-center">
+            <Loader2 className="h-4 w-4 animate-spin" /> Cargando comparación…
+          </div>
+        ) : (
+          <div className="grid gap-6" style={{ gridTemplateColumns: `repeat(${resOlas.length}, minmax(0, 1fr))` }}>
+            {resOlas.map(({ wave, r }) => (
+              <div key={wave}>
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="rounded-full bg-violet-600 px-3 py-1 text-xs font-bold text-white">Ola {wave}</span>
+                  <span className="text-xs text-slate-500">{r.respuestas} respuesta{r.respuestas === 1 ? "" : "s"}</span>
+                </div>
+                <ResultadosView r={r} />
+              </div>
+            ))}
+          </div>
+        )
+      ) : tab === "respondentes" ? (
         <>
           {caract && <CaracterizacionPanel data={caract as Parameters<typeof CaracterizacionPanel>[0]["data"]} titulo="Caracterización de respondentes" />}
           <div className="mt-6">
