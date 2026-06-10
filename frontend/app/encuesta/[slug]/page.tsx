@@ -255,8 +255,9 @@ export default function EncuestaAbiertaPage({ params }: { params: Promise<{ slug
       fd.append("file", blob, `audio.${ext}`);
       fd.append("surveyId", survey.id);
       fd.append("questionId", qId);
+      fd.append("participantId", participantId);
       try {
-        const up = await fetch("/api/audio/upload", { method: "POST", body: fd });
+        const up = await fetch("/api/audio/upload-abierta", { method: "POST", body: fd });
         if (up.ok) {
           const { path } = await up.json();
           // Buscar el response_id para este participante y pregunta
