@@ -336,6 +336,27 @@
 
 ---
 
+## ADR-023: Captura de metadata de dispositivo en responses (`device_meta`)
+**Estado:** Vigente · **Fecha:** 2026-06-09
+
+**Contexto:** Para inteligencia territorial es valioso saber desde qué dispositivo, ciudad y canal llegó cada respuesta. Esta información no está disponible en Supabase Auth ni en los datos del participante.
+
+**Decisión:** Columna `responses.device_meta jsonb` (nullable). Se llena en el momento de envío con:
+- Cliente (hook `useDeviceMeta`): device_type, os, browser, language, timezone, screen_w/h, connection_type, referrer, started_at.
+- Servidor (API route): enriquece con geo-IP vía `ip-api.com` (free tier, 45 req/min) → ip_country, ip_region, ip_city, ip_isp. Timeout 2s, fire-and-forget — si falla, el insert igual procede.
+- `finished_at` se agrega al momento de enviar el formulario.
+
+**Aplica a:** encuesta abierta (`/encuesta/[slug]`) y encuesta panelista en campo (`/campo/panelista/encuesta/[id]`).
+
+**Razones:**
+- Sin fricción para el respondente — toda la captura es automática.
+- Permite detectar bots (duración muy corta), segmentar por región, y analizar el canal de distribución más efectivo.
+- La columna nullable no rompe nada existente.
+
+**Limitación:** ip-api.com tiene límite de 45 req/min en plan gratuito. Para volúmenes altos, mover la geo-resolución a un job asíncrono o cambiar a proveedor con mayor cuota.
+
+---
+
 ## Decisiones Pendientes (antes de producción)
 
 | # | Decisión | Opciones | Urgencia |

@@ -1,5 +1,5 @@
 # ARCHITECTURE.md — GeoDataVoice
-> Última actualización: 2026-06-06
+> Última actualización: 2026-06-09
 
 ---
 
@@ -76,19 +76,19 @@ frontend/app/
 │   ├── proyectos/page.tsx                Lista de proyectos
 │   ├── pagos/page.tsx                    Configuración de tarifas
 │   └── configuracion/page.tsx
-├── cliente/                              ROL: cliente
-│   ├── layout.tsx                        Sidebar violeta
+├── cliente/                              ROL: cliente — nav: Inicio / Proyectos / Resultados
+│   ├── layout.tsx                        Sidebar violeta (sin "Encuestas" desde 2026-06-09)
 │   ├── page.tsx                          Home cliente
-│   ├── encuestas/page.tsx               Lista global de encuestas del cliente
-│   ├── resultados/page.tsx              Lista proyectos → resultados
+│   ├── encuestas/page.tsx               (ruta existe, ya no en nav — acceso desde proyectos)
+│   ├── resultados/page.tsx              Lista proyectos → resultados (encuestas agrupadas por nombre)
 │   └── proyectos/
 │       ├── page.tsx, nuevo/page.tsx
 │       └── [id]/
-│           ├── page.tsx                  Detalle + encuestas + toggle identidad calle
+│           ├── page.tsx                  Detalle + encuestas agrupadas por nombre (olas colapsadas)
 │           ├── resultados/page.tsx       Resultados del PROYECTO (foto+olas+indicadores+favorabilidad)
 │           └── encuestas/
 │               ├── nueva/page.tsx        Crear encuesta (+ tracking_key/favorabilidad)
-│               └── [eid]/page.tsx        Resultados por ENCUESTA
+│               └── [eid]/page.tsx        Resultados por ENCUESTA (pills ola + botón Evolución)
 └── campo/                                ROL: panelista | encuestador
     ├── verificar-identidad/page.tsx      KYC panelista (AutenTIC real / simulación) + gate middleware
     ├── panelista/
@@ -123,7 +123,7 @@ RLS desactivado en todas las tablas (MVP). Habilitar antes de producción real.
 | `field_operators` | Encuestadores. `role`: encuestador/supervisor/coordinator. `status`: active/inactive |
 | `field_visits` | Registro GPS de visitas del encuestador (lat/lon/accuracy) |
 | `consents` | Consentimientos versionados (v1.0). `type`: PANEL/AUDIO/WHATSAPP/PAYMENTS/AGORA/POLITICAL |
-| `responses` | Respuestas de encuesta. `encuestador_id` si fue aplicada en campo |
+| `responses` | Respuestas de encuesta. `encuestador_id` si fue aplicada en campo. `device_meta` (jsonb): device_type, os, browser, language, timezone, screen_w/h, connection_type, referrer, ip_country, ip_region, ip_city, ip_isp, started_at, finished_at |
 | `audio_responses` | Archivo de audio subido. `quality`: pending/transcribed/processed/error |
 | `nlp_outputs` | 9 variables IA: sentiment, emotion, intensity, main_topic, topics, narrative, summary, citizen_quote, opinion_driver |
 | `payments` | Pagos a panelistas. `status`: pending/approved/paid |

@@ -1,5 +1,5 @@
 # PROJECT_CONTEXT.md — GeoDataVoice
-> Actualizado: 2026-06-07 (v2) | Producción: https://geodatavoice.grialtech.co
+> Actualizado: 2026-06-09 (v3) | Producción: https://geodatavoice.grialtech.co
 
 ---
 
@@ -9,7 +9,9 @@
 
 **Problema:** Alcaldes, gobernadores, candidatos y gremios toman decisiones con información incompleta. Las encuestas tradicionales son episódicas y costosas. GeoDataVoice provee medición recurrente, accesible y territorializada con análisis de voz como diferencial.
 
-**Estado actual:** ~88% de avance. Flujo end-to-end operativo en los 3 perfiles (panelista, encuestador, cliente), encuestas abiertas vía link público, audio en los 3 formularios de captura, departamento/municipio con datos de Colombia, tableros de resultados con filtros demográficos y ponderación. **Encuestadores con flujo de aprobación** (pending→active/inactive). **Cuotas de panel** (total, género, estrato, SISBEN, actividad — toggleables por variable). RLS parcialmente implementado (políticas críticas en su lugar). Deploy en Vercel estable.
+**Estado actual:** ~92% de avance. Flujo end-to-end operativo en los 3 perfiles (panelista, encuestador, cliente), encuestas abiertas vía link público, audio en los 3 formularios de captura, departamento/municipio con datos de Colombia, tableros de resultados con filtros demográficos y ponderación. **Encuestadores con flujo de aprobación** (pending→active/inactive). **Cuotas de panel** (total, género, estrato, SISBEN, actividad — toggleables por variable). RLS parcialmente implementado (políticas críticas en su lugar). Deploy en Vercel estable.
+
+**Novedades 2026-06-09:** Encuestas agrupadas por nombre en panel cliente (olas colapsadas bajo una fila); navegación por olas + botón "Evolución" con gráficas de sentimiento y por pregunta vía `tracking_key`; captura de metadata de dispositivo (`device_meta jsonb`) en todas las respuestas (tipo dispositivo, OS, browser, conexión, geo-IP); fix en registro de panelista (`.eq("user_id",...)` en lugar de `.eq("id",...)`); "Encuestas" eliminada del menú lateral del cliente.
 
 ---
 
@@ -33,14 +35,13 @@ frontend/ (Next.js 16 — puerto 3010 local, Vercel en prod)
     /proyectos         → Lista (proyectos los crean los clientes)
     /pagos             → Tarifa global + tarifa por cliente
 
-  /cliente/            → Panel CLIENTE (sidebar violeta)
+  /cliente/            → Panel CLIENTE (sidebar violeta) — nav: Inicio / Proyectos / Resultados
     /proyectos         → Lista proyectos del cliente
     /proyectos/nuevo   → Crear proyecto (tipo + propósito + fechas)
-    /proyectos/[id]    → Detalle + lista de encuestas
+    /proyectos/[id]    → Detalle + encuestas agrupadas por nombre (olas colapsadas, copiar link abierta)
     /proyectos/[id]/encuestas/nueva → Crear encuesta (preguntas + perfil_objetivo + toggle abierta)
-    /proyectos/[id]/encuestas/[eid] → Resultados por encuesta (filtros + ponderación + CSV/PDF)
-    /proyectos/[id]/resultados → Resultados agregados por proyecto (tracking por ola)
-    /encuestas         → Lista global de encuestas del cliente
+    /proyectos/[id]/encuestas/[eid] → Resultados por encuesta (filtros + ponderación + CSV/PDF + navegación olas + Evolución)
+    /proyectos/[id]/resultados → Resultados agregados por proyecto (tracking por ola, encuestas agrupadas)
 
   /encuesta/[slug]     → Encuesta ABIERTA pública (sin auth): bienvenida → anonimato → demografía → preguntas → pago → gracias
 
@@ -105,7 +106,7 @@ Producción: https://geodatavoice.grialtech.co (Vercel, proyecto geodatavoice-da
 | `field_operators` | Encuestadores. `user_id`→auth, **`recruiter_code`** |
 | `field_visits` | GPS de visitas (`operator_id`, lat/lon, accuracy) |
 | `consents` | Consentimientos versionados (v1.0) |
-| `responses` | Respuestas. `participant_id`, `survey_id`, `question_id`, `value`, **`encuestador_id`**, `responded_at` |
+| `responses` | Respuestas. `participant_id`, `survey_id`, `question_id`, `value`, **`encuestador_id`**, `responded_at`, **`device_meta`** (jsonb: device_type, os, browser, connection_type, ip_city/region/country, started_at, finished_at, referrer) |
 | `audio_responses` | Audio. `response_id`, `audio_url`(Storage path), `quality`: pending/processed/error |
 | `nlp_outputs` | IA: sentiment, emotion, intensity, main_topic, narrative, citizen_quote, etc. |
 | `payments` | Pagos a panelistas (dispersión real pendiente) |
@@ -297,7 +298,6 @@ curl -X PATCH "https://api.vercel.com/v9/projects/prj_uMy66cfixy7kZMdfzVGIB4FrUY
 
 | # | Tarea | Archivo principal | Prioridad |
 |---|---|---|---|
-| 0 | **SQL en Supabase**: insertar `encuestadores_config` y `panel_quotas` en `platform_config` | SQL Editor Supabase | 🔴 Antes de probar |
 | 1 | **Pruebas end-to-end** — ver checklist completo abajo | todos los flujos | 🔴 Alta |
 | 2 | Dispersión real de pagos | `app/dashboard/pagos/` + tabla `payments` | 🟡 Media |
 | 3 | RLS en tablas restantes (tarea dedicada) | Supabase policies | 🟡 Media |

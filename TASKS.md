@@ -1,5 +1,5 @@
 # TASKS.md — GeoDataVoice Backlog
-> Última actualización: 2026-06-08
+> Última actualización: 2026-06-09
 
 ## Leyenda
 - `[ ]` Pendiente
@@ -83,6 +83,15 @@
 - [x] **P1-07** Notificación al panelista cuando hay nueva encuesta — `/api/email/nueva-encuesta` + integrado al publicar encuesta
 - [x] **P1-06b** Integrar `/api/email/pago-procesado` en `dashboard/pagos` — sección "Pagos pendientes" con botón Aprobar: marca `payments.status=paid` + llama endpoint de email al panelista. 2026-06-09.
 - [x] **P1-06c** Templates de email Supabase Auth — SMTP configurado + templates corregidos (token_hash, no PKCE). Confirm signup: `type=email`, Reset Password: `type=recovery&next=/auth/reset-password`. Fix bug "Enlace inválido" cross-device. Verificado 2026-06-08.
+- [x] **P1-34** Agrupar encuestas por nombre en panel cliente — olas colapsadas bajo una fila por encuesta; fila muestra perfil, badge Abierta, nº de olas, fecha de cierre; click en nombre = resultados ola activa; chevron = expandir olas. 2026-06-09.
+- [x] **P1-35** Navegación por olas + Evolución en detalle de encuesta — pills de ola + botón "Evolución" (mutuamente excluyentes); gráfica de sentimiento por ola + gráfica por pregunta vía `tracking_key` (line chart ≤8 opciones, bar charts lado a lado >8). 2026-06-09.
+- [x] **P1-36** Agrupar encuestas en página de resultados del proyecto. 2026-06-09.
+- [x] **P1-37** Copiar link de encuesta abierta desde fila expandida en detalle de proyecto. 2026-06-09.
+- [x] **P1-38** Migración backfill `tracking_key` — `supabase/migrations/20260609_tracking_keys_backfill.sql`: asigna `tracking_key=id` donde es null; unifica keys por texto de pregunta dentro del mismo proyecto. 2026-06-09.
+- [x] **P1-39** Captura de metadata de dispositivo en respuestas — hook `useDeviceMeta`, columna `responses.device_meta jsonb` (device_type, os, browser, language, timezone, screen, connection_type, referrer, ip_city/region/country vía ip-api.com). 2026-06-09.
+- [x] **Fix** Registro panelista: `.eq("user_id",...)` en lugar de `.eq("id",...)` para guardar campos demográficos cuando el participante fue reclamado desde campo. 2026-06-09.
+- [x] **Fix** Eliminar "Encuestas" del menú lateral del cliente — acceso solo desde Proyectos. 2026-06-09.
+- [ ] **P1-40** Visualizar `device_meta` en tab "Respondentes" — gráficas de dispositivo/OS/browser/conexión, top ciudades, fuente (referrer), duración promedio, alerta respuestas rápidas. Ver chip de tarea activo.
 - [ ] **P1-06d** Verificar subdominio `geodatavoice.grialtech.co` en Resend cuando se suba de plan (hoy se envía desde la raíz `grialtech.co`)
 - [ ] **P1-06e** Agregar variables de email a Preview en Vercel (hoy solo en Production)
 
