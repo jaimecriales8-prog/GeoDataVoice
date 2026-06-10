@@ -280,64 +280,64 @@ export default function ResultadosEncuesta({ params }: { params: Promise<{ id: s
       </div>
       <p className="text-slate-400 text-sm mb-4">Resultados de la encuesta · Ola {wave}</p>
 
-      {/* Panel evolución por ola */}
-      {mostrarEvolucion && (
-        <div className="mb-6 rounded-2xl border border-violet-500/20 bg-violet-500/5 p-5">
+      {/* Panel evolución — reemplaza los tabs cuando está activo */}
+      {mostrarEvolucion ? (
+        <div className="mt-2">
           {cargandoEvol ? (
-            <div className="flex items-center gap-2 text-sm text-slate-400 py-6 justify-center">
+            <div className="flex items-center gap-2 text-sm text-slate-400 py-10 justify-center">
               <Loader2 className="h-4 w-4 animate-spin" /> Cargando evolución…
             </div>
           ) : resProyecto ? (
             <ResultadosProyectoView data={resProyecto} hideAgregado />
           ) : null}
         </div>
-      )}
+      ) : null}
 
-      {/* Tabs */}
-      <div className="flex gap-1 mb-6 border-b border-white/5">
-        {[
-          { key: "resultados", label: "Resultados" },
-          { key: "respondentes", label: `Respondentes${respTotal > 0 ? ` (${respTotal.toLocaleString()})` : ""}` },
-        ].map(t => (
-          <button key={t.key} onClick={() => handleTab(t.key as "resultados" | "respondentes")}
-            className={`px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px ${
-              tab === t.key ? "border-violet-500 text-white" : "border-transparent text-slate-500 hover:text-slate-300"
-            }`}>
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      {tab === "respondentes" ? (
-        <>
-          {caract && <CaracterizacionPanel data={caract as Parameters<typeof CaracterizacionPanel>[0]["data"]} titulo="Caracterización de respondentes" />}
-          <div className="mt-6">
-            <RespondentesTab
-              respondentes={respondentes} total={respTotal} pagina={respPagina}
-              porPagina={POR_PAGINA} loading={respLoading} onPage={cargarRespondentes}
-            />
-          </div>
-        </>
-      ) : (<>
-      {puedeEditar && (
-        <PonderacionEditor surveyId={eid} inicial={ponderacion} onSaved={recalcular} />
-      )}
-
-      {res && (
-        <FiltroDemografico
-          filtro={filtro}
-          onChange={aplicarFiltro}
-          totalSinFiltro={res.totalSinFiltro}
-          totalFiltrado={res.respuestas}
-        />
-      )}
-
-      {(recalculando || filtrando) ? (
-        <div className="flex items-center gap-2 text-sm text-slate-400 py-6">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          {recalculando ? "Recalculando con la nueva ponderación…" : "Filtrando resultados…"}
+      {/* Tabs — solo visibles cuando evolución está cerrada */}
+      {!mostrarEvolucion && (<>
+        <div className="flex gap-1 mb-6 border-b border-white/5">
+          {[
+            { key: "resultados", label: "Resultados" },
+            { key: "respondentes", label: `Respondentes${respTotal > 0 ? ` (${respTotal.toLocaleString()})` : ""}` },
+          ].map(t => (
+            <button key={t.key} onClick={() => handleTab(t.key as "resultados" | "respondentes")}
+              className={`px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px ${
+                tab === t.key ? "border-violet-500 text-white" : "border-transparent text-slate-500 hover:text-slate-300"
+              }`}>
+              {t.label}
+            </button>
+          ))}
         </div>
-      ) : res && <ResultadosView r={res} />}
+
+        {tab === "respondentes" ? (
+          <>
+            {caract && <CaracterizacionPanel data={caract as Parameters<typeof CaracterizacionPanel>[0]["data"]} titulo="Caracterización de respondentes" />}
+            <div className="mt-6">
+              <RespondentesTab
+                respondentes={respondentes} total={respTotal} pagina={respPagina}
+                porPagina={POR_PAGINA} loading={respLoading} onPage={cargarRespondentes}
+              />
+            </div>
+          </>
+        ) : (<>
+          {puedeEditar && (
+            <PonderacionEditor surveyId={eid} inicial={ponderacion} onSaved={recalcular} />
+          )}
+          {res && (
+            <FiltroDemografico
+              filtro={filtro}
+              onChange={aplicarFiltro}
+              totalSinFiltro={res.totalSinFiltro}
+              totalFiltrado={res.respuestas}
+            />
+          )}
+          {(recalculando || filtrando) ? (
+            <div className="flex items-center gap-2 text-sm text-slate-400 py-6">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              {recalculando ? "Recalculando con la nueva ponderación…" : "Filtrando resultados…"}
+            </div>
+          ) : res && <ResultadosView r={res} />}
+        </>)}
       </>)}
     </div>
   );
