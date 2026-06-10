@@ -211,23 +211,18 @@ export default function ProyectoDetalle({ params }: { params: Promise<{ id: stri
                 return (
                   <div key={nombre}>
                     {/* Fila agrupada */}
-                    <button
-                      onClick={() => setExpandido(prev => {
-                        const next = new Set(prev);
-                        next.has(nombre) ? next.delete(nombre) : next.add(nombre);
-                        return next;
-                      })}
-                      className="w-full flex items-center gap-4 px-6 py-4 hover:bg-white/[0.02] transition-colors text-left">
+                    <div className="flex items-center gap-4 px-6 py-4 hover:bg-white/[0.02] transition-colors">
                       <div className="h-10 w-10 rounded-xl bg-slate-800 flex items-center justify-center shrink-0">
                         <ClipboardList className="h-5 w-5 text-slate-400" />
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-white">{nombre}</p>
+                      {/* Nombre clickeable → resultados */}
+                      <Link href={`/cliente/proyectos/${id}/encuestas/${(olaActiva ?? ultimaOla).id}`} className="flex-1 min-w-0 group">
+                        <p className="text-sm font-medium text-white group-hover:text-violet-300 transition-colors">{nombre}</p>
                         <p className="text-xs text-slate-500 mt-0.5">
                           {olas.length} ola{olas.length > 1 ? "s" : ""}
                           {olaActiva ? ` · Ola ${olaActiva.wave} activa` : ` · Última: Ola ${maxWave}`}
                         </p>
-                      </div>
+                      </Link>
                       {olaActiva ? (
                         <span className="rounded-full px-2.5 py-1 text-xs font-semibold bg-emerald-500/20 text-emerald-400 shrink-0">Activa</span>
                       ) : ultimaOla.status === "closed" ? (
@@ -237,10 +232,20 @@ export default function ProyectoDetalle({ params }: { params: Promise<{ id: stri
                           {(STATUS_CONF[ultimaOla.status] ?? STATUS_CONF.draft).label}
                         </span>
                       )}
-                      {estaExpandido
-                        ? <ChevronDown className="h-4 w-4 text-slate-500 shrink-0" />
-                        : <ChevronRight className="h-4 w-4 text-slate-500 shrink-0" />}
-                    </button>
+                      {/* Flecha → expandir olas */}
+                      <button
+                        onClick={() => setExpandido(prev => {
+                          const next = new Set(prev);
+                          next.has(nombre) ? next.delete(nombre) : next.add(nombre);
+                          return next;
+                        })}
+                        className="p-1.5 rounded-lg hover:bg-white/10 transition-colors shrink-0"
+                        title={estaExpandido ? "Colapsar olas" : "Ver olas"}>
+                        {estaExpandido
+                          ? <ChevronDown className="h-4 w-4 text-slate-400" />
+                          : <ChevronRight className="h-4 w-4 text-slate-400" />}
+                      </button>
+                    </div>
 
                     {/* Olas expandidas */}
                     {estaExpandido && (
