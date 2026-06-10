@@ -17,6 +17,7 @@ type Encuesta = {
   perfil_objetivo: string; closes_at: string | null; sent_at: string | null;
   audiencia: Audiencia | null;
   created_at: string;
+  es_abierta: boolean | null;
   _count?: { responses: number };
 };
 
@@ -208,6 +209,11 @@ export default function ProyectoDetalle({ params }: { params: Promise<{ id: stri
                 const olaActiva = olas.find(o => o.status === "sent");
                 const maxWave = Math.max(...olas.map(o => o.wave));
 
+                const refOla = olaActiva ?? ultimaOla;
+                const perfil = PERFIL_CONF[refOla.perfil_objetivo] ?? PERFIL_CONF.ambos;
+                const PerfilIcon = perfil.icon;
+                const esAbierta = olas.some(o => o.es_abierta);
+
                 return (
                   <div key={nombre}>
                     {/* Fila agrupada */}
@@ -216,12 +222,26 @@ export default function ProyectoDetalle({ params }: { params: Promise<{ id: stri
                         <ClipboardList className="h-5 w-5 text-slate-400" />
                       </div>
                       {/* Nombre clickeable → resultados */}
-                      <Link href={`/cliente/proyectos/${id}/encuestas/${(olaActiva ?? ultimaOla).id}`} className="flex-1 min-w-0 group">
+                      <Link href={`/cliente/proyectos/${id}/encuestas/${refOla.id}`} className="flex-1 min-w-0 group">
                         <p className="text-sm font-medium text-white group-hover:text-violet-300 transition-colors">{nombre}</p>
-                        <p className="text-xs text-slate-500 mt-0.5">
-                          {olas.length} ola{olas.length > 1 ? "s" : ""}
-                          {olaActiva ? ` · Ola ${olaActiva.wave} activa` : ` · Última: Ola ${maxWave}`}
-                        </p>
+                        <div className="flex items-center gap-2 mt-1 flex-wrap">
+                          <span className={`flex items-center gap-1 text-xs ${perfil.color}`}>
+                            <PerfilIcon className="h-3 w-3" />{perfil.label}
+                          </span>
+                          {esAbierta && (
+                            <span className="text-xs text-sky-400 bg-sky-500/10 px-1.5 py-0.5 rounded-full">Abierta</span>
+                          )}
+                          <span className="text-xs text-slate-500">
+                            {olas.length} ola{olas.length > 1 ? "s" : ""}
+                            {olaActiva ? ` · Ola ${olaActiva.wave} activa` : ` · Ola ${maxWave}`}
+                          </span>
+                          {refOla.closes_at && (
+                            <span className="flex items-center gap-1 text-xs text-slate-500">
+                              <Clock className="h-3 w-3" />
+                              Cierra {new Date(refOla.closes_at).toLocaleDateString("es-CO", { day: "numeric", month: "short" })}
+                            </span>
+                          )}
+                        </div>
                       </Link>
                       {olaActiva ? (
                         <span className="rounded-full px-2.5 py-1 text-xs font-semibold bg-emerald-500/20 text-emerald-400 shrink-0">Activa</span>
