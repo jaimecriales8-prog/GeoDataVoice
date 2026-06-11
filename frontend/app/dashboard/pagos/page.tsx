@@ -125,18 +125,13 @@ export default function PagosPage() {
   async function aprobarPago(pagoId: string) {
     setAprobando(pagoId);
     const supabase = createClient();
-    // Marcar como pagado
     await supabase.from("payments").update({ status: "paid" }).eq("id", pagoId);
-    // Enviar email de notificación
-    try {
-      await fetch("/api/email/pago-procesado", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pagoId }),
-      });
-    } catch (e) {
-      console.error("[aprobarPago] Error enviando email:", e);
-    }
+    const pago = pagos.find(p => p.id === pagoId);
+    const notifBody = JSON.stringify({ pagoId, participantId: pago?.participant_id, montoCOP: pago?.amount });
+    await Promise.allSettled([
+      fetch("/api/email/pago-procesado", { method: "POST", headers: { "Content-Type": "application/json" }, body: notifBody }),
+      fetch("/api/whatsapp/pago-aprobado", { method: "POST", headers: { "Content-Type": "application/json" }, body: notifBody }),
+    ]);
     setAprobando(null);
     await load();
   }

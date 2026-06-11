@@ -14,7 +14,7 @@ import ResultadosView from "@/components/resultados-view";
 import ResultadosProyectoView from "@/components/resultados-proyecto-view";
 import { PonderacionEditor } from "@/components/ponderacion-editor";
 import { FiltroDemografico } from "@/components/filtro-demografico";
-import { ArrowLeft, Loader2, Download, Printer, Send, StopCircle, Pencil, Link2, Check, Users, ShieldCheck, ShieldOff, TrendingUp } from "lucide-react";
+import { ArrowLeft, Loader2, Download, Printer, Send, StopCircle, Pencil, Link2, Check, Users, ShieldCheck, ShieldOff, TrendingUp, MessageCircle } from "lucide-react";
 import Paginacion from "@/components/paginacion";
 import CaracterizacionPanel from "@/components/caracterizacion-panel";
 import DeviceStatsPanel from "@/components/device-stats-panel";
@@ -63,6 +63,8 @@ export default function ResultadosEncuesta({ params }: { params: Promise<{ id: s
   const [filtro, setFiltro] = useState<FiltroDemo | null>(null);
   const [filtrando, setFiltrando] = useState(false);
   const [cambiandoEstado, setCambiandoEstado] = useState(false);
+  const [enviandoWA, setEnviandoWA] = useState(false);
+  const [waMsg, setWaMsg] = useState("");
   const [slug, setSlug] = useState<string | null>(null);
   const [linkCopiado, setLinkCopiado] = useState(false);
   const [tab, setTab] = useState<"resultados" | "respondentes">("resultados");
@@ -149,6 +151,19 @@ export default function ResultadosEncuesta({ params }: { params: Promise<{ id: s
     setRecalculando(true);
     setRes(await fetchResultados([eid], filtro));
     setRecalculando(false);
+  }
+
+  async function enviarRecordatorioWA() {
+    setEnviandoWA(true); setWaMsg("");
+    const r = await fetch("/api/whatsapp/recordatorio", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ surveyId: eid }),
+    });
+    const d = await r.json();
+    setEnviandoWA(false);
+    if (!r.ok) { setWaMsg(d.error ?? "Error al enviar"); return; }
+    setWaMsg(`✓ Recordatorio enviado a ${d.enviados} de ${d.pendientes} panelistas pendientes`);
+    setTimeout(() => setWaMsg(""), 5000);
   }
 
   async function cambiarEstado(nuevoEstado: "ready" | "closed") {
@@ -243,7 +258,16 @@ export default function ResultadosEncuesta({ params }: { params: Promise<{ id: s
                 {linkCopiado ? <><Check className="h-3.5 w-3.5 text-emerald-400" /> Copiado</> : <><Link2 className="h-3.5 w-3.5" /> Copiar link</>}
               </button>
             )}
-            {(status === "ready" || status === "sent") && (
+            {(status === "ready" || status === "sent") && (<>
+              <button
+                onClick={enviarRecordatorioWA}
+                disabled={enviandoWA}
+                title="Enviar recordatorio por WhatsApp a panelistas que no han respondido"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-green-700/30 border border-green-600/30 hover:bg-green-600/40 disabled:opacity-50 px-3 py-1.5 text-xs text-green-300 transition-colors"
+              >
+                {enviandoWA ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <MessageCircle className="h-3.5 w-3.5" />}
+                Recordatorio WA
+              </button>
               <button
                 onClick={() => cambiarEstado("closed")}
                 disabled={cambiandoEstado}
@@ -252,7 +276,7 @@ export default function ResultadosEncuesta({ params }: { params: Promise<{ id: s
                 {cambiandoEstado ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <StopCircle className="h-3.5 w-3.5" />}
                 Cerrar
               </button>
-            )}
+            </>)}
             {status === "closed" && (
               <button
                 onClick={() => cambiarEstado("ready")}
@@ -282,7 +306,8 @@ export default function ResultadosEncuesta({ params }: { params: Promise<{ id: s
           </>)}
         </div>
       </div>
-      <p className="text-slate-400 text-sm mb-4">Resultados de la encuesta · Ola {wave}</p>
+      <p className="text-slate-400 text-sm mb-1">Resultados de la encuesta · Ola {wave}</p>
+      {waMsg && <p className="text-xs text-green-400 mb-3">{waMsg}</p>}
 
       {/* Panel evolución — reemplaza los tabs cuando está activo */}
       {mostrarEvolucion ? (

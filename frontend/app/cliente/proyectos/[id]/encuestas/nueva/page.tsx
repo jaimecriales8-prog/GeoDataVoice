@@ -203,18 +203,13 @@ export default function NuevaEncuesta({ params }: { params: Promise<{ id: string
     const { error: qErr } = await supabase.from("questions").insert(preguntasRows);
     if (qErr) { setError(qErr.message); setSaving(false); return; }
 
-    // Si se publica (ready = enviada), notificar a panelistas por email
+    // Si se publica (ready = enviada), notificar a panelistas por email + WhatsApp
     if (estado === "ready") {
-      try {
-        await fetch("/api/email/nueva-encuesta", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ surveyId: survey.id }),
-        });
-      } catch (e) {
-        console.error("[guardar] Error enviando notificaciones:", e);
-        // No bloqueamos la navegación si el email falla
-      }
+      const notifBody = JSON.stringify({ surveyId: survey.id });
+      await Promise.allSettled([
+        fetch("/api/email/nueva-encuesta", { method: "POST", headers: { "Content-Type": "application/json" }, body: notifBody }),
+        fetch("/api/whatsapp/nueva-encuesta", { method: "POST", headers: { "Content-Type": "application/json" }, body: notifBody }),
+      ]);
     }
 
     router.push(`/cliente/proyectos/${proyectoId}`);
