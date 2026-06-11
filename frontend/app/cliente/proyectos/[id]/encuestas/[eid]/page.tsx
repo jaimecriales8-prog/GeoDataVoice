@@ -17,6 +17,7 @@ import { FiltroDemografico } from "@/components/filtro-demografico";
 import { ArrowLeft, Loader2, Download, Printer, Send, StopCircle, Pencil, Link2, Check, Users, ShieldCheck, ShieldOff, TrendingUp } from "lucide-react";
 import Paginacion from "@/components/paginacion";
 import CaracterizacionPanel from "@/components/caracterizacion-panel";
+import DeviceStatsPanel from "@/components/device-stats-panel";
 
 function exportarCSV(nombre: string, res: Resultados) {
   const preguntas = res.preguntas;
@@ -77,6 +78,7 @@ export default function ResultadosEncuesta({ params }: { params: Promise<{ id: s
   const [respLoading, setRespLoading] = useState(false);
   const POR_PAGINA = 50;
   const [caract, setCaract] = useState<Record<string, unknown> | null>(null);
+  const [deviceStats, setDeviceStats] = useState<Record<string, unknown> | null>(null);
 
   async function cargarRespondentes(pagina: number) {
     setRespLoading(true);
@@ -126,6 +128,8 @@ export default function ResultadosEncuesta({ params }: { params: Promise<{ id: s
       cargarRespondentes(0);
       fetch(`/api/cliente/encuestas/caracterizacion?surveyId=${eid}`)
         .then(r => r.json()).then(setCaract).catch(() => null);
+      fetch(`/api/cliente/encuestas/device-stats?surveyId=${eid}`)
+        .then(r => r.json()).then(setDeviceStats).catch(() => null);
     }
   }
 
@@ -312,6 +316,11 @@ export default function ResultadosEncuesta({ params }: { params: Promise<{ id: s
         {tab === "respondentes" ? (
           <>
             {caract && <CaracterizacionPanel data={caract as Parameters<typeof CaracterizacionPanel>[0]["data"]} titulo="Caracterización de respondentes" />}
+            {deviceStats && (
+              <div className="mt-6">
+                <DeviceStatsPanel data={deviceStats as Parameters<typeof DeviceStatsPanel>[0]["data"]} />
+              </div>
+            )}
             <div className="mt-6">
               <RespondentesTab
                 respondentes={respondentes} total={respTotal} pagina={respPagina}
