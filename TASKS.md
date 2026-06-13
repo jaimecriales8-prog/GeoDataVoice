@@ -1,5 +1,5 @@
 # TASKS.md — GeoDataVoice Backlog
-> Última actualización: 2026-06-09
+> Última actualización: 2026-06-13
 
 ## Leyenda
 - `[ ]` Pendiente
@@ -91,7 +91,7 @@
 - [x] **P1-39** Captura de metadata de dispositivo en respuestas — hook `useDeviceMeta`, columna `responses.device_meta jsonb` (device_type, os, browser, language, timezone, screen, connection_type, referrer, ip_city/region/country vía ip-api.com). 2026-06-09.
 - [x] **Fix** Registro panelista: `.eq("user_id",...)` en lugar de `.eq("id",...)` para guardar campos demográficos cuando el participante fue reclamado desde campo. 2026-06-09.
 - [x] **Fix** Eliminar "Encuestas" del menú lateral del cliente — acceso solo desde Proyectos. 2026-06-09.
-- [ ] **P1-40** Visualizar `device_meta` en tab "Respondentes" — gráficas de dispositivo/OS/browser/conexión, top ciudades, fuente (referrer), duración promedio, alerta respuestas rápidas. Ver chip de tarea activo.
+- [x] **P1-40** Visualizar `device_meta` en tab "Respondentes" — gráficas de dispositivo/OS/browser/conexión, top ciudades, fuente (referrer), duración promedio, alerta respuestas rápidas. Componente `DeviceStatsPanel` + API `/api/cliente/encuestas/device-stats`. 2026-06-13.
 - [ ] **P1-06d** Verificar subdominio `geodatavoice.grialtech.co` en Resend cuando se suba de plan (hoy se envía desde la raíz `grialtech.co`)
 - [ ] **P1-06e** Agregar variables de email a Preview en Vercel (hoy solo en Production)
 
@@ -152,7 +152,7 @@
 - [ ] **P2-04** AGORA — módulo de pares: `peers`, `peer_tasks`, `peer_evidences`, banco de mensajes con aprobación
 - [ ] **P2-05** Mapa interactivo en dashboard cliente — Mapbox GL o Leaflet con polígonos por zona
 - [x] **P2-06** Paginación en listados de panelistas, encuestadores, proyectos — 2026-06-08
-- [ ] **P2-07** WhatsApp Business API (360dialog o Twilio) para envío de links de encuesta
+- [x] **P2-07** WhatsApp via SendPulse — `lib/whatsapp.ts` + 3 route handlers (`/api/whatsapp/nueva-encuesta`, `/api/whatsapp/recordatorio`, `/api/whatsapp/pago-aprobado`). Integrado en publicación de encuesta, botón "Recordatorio WA" en detalle encuesta, y aprobación de pagos. Variables en Vercel. Plantillas `nueva_encuesta`, `recordatorio`, `pago_aprobado` creadas en SendPulse — **pendientes de aprobación Meta** (~24h). 2026-06-13.
 - [ ] **P2-08** Panel rotativo automático: reglas de rotación, reemplazo por gemelos estadísticos
 - [ ] **P2-09** Post-estratificación y ponderación estadística (Raking contra censo DANE)
   - **Qué:** ajustar automáticamente los pesos de la muestra para que reproduzca las distribuciones reales del territorio (corrige el sesgo del panel: ej. panel 70% mujeres vs censo 55%). Distinto de la ponderación manual del cliente (ADR-022, P1-25), que es editorial/subjetiva.

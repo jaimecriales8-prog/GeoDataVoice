@@ -1,5 +1,5 @@
 # PROJECT_CONTEXT.md — GeoDataVoice
-> Actualizado: 2026-06-09 (v3) | Producción: https://geodatavoice.grialtech.co
+> Actualizado: 2026-06-13 (v4) | Producción: https://geodatavoice.grialtech.co
 
 ---
 
@@ -10,6 +10,8 @@
 **Problema:** Alcaldes, gobernadores, candidatos y gremios toman decisiones con información incompleta. Las encuestas tradicionales son episódicas y costosas. GeoDataVoice provee medición recurrente, accesible y territorializada con análisis de voz como diferencial.
 
 **Estado actual:** ~92% de avance. Flujo end-to-end operativo en los 3 perfiles (panelista, encuestador, cliente), encuestas abiertas vía link público, audio en los 3 formularios de captura, departamento/municipio con datos de Colombia, tableros de resultados con filtros demográficos y ponderación. **Encuestadores con flujo de aprobación** (pending→active/inactive). **Cuotas de panel** (total, género, estrato, SISBEN, actividad — toggleables por variable). RLS parcialmente implementado (políticas críticas en su lugar). Deploy en Vercel estable.
+
+**Novedades 2026-06-13:** Perfil del cliente editable (`/cliente/perfil`); WhatsApp via SendPulse integrado (nueva encuesta + recordatorio + pago aprobado) — plantillas pendientes aprobación Meta; visualización de `device_meta` en tab Respondentes (DeviceStatsPanel).
 
 **Novedades 2026-06-09:** Encuestas agrupadas por nombre en panel cliente (olas colapsadas bajo una fila); navegación por olas + botón "Evolución" con gráficas de sentimiento y por pregunta vía `tracking_key`; captura de metadata de dispositivo (`device_meta jsonb`) en todas las respuestas (tipo dispositivo, OS, browser, conexión, geo-IP); fix en registro de panelista (`.eq("user_id",...)` en lugar de `.eq("id",...)`); "Encuestas" eliminada del menú lateral del cliente.
 
@@ -82,6 +84,7 @@ Producción: https://geodatavoice.grialtech.co (Vercel, proyecto geodatavoice-da
 |---|---|---|---|
 | **Supabase** | DB + Auth + Storage + Edge Functions | proyecto `bsjiqatcqbjqmtytlgll`. `@supabase/ssr` (cliente), service role (route handlers + Edge) | ✅ activo |
 | **Resend (API)** | Emails de negocio (cliente activado, nueva encuesta, pago) | `lib/email.ts` lazy init, route handlers `/api/email/*`. Remitente `geodatavoice@grialtech.co` | ✅ activo |
+| **SendPulse** | WhatsApp Business (nueva encuesta, recordatorio, pago aprobado) | `lib/whatsapp.ts`, route handlers `/api/whatsapp/*`. Bot ID `6a2d7fd90abdaad9e40f5ae8`. Vars en Vercel. | ⏳ plantillas pendientes aprobación Meta |
 | **Resend (SMTP)** | Emails de sistema de Supabase Auth (confirmar/recuperar) | SMTP en Supabase Auth: `smtp.resend.com:465`, user `resend`. Plantillas en español | ✅ activo |
 | **OpenAI Whisper-1** | Transcripción de notas de voz | Edge Function `process-audio`. Secret `OPENAI_API_KEY` | ✅ activo (requiere saldo) |
 | **Anthropic Claude** | Análisis NLP de transcripciones | Edge Function `process-audio`. Secret `ANTHROPIC_API_KEY`, `CLAUDE_MODEL` | ✅ activo |
