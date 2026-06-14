@@ -52,16 +52,13 @@ async function sendTemplate(phone: string, templateName: string, params: string[
       body: JSON.stringify({
         bot_id: process.env.SENDPULSE_WA_BOT_ID,
         phone: normalizePhone(phone),
-        message: {
-          type: "template",
-          template: {
-            name: templateName,
-            language: { code: "es_ES" },
-            components: [{
-              type: "body",
-              parameters: params.map(text => ({ type: "text", text })),
-            }],
-          },
+        template: {
+          name: templateName,
+          language: { code: "es_ES" },
+          components: [{
+            type: "body",
+            parameters: params.map(text => ({ type: "text", text })),
+          }],
         },
       }),
     });
