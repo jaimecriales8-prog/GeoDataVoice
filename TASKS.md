@@ -1,5 +1,5 @@
 # TASKS.md — GeoDataVoice Backlog
-> Última actualización: 2026-06-13
+> Última actualización: 2026-06-14
 
 ## Leyenda
 - `[ ]` Pendiente
@@ -144,15 +144,19 @@
 
 ---
 
+- [x] **Fix 2026-06-14** Email panelistas visible en `/dashboard/panelistas` — API enriquece con `auth.admin.listUsers`, se muestra bajo el nombre.
+- [x] **Fix 2026-06-14** Perfil panelista no guardaba teléfono — `.eq("id", user.id)` corregido a `.eq("user_id", user.id)` en lectura, escritura e historial. Bug raíz: `participants.id` ≠ `auth.user.id`.
+- [x] **Fix 2026-06-14** Notificación WA al lanzar olas — movida al servidor en route `duplicar` con `await Promise.allSettled` (serverless mata Promises fire-and-forget sin await).
+
 ## P2 — Post-validación
 
 - [x] **P2-01** RLS policies en todas las tablas — **APLICADO en producción 2026-06-08**. 16 tablas con políticas por rol (admin/cliente/panelista/encuestador). Migration `supabase/migrations/20260607_rls.sql` corrida + políticas adicionales de soporte. Verificado con `pg_policies`.
 - [ ] **P2-02** Cifrado AES-256-GCM para `name` de participantes (Supabase Vault) — ver ADR-004
-- [ ] **P2-03** OTP SMS para verificación de celular de panelistas
+- [x] **P2-03** OTP via WhatsApp (SendPulse) para verificación de celular — tabla `otp_codes`, routes `/api/panelista/otp/enviar` y `/api/panelista/otp/verificar`, UI en perfil panelista (idle/sent/verified), toggle admin en Configuración (`otp_verification` en `platform_config`, desactivado por defecto). Template `verificacion_otp` pendiente aprobación Meta. 2026-06-14.
 - [ ] **P2-04** AGORA — módulo de pares: `peers`, `peer_tasks`, `peer_evidences`, banco de mensajes con aprobación
 - [ ] **P2-05** Mapa interactivo en dashboard cliente — Mapbox GL o Leaflet con polígonos por zona
 - [x] **P2-06** Paginación en listados de panelistas, encuestadores, proyectos — 2026-06-08
-- [x] **P2-07** WhatsApp via SendPulse — `lib/whatsapp.ts` + 3 route handlers (`/api/whatsapp/nueva-encuesta`, `/api/whatsapp/recordatorio`, `/api/whatsapp/pago-aprobado`). Integrado en publicación de encuesta, botón "Recordatorio WA" en detalle encuesta, y aprobación de pagos. Variables en Vercel. Plantillas `nueva_encuesta`, `recordatorio`, `pago_aprobado` creadas en SendPulse — **pendientes de aprobación Meta** (~24h). 2026-06-13.
+- [x] **P2-07** WhatsApp via SendPulse — `lib/whatsapp.ts` + endpoint correcto `sendTemplateByPhone` + formato `policy: deterministic`. 3 templates aprobados por Meta (`nueva_encuesta`, `recordatorio`, `pago_aprobado`). Integrado en publicación de encuesta, olas nuevas (`duplicar` route, con await), botón "Recordatorio WA" y aprobación de pagos. Saldo recargado y verificado end-to-end. 2026-06-14.
 - [ ] **P2-08** Panel rotativo automático: reglas de rotación, reemplazo por gemelos estadísticos
 - [ ] **P2-09** Post-estratificación y ponderación estadística (Raking contra censo DANE)
   - **Qué:** ajustar automáticamente los pesos de la muestra para que reproduzca las distribuciones reales del territorio (corrige el sesgo del panel: ej. panel 70% mujeres vs censo 55%). Distinto de la ponderación manual del cliente (ADR-022, P1-25), que es editorial/subjetiva.
