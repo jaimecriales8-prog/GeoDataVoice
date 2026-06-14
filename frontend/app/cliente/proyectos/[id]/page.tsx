@@ -90,7 +90,22 @@ export default function ProyectoDetalle({ params }: { params: Promise<{ id: stri
       body: JSON.stringify({ survey_id: eid, wave }),
     });
     setSavingId(null);
-    if (res.ok) { await load(); }
+    if (res.ok) {
+      const { id: newId } = await res.json().catch(() => ({}));
+      if (newId) {
+        fetch("/api/whatsapp/nueva-encuesta", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ surveyId: newId }),
+        }).catch(() => {});
+        fetch("/api/email/nueva-encuesta", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ surveyId: newId }),
+        }).catch(() => {});
+      }
+      await load();
+    }
     else { const j = await res.json().catch(() => ({})); alert("Error al lanzar ola: " + (j.error ?? "intenta de nuevo")); }
   }
 
