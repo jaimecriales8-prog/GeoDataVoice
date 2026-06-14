@@ -1,6 +1,5 @@
 // SendPulse WhatsApp Business API
-// Templates se envian via POST /whatsapp/contacts/sendByPhone con message.type = "hsm"
-// sendByPhone con type "template" no es valido en SendPulse - usan formato HSM propio
+// Endpoint correcto para templates: POST /whatsapp/contacts/sendTemplateByPhone
 
 const SP_URL = "https://api.sendpulse.com";
 
@@ -36,25 +35,25 @@ async function sendTemplate(phone: string, templateName: string, params: string[
   if (!process.env.SENDPULSE_API_ID || !process.env.SENDPULSE_WA_BOT_ID) return false;
   try {
     const token = await getToken();
-    const res = await fetch(`${SP_URL}/whatsapp/contacts/sendByPhone`, {
+    const res = await fetch(`${SP_URL}/whatsapp/contacts/sendTemplateByPhone`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({
         bot_id: process.env.SENDPULSE_WA_BOT_ID,
         phone: normalizePhone(phone),
-        message: {
-          type: "hsm",
-          hsm: {
-            namespace: "",
-            element_name: templateName,
-            language: { policy: "deterministic", code: "es_ES" },
-            localizable_params: params.map(text => ({ default: text })),
-          },
+        template: {
+          name: templateName,
+          language: { code: "es" },
+          components: [{
+            type: "body",
+            parameters: params.map(text => ({ type: "text", text })),
+          }],
         },
       }),
     });
     const body = await res.text();
     if (!res.ok) console.error(`[whatsapp] sendTemplate ${templateName} error ${res.status}:`, body);
+    else console.log(`[whatsapp] sendTemplate ${templateName} ok:`, body);
     return res.ok;
   } catch (e) {
     console.error(`[whatsapp] sendTemplate ${templateName} failed:`, e);
@@ -62,22 +61,18 @@ async function sendTemplate(phone: string, templateName: string, params: string[
   }
 }
 
-/** Notificar a un panelista de una nueva encuesta */
 export async function whatsappNuevaEncuesta(phone: string, nombre: string, encuestaNombre: string, link: string) {
   return sendTemplate(phone, "nueva_encuesta", [nombre, encuestaNombre, link]);
 }
 
-/** Recordatorio de encuesta pendiente */
 export async function whatsappRecordatorio(phone: string, nombre: string, encuestaNombre: string, link: string) {
   return sendTemplate(phone, "recordatorio", [nombre, encuestaNombre, link]);
 }
 
-/** Confirmacion de pago aprobado */
 export async function whatsappPagoAprobado(phone: string, nombre: string, montoCOP: number) {
   return sendTemplate(phone, "pago_aprobado", [nombre, montoCOP.toLocaleString("es-CO")]);
 }
 
-/** Verifica si SendPulse esta configurado */
 export function whatsappDisponible(): boolean {
   return !!(process.env.SENDPULSE_API_ID && process.env.SENDPULSE_API_SECRET && process.env.SENDPULSE_WA_BOT_ID);
 }
