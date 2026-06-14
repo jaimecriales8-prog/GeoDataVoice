@@ -14,6 +14,7 @@ type Panelista = {
   kyc_status: string;
   phone_verified: boolean;
   created_at: string;
+  email: string;
 };
 
 const STATUS_CONF: Record<string, { label: string; color: string; icon: React.ElementType }> = {
@@ -135,6 +136,7 @@ function PanelistasContent() {
                         </div>
                         <div>
                           <p className="text-sm font-medium text-white">{p.name}</p>
+                          <p className="text-xs text-slate-400">{p.email || "—"}</p>
                           <p className="text-xs text-slate-500">
                             {p.gender ?? "—"} {p.birth_year ? `· ${new Date().getFullYear() - p.birth_year} años` : ""}
                           </p>
