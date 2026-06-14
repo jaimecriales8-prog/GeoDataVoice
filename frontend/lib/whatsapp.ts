@@ -43,7 +43,7 @@ async function sendTemplate(phone: string, templateName: string, params: string[
         phone: normalizePhone(phone),
         template: {
           name: templateName,
-          language: { code: "es" },
+          language: { policy: "deterministic", code: "es" },
           components: [{
             type: "body",
             parameters: params.map(text => ({ type: "text", text })),
