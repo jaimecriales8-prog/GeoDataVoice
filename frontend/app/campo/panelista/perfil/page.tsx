@@ -37,6 +37,7 @@ export default function PerfilPanelista() {
   const [error, setError] = useState("");
   const [historial, setHistorial] = useState<{ id: string; captured_at: string; data: Record<string, unknown> }[]>([]);
   const [histOpen, setHistOpen] = useState(false);
+  const [participantId, setParticipantId] = useState<string | null>(null);
 
   useEffect(() => {
     const supabase = createClient();
@@ -51,10 +52,11 @@ export default function PerfilPanelista() {
 
       const { data: p } = await supabase
         .from("participants")
-        .select("phone, payment_wallet, payment_number, estrato, estado_civil, nivel_estudios, actividades, num_hijos, regimen_salud, sisben_grupo, tenencia_vivienda, grupo_etnico, antiguedad_barrio, recibe_subsidios, acceso_internet, registrado_votar")
-        .eq("id", user.id)
+        .select("id, phone, payment_wallet, payment_number, estrato, estado_civil, nivel_estudios, actividades, num_hijos, regimen_salud, sisben_grupo, tenencia_vivienda, grupo_etnico, antiguedad_barrio, recibe_subsidios, acceso_internet, registrado_votar")
+        .eq("user_id", user.id)
         .maybeSingle();
       if (p) {
+        setParticipantId(p.id as string);
         setPhone(p.phone || "");
         setPaymentWallet((p.payment_wallet as "nequi" | "daviplata") || "");
         setPaymentNumber(p.payment_number || "");
@@ -78,7 +80,7 @@ export default function PerfilPanelista() {
       const { data: hist } = await supabase
         .from("participant_profile_history")
         .select("id, captured_at, data")
-        .eq("participant_id", user.id)
+        .eq("participant_id", participantId)
         .order("captured_at", { ascending: false })
         .limit(10);
       setHistorial((hist ?? []) as { id: string; captured_at: string; data: Record<string, unknown> }[]);
@@ -113,7 +115,7 @@ export default function PerfilPanelista() {
       };
       const { data: snap } = await supabase
         .from("participant_profile_history")
-        .insert({ participant_id: user.id, data: snapshot })
+        .insert({ participant_id: participantId, data: snapshot })
         .select("id, captured_at, data")
         .single();
       if (snap) setHistorial(prev => [snap as { id: string; captured_at: string; data: Record<string, unknown> }, ...prev].slice(0, 10));
@@ -139,7 +141,7 @@ export default function PerfilPanelista() {
           acceso_internet: accesoInternet,
           registrado_votar: registradoVotar,
         })
-        .eq("id", user.id);
+        .eq("user_id", user.id);
       if (upErr) throw new Error(upErr.message);
 
       // 2. Correo (vía Supabase Auth → envía email de confirmación al nuevo correo)
