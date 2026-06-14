@@ -75,11 +75,11 @@ export async function POST(req: Request) {
     const nombreMap: Record<string, string> = {};
     for (const u of authList?.users ?? []) nombreMap[u.id] = u.user_metadata?.full_name ?? "Panelista";
 
-    Promise.allSettled(
+    await Promise.allSettled(
       (panelistas ?? []).map(p =>
         whatsappNuevaEncuesta(p.phone!, nombreMap[p.user_id as string] ?? "Panelista", original.name as string, link)
       )
-    ).catch(() => {});
+    );
   }
 
   return NextResponse.json({ ok: true, id: newSurveyId });
