@@ -38,6 +38,11 @@ export default function PerfilPanelista() {
   const [historial, setHistorial] = useState<{ id: string; captured_at: string; data: Record<string, unknown> }[]>([]);
   const [histOpen, setHistOpen] = useState(false);
   const [participantId, setParticipantId] = useState<string | null>(null);
+  const [phoneVerified, setPhoneVerified] = useState(false);
+  const [otpStep, setOtpStep] = useState<"idle" | "sent" | "verified">("idle");
+  const [otpCode, setOtpCode] = useState("");
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [otpError, setOtpError] = useState("");
 
   useEffect(() => {
     const supabase = createClient();
@@ -52,12 +57,14 @@ export default function PerfilPanelista() {
 
       const { data: p } = await supabase
         .from("participants")
-        .select("id, phone, payment_wallet, payment_number, estrato, estado_civil, nivel_estudios, actividades, num_hijos, regimen_salud, sisben_grupo, tenencia_vivienda, grupo_etnico, antiguedad_barrio, recibe_subsidios, acceso_internet, registrado_votar")
+        .select("id, phone, phone_verified, payment_wallet, payment_number, estrato, estado_civil, nivel_estudios, actividades, num_hijos, regimen_salud, sisben_grupo, tenencia_vivienda, grupo_etnico, antiguedad_barrio, recibe_subsidios, acceso_internet, registrado_votar")
         .eq("user_id", user.id)
         .maybeSingle();
       if (p) {
         setParticipantId(p.id as string);
         setPhone(p.phone || "");
+        setPhoneVerified(!!p.phone_verified);
+        if (p.phone_verified) setOtpStep("verified");
         setPaymentWallet((p.payment_wallet as "nequi" | "daviplata") || "");
         setPaymentNumber(p.payment_number || "");
         setEstrato(p.estrato ? String(p.estrato) : "");
@@ -88,6 +95,31 @@ export default function PerfilPanelista() {
       setLoading(false);
     });
   }, [router]);
+
+
+  async function enviarOtp() {
+    setOtpLoading(true); setOtpError("");
+    const res = await fetch("/api/panelista/otp/enviar", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phone: phone.trim() }),
+    });
+    setOtpLoading(false);
+    if (res.ok) { setOtpStep("sent"); setOtpCode(""); }
+    else { const j = await res.json().catch(() => ({})); setOtpError(j.error ?? "Error enviando código"); }
+  }
+
+  async function verificarOtp() {
+    setOtpLoading(true); setOtpError("");
+    const res = await fetch("/api/panelista/otp/verificar", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code: otpCode.trim() }),
+    });
+    setOtpLoading(false);
+    if (res.ok) { setOtpStep("verified"); setPhoneVerified(true); }
+    else { const j = await res.json().catch(() => ({})); setOtpError(j.error ?? "Código incorrecto"); }
+  }
 
   async function guardar() {
     setOk(""); setError(""); setSaving(true);
@@ -212,14 +244,43 @@ export default function PerfilPanelista() {
               />
             </Field>
 
-            <Field label="Teléfono / WhatsApp" icon={<Phone className="h-4 w-4 text-slate-400" />}>
-              <input
-                type="tel" inputMode="tel"
-                value={phone} onChange={(e) => setPhone(e.target.value)}
-                placeholder="3001234567"
-                className="w-full bg-transparent text-base text-slate-900 placeholder:text-slate-400 outline-none"
-              />
-            </Field>
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Teléfono / WhatsApp</label>
+              <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3.5">
+                <Phone className="h-4 w-4 text-slate-400 shrink-0" />
+                <input
+                  type="tel" inputMode="tel"
+                  value={phone} onChange={(e) => { setPhone(e.target.value); if (otpStep !== "idle") setOtpStep("idle"); }}
+                  placeholder="3001234567"
+                  className="flex-1 bg-transparent text-base text-slate-900 placeholder:text-slate-400 outline-none"
+                />
+                {otpStep === "verified"
+                  ? <span className="text-xs font-semibold text-emerald-600 flex items-center gap-1"><CheckCircle className="h-3.5 w-3.5" />Verificado</span>
+                  : <button type="button" onClick={enviarOtp} disabled={!phone.trim() || otpLoading}
+                      className="text-xs font-semibold text-blue-600 disabled:opacity-40">
+                      {otpLoading && otpStep === "idle" ? "Enviando…" : "Verificar"}
+                    </button>
+                }
+              </div>
+              {otpStep === "sent" && (
+                <div className="mt-2 flex gap-2">
+                  <input
+                    type="text" inputMode="numeric" maxLength={6}
+                    value={otpCode} onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ""))}
+                    placeholder="Código de 6 dígitos"
+                    className="flex-1 rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-blue-500"
+                  />
+                  <button type="button" onClick={verificarOtp} disabled={otpCode.length < 6 || otpLoading}
+                    className="rounded-xl bg-blue-600 px-4 text-sm font-semibold text-white disabled:opacity-40">
+                    {otpLoading ? "…" : "Confirmar"}
+                  </button>
+                </div>
+              )}
+              {otpError && <p className="mt-1 text-xs text-red-500">{otpError}</p>}
+              {otpStep === "sent" && !otpError && (
+                <p className="mt-1 text-xs text-slate-500">Enviamos un código por WhatsApp al {phone}. Expira en 5 min.</p>
+              )}
+            </div>
 
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1.5">Billetera para tus pagos</label>
