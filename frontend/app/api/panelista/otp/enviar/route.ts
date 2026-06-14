@@ -25,6 +25,13 @@ export async function POST(req: Request) {
   const { data: { user } } = await anonClient.auth.getUser();
   if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
+  // Verificar si OTP está habilitado en platform_config
+  const { data: config } = await supabase
+    .from("platform_config").select("value").eq("key", "otp_verification").single();
+  if (!config?.value || !(config.value as { enabled: boolean }).enabled) {
+    return NextResponse.json({ error: "Verificación OTP no habilitada" }, { status: 503 });
+  }
+
   const { phone } = await req.json();
   if (!phone) return NextResponse.json({ error: "Teléfono requerido" }, { status: 400 });
 

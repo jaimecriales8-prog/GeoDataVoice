@@ -10,6 +10,7 @@ type IdentityConfig = { enabled: boolean; required_for: string[] };
 export function AdminConfigToggles() {
   const [identity, setIdentity] = useState<IdentityConfig>({ enabled: true, required_for: ["panelista", "encuestador"] });
   const [fieldIdentity, setFieldIdentity] = useState({ enabled: true });
+  const [otpVerification, setOtpVerification] = useState({ enabled: false });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -20,10 +21,11 @@ export function AdminConfigToggles() {
     const supabase = createClient();
     const { data } = await supabase
       .from("platform_config").select("key, value")
-      .in("key", ["identity_verification", "field_identity_verification"]);
+      .in("key", ["identity_verification", "field_identity_verification", "otp_verification"]);
     (data ?? []).forEach(row => {
       if (row.key === "identity_verification" && row.value) setIdentity(row.value as IdentityConfig);
       if (row.key === "field_identity_verification" && row.value) setFieldIdentity(row.value as { enabled: boolean });
+      if (row.key === "otp_verification" && row.value) setOtpVerification(row.value as { enabled: boolean });
     });
     setLoading(false);
   }
@@ -34,6 +36,7 @@ export function AdminConfigToggles() {
     await supabase.from("platform_config").upsert([
       { key: "identity_verification", value: identity, updated_at: new Date().toISOString() },
       { key: "field_identity_verification", value: fieldIdentity, updated_at: new Date().toISOString() },
+      { key: "otp_verification", value: otpVerification, updated_at: new Date().toISOString() },
     ], { onConflict: "key" });
     setSaving(false);
     setSaved(true);
@@ -93,6 +96,16 @@ export function AdminConfigToggles() {
             </div>
           )}
 
+          {/* Toggle: OTP verificacion celular */}
+          <ToggleRow
+            icon={<Shield className="h-4 w-4 text-amber-400" />}
+            title="Verificación OTP de celular (WhatsApp)"
+            desc={otpVerification.enabled ? "El panelista debe verificar su celular con código WhatsApp antes de guardar" : "El celular se guarda sin verificar (desactivado para operación inmediata)"}
+            on={otpVerification.enabled}
+            onToggle={() => setOtpVerification(prev => ({ enabled: !prev.enabled }))}
+            color="amber"
+          />
+
           {/* Toggle: identidad en encuestas de calle */}
           <ToggleRow
             icon={<Shield className="h-4 w-4 text-emerald-400" />}
@@ -109,9 +122,9 @@ export function AdminConfigToggles() {
 }
 
 function ToggleRow({ icon, title, desc, on, onToggle, color }: {
-  icon: React.ReactNode; title: string; desc: string; on: boolean; onToggle: () => void; color: "blue" | "emerald";
+  icon: React.ReactNode; title: string; desc: string; on: boolean; onToggle: () => void; color: "blue" | "emerald" | "amber";
 }) {
-  const onBg = color === "blue" ? "bg-blue-600" : "bg-emerald-600";
+  const onBg = color === "blue" ? "bg-blue-600" : color === "emerald" ? "bg-emerald-600" : "bg-amber-600";
   return (
     <div className="flex items-center justify-between gap-4 rounded-xl bg-white/5 px-4 py-3">
       <div className="flex items-start gap-3 min-w-0">
