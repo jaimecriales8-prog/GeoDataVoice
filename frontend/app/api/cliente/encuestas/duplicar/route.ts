@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase-service";
+import { whatsappNuevaEncuesta, whatsappDisponible } from "@/lib/whatsapp";
 
 export async function POST(req: Request) {
   const { survey_id, wave } = await req.json();
@@ -38,7 +39,7 @@ export async function POST(req: Request) {
   });
   if (surveyErr) return NextResponse.json({ error: surveyErr.message }, { status: 500 });
 
-  // Copiar preguntas (columnas explícitas — questions no tiene created_at)
+  // Copiar preguntas
   if (questions && questions.length > 0) {
     const newQuestions = questions.map(q => ({
       id: crypto.randomUUID(),
@@ -47,7 +48,6 @@ export async function POST(req: Request) {
       text: q.text,
       options: q.options,
       required: q.required,
-      tracking_key: q.tracking_key ?? q.id,  // propagar tracking_key o usar id original como clave
       order: q.order,
       tracking_key: q.tracking_key,
       favorability: q.favorability,
@@ -56,6 +56,30 @@ export async function POST(req: Request) {
     }));
     const { error: qErr } = await supabase.from("questions").insert(newQuestions);
     if (qErr) return NextResponse.json({ error: qErr.message }, { status: 500 });
+  }
+
+  // Notificar panelistas (fire-and-forget)
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://geodatavoice.grialtech.co";
+  const link = original.es_abierta && original.slug
+    ? `${appUrl}/encuesta/${original.slug}-ola${wave}`
+    : `${appUrl}/campo/panelista`;
+
+  if (whatsappDisponible()) {
+    const { data: panelistas } = await supabase
+      .from("participants")
+      .select("id, phone, user_id")
+      .eq("status", "verified")
+      .not("phone", "is", null);
+
+    const { data: authList } = await supabase.auth.admin.listUsers({ perPage: 1000 });
+    const nombreMap: Record<string, string> = {};
+    for (const u of authList?.users ?? []) nombreMap[u.id] = u.user_metadata?.full_name ?? "Panelista";
+
+    Promise.allSettled(
+      (panelistas ?? []).map(p =>
+        whatsappNuevaEncuesta(p.phone!, nombreMap[p.user_id as string] ?? "Panelista", original.name as string, link)
+      )
+    ).catch(() => {});
   }
 
   return NextResponse.json({ ok: true, id: newSurveyId });
