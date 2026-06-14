@@ -56,7 +56,7 @@ async function sendTemplate(phone: string, templateName: string, params: string[
           type: "template",
           template: {
             name: templateName,
-            language: { code: "es" },
+            language: { code: "es_ES" },
             components: [{
               type: "body",
               parameters: params.map(text => ({ type: "text", text })),
@@ -65,6 +65,8 @@ async function sendTemplate(phone: string, templateName: string, params: string[
         },
       }),
     });
+    const body = await res.text();
+    if (!res.ok) console.error(`[whatsapp] sendTemplate ${templateName} error ${res.status}:`, body);
     return res.ok;
   } catch (e) {
     console.error(`[whatsapp] sendTemplate ${templateName} failed:`, e);
