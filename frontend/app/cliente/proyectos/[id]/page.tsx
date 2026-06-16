@@ -3,7 +3,7 @@
 import { useEffect, useState, use } from "react";
 import { createClient } from "@/lib/supabase";
 import Link from "next/link";
-import { ArrowLeft, Plus, ClipboardList, Users, Mic, MapPin, ChevronRight, ChevronDown, Clock, BarChart3, Target, Send, StopCircle, Link2, Check } from "lucide-react";
+import { ArrowLeft, Plus, ClipboardList, Users, Mic, MapPin, ChevronRight, ChevronDown, Clock, BarChart3, Target, Send, StopCircle, Link2, Check, Pencil } from "lucide-react";
 import { resumenAudiencia, audienciaVacia, type Audiencia } from "@/lib/segmentacion";
 
 type Proyecto = {
@@ -148,6 +148,10 @@ export default function ProyectoDetalle({ params }: { params: Promise<{ id: stri
             </span>
           </div>
         </div>
+        <Link href={`/cliente/proyectos/${id}/editar`}
+          className="flex items-center gap-2 rounded-xl border border-white/10 hover:bg-white/5 px-4 py-2.5 text-sm font-semibold text-slate-300 hover:text-white transition-colors shrink-0">
+          <Pencil className="h-4 w-4" /> Editar
+        </Link>
         <Link href={`/cliente/proyectos/${id}/resultados`}
           className="flex items-center gap-2 rounded-xl bg-violet-600 hover:bg-violet-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors shrink-0">
           <BarChart3 className="h-4 w-4" /> Ver resultados
