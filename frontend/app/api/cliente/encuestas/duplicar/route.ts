@@ -22,6 +22,7 @@ export async function POST(req: Request) {
     id: newSurveyId,
     project_id: original.project_id,
     name: original.name,
+    description: original.description,
     wave,
     status: "sent",
     perfil_objetivo: original.perfil_objetivo,

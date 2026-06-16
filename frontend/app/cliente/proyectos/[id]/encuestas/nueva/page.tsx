@@ -68,6 +68,7 @@ export default function NuevaEncuesta({ params }: { params: Promise<{ id: string
   const router = useRouter();
 
   const [nombre, setNombre] = useState("");
+  const [descripcion, setDescripcion] = useState("");
   const [wave, setWave] = useState(1);
   const [closesAt, setClosesAt] = useState("");
   const [perfil, setPerfil] = useState<PerfilObjetivo>("panelista");
@@ -190,6 +191,7 @@ export default function NuevaEncuesta({ params }: { params: Promise<{ id: string
         id: crypto.randomUUID(),
         project_id: proyectoId,
         name: nombre.trim(),
+        description: descripcion.trim() || null,
         wave,
         status: estado,
         perfil_objetivo: esAbierta ? "" : perfil,
@@ -258,6 +260,11 @@ export default function NuevaEncuesta({ params }: { params: Promise<{ id: string
           <Field label="Nombre de la encuesta *">
             <input value={nombre} onChange={e => setNombre(e.target.value)}
               placeholder="Ej: Pulso ciudadano — Ola 3" className={inputCls} />
+          </Field>
+          <Field label="Descripción (opcional)">
+            <textarea value={descripcion} onChange={e => setDescripcion(e.target.value)}
+              placeholder="Breve contexto que verá el respondiente antes de comenzar"
+              rows={2} className={inputCls + " resize-none"} />
           </Field>
           <div className="grid grid-cols-2 gap-4">
             <Field label="Número de ola">
