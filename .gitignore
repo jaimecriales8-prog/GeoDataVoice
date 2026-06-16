@@ -35,3 +35,4 @@ backend/uploads/
 
 # Alembic
 backend/alembic/versions/*.pyc
+.vercel
