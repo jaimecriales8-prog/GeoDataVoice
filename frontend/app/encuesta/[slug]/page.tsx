@@ -186,7 +186,7 @@ export default function EncuestaAbiertaPage({ params }: { params: Promise<{ slug
 
   // ── validaciones por paso ─────────────────────────────────────────────────
   function esOpcional(key: string): boolean { return !!survey?.demo_opcionales?.[key]; }
-  function lbl(texto: string, key: string): string { return esOpcional(key) ? `${texto} (opcional)` : `${texto} *`; }
+  function lbl(texto: string): string { return `${texto} *`; }
 
   function validarDemo(): string | null {
     const req: [string, string, string][] = [
@@ -418,78 +418,96 @@ export default function EncuestaAbiertaPage({ params }: { params: Promise<{ slug
 
             <div className="space-y-4 mb-6">
               <div className="grid grid-cols-2 gap-4">
-                <Sel label={lbl("Sexo", "gender")} value={demo.gender} onChange={v => setDemo(p => ({ ...p, gender: v }))}>
-                  <option value="">Selecciona</option>
-                  <option value="female">Mujer</option>
-                  <option value="male">Hombre</option>
-                  <option value="other">Otro</option>
-                </Sel>
-                <Field label={lbl("Año de nacimiento", "birth_year")}>
-                  <input value={demo.birth_year} onChange={e => setDemo(p => ({ ...p, birth_year: e.target.value }))}
-                    placeholder="Ej: 1990" inputMode="numeric" maxLength={4} className={inputCls} />
-                </Field>
+                {!esOpcional("gender") && (
+                  <Sel label={lbl("Sexo")} value={demo.gender} onChange={v => setDemo(p => ({ ...p, gender: v }))}>
+                    <option value="">Selecciona</option>
+                    <option value="female">Mujer</option>
+                    <option value="male">Hombre</option>
+                    <option value="other">Otro</option>
+                  </Sel>
+                )}
+                {!esOpcional("birth_year") && (
+                  <Field label={lbl("Año de nacimiento")}>
+                    <input value={demo.birth_year} onChange={e => setDemo(p => ({ ...p, birth_year: e.target.value }))}
+                      placeholder="Ej: 1990" inputMode="numeric" maxLength={4} className={inputCls} />
+                  </Field>
+                )}
               </div>
 
-              <Sel label={lbl("Departamento", "departamento")} value={demo.departamento} onChange={v => setDemo(p => ({ ...p, departamento: v, municipio: "" }))}>
-                <option value="">Selecciona departamento</option>
-                {DEPARTAMENTOS.map(d => <option key={d} value={d}>{d}</option>)}
-              </Sel>
+              {!esOpcional("departamento") && (
+                <Sel label={lbl("Departamento")} value={demo.departamento} onChange={v => setDemo(p => ({ ...p, departamento: v, municipio: "" }))}>
+                  <option value="">Selecciona departamento</option>
+                  {DEPARTAMENTOS.map(d => <option key={d} value={d}>{d}</option>)}
+                </Sel>
+              )}
 
               <div className="grid grid-cols-2 gap-4">
-                <Field label={lbl("Municipio", "municipio")}>
-                  <div className="relative">
-                    <select value={demo.municipio} onChange={e => setDemo(p => ({ ...p, municipio: e.target.value }))} className={selectCls} disabled={!demo.departamento}>
-                      <option value="">{demo.departamento ? "Selecciona municipio" : "Primero elige departamento"}</option>
-                      {getMunicipios(demo.departamento).map(m => <option key={m} value={m}>{m}</option>)}
-                    </select>
-                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
-                  </div>
-                </Field>
-                <Field label={lbl("Barrio", "barrio")}>
-                  <input value={demo.barrio} onChange={e => setDemo(p => ({ ...p, barrio: e.target.value }))}
-                    placeholder="Ej: El Prado" className={inputCls} />
-                </Field>
+                {!esOpcional("municipio") && (
+                  <Field label={lbl("Municipio")}>
+                    <div className="relative">
+                      <select value={demo.municipio} onChange={e => setDemo(p => ({ ...p, municipio: e.target.value }))} className={selectCls} disabled={!demo.departamento}>
+                        <option value="">{demo.departamento ? "Selecciona municipio" : "Primero elige departamento"}</option>
+                        {getMunicipios(demo.departamento).map(m => <option key={m} value={m}>{m}</option>)}
+                      </select>
+                      <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+                    </div>
+                  </Field>
+                )}
+                {!esOpcional("barrio") && (
+                  <Field label={lbl("Barrio")}>
+                    <input value={demo.barrio} onChange={e => setDemo(p => ({ ...p, barrio: e.target.value }))}
+                      placeholder="Ej: El Prado" className={inputCls} />
+                  </Field>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <Sel label={lbl("Estrato", "estrato")} value={demo.estrato} onChange={v => setDemo(p => ({ ...p, estrato: v }))}>
-                  <option value="">Selecciona</option>
-                  {[1,2,3,4,5,6].map(n => <option key={n} value={n}>{n}</option>)}
-                </Sel>
-                <Sel label={lbl("Nivel de estudios", "nivel_estudios")} value={demo.nivel_estudios} onChange={v => setDemo(p => ({ ...p, nivel_estudios: v }))}>
-                  <option value="">Selecciona</option>
-                  <option value="bachiller">Bachiller</option>
-                  <option value="tecnico_tecnologo">Técnico / Tecnólogo</option>
-                  <option value="profesional">Profesional</option>
-                  <option value="posgrado">Posgrado</option>
-                </Sel>
+                {!esOpcional("estrato") && (
+                  <Sel label={lbl("Estrato")} value={demo.estrato} onChange={v => setDemo(p => ({ ...p, estrato: v }))}>
+                    <option value="">Selecciona</option>
+                    {[1,2,3,4,5,6].map(n => <option key={n} value={n}>{n}</option>)}
+                  </Sel>
+                )}
+                {!esOpcional("nivel_estudios") && (
+                  <Sel label={lbl("Nivel de estudios")} value={demo.nivel_estudios} onChange={v => setDemo(p => ({ ...p, nivel_estudios: v }))}>
+                    <option value="">Selecciona</option>
+                    <option value="bachiller">Bachiller</option>
+                    <option value="tecnico_tecnologo">Técnico / Tecnólogo</option>
+                    <option value="profesional">Profesional</option>
+                    <option value="posgrado">Posgrado</option>
+                  </Sel>
+                )}
               </div>
 
-              <Sel label={lbl("Estado civil", "estado_civil")} value={demo.estado_civil} onChange={v => setDemo(p => ({ ...p, estado_civil: v }))}>
-                <option value="">Selecciona</option>
-                <option value="soltero">Soltero/a</option>
-                <option value="casado">Casado/a</option>
-                <option value="union_libre">Unión libre</option>
-                <option value="separado">Separado/a</option>
-                <option value="divorciado">Divorciado/a</option>
-                <option value="viudo">Viudo/a</option>
-              </Sel>
+              {!esOpcional("estado_civil") && (
+                <Sel label={lbl("Estado civil")} value={demo.estado_civil} onChange={v => setDemo(p => ({ ...p, estado_civil: v }))}>
+                  <option value="">Selecciona</option>
+                  <option value="soltero">Soltero/a</option>
+                  <option value="casado">Casado/a</option>
+                  <option value="union_libre">Unión libre</option>
+                  <option value="separado">Separado/a</option>
+                  <option value="divorciado">Divorciado/a</option>
+                  <option value="viudo">Viudo/a</option>
+                </Sel>
+              )}
 
               {/* Actividades */}
-              <div>
-                <label className="block text-xs font-medium text-slate-400 mb-2">{lbl("Actividad principal", "actividades")} (puede ser varias)</label>
-                <div className="flex flex-wrap gap-2">
-                  {["empleado", "independiente", "desempleado", "estudiante", "ama_de_casa", "pensionado", "empresario", "otro"].map(a => {
-                    const sel = actividades.includes(a);
-                    return (
-                      <button key={a} type="button" onClick={() => setActividades(prev => sel ? prev.filter(x => x !== a) : [...prev, a])}
-                        className={`rounded-lg px-3 py-1.5 text-xs border transition-colors capitalize ${sel ? "border-violet-400 bg-violet-500/15 text-violet-200" : "border-white/10 text-slate-400 hover:bg-white/5"}`}>
-                        {a.replace(/_/g, " ")}
-                      </button>
-                    );
-                  })}
+              {!esOpcional("actividades") && (
+                <div>
+                  <label className="block text-xs font-medium text-slate-400 mb-2">{lbl("Actividad principal")} (puede ser varias)</label>
+                  <div className="flex flex-wrap gap-2">
+                    {["empleado", "independiente", "desempleado", "estudiante", "ama_de_casa", "pensionado", "empresario", "otro"].map(a => {
+                      const sel = actividades.includes(a);
+                      return (
+                        <button key={a} type="button" onClick={() => setActividades(prev => sel ? prev.filter(x => x !== a) : [...prev, a])}
+                          className={`rounded-lg px-3 py-1.5 text-xs border transition-colors capitalize ${sel ? "border-violet-400 bg-violet-500/15 text-violet-200" : "border-white/10 text-slate-400 hover:bg-white/5"}`}>
+                          {a.replace(/_/g, " ")}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Hijos */}
               <div className="flex items-center gap-3">
@@ -505,47 +523,57 @@ export default function EncuestaAbiertaPage({ params }: { params: Promise<{ slug
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <Sel label={lbl("Régimen de salud", "regimen_salud")} value={demo.regimen_salud} onChange={v => setDemo(p => ({ ...p, regimen_salud: v }))}>
-                  <option value="">Selecciona</option>
-                  <option value="subsidiado">Subsidiado</option>
-                  <option value="contributivo">Contributivo</option>
-                  <option value="especial">Especial</option>
-                  <option value="ninguno">Ninguno</option>
-                </Sel>
-                <Sel label={lbl("Grupo SISBEN", "sisben_grupo")} value={demo.sisben_grupo} onChange={v => setDemo(p => ({ ...p, sisben_grupo: v }))}>
-                  <option value="">Selecciona</option>
-                  <option value="no">No está en SISBEN</option>
-                  <option value="A">Grupo A</option>
-                  <option value="B">Grupo B</option>
-                  <option value="C">Grupo C</option>
-                  <option value="D">Grupo D</option>
-                </Sel>
+                {!esOpcional("regimen_salud") && (
+                  <Sel label={lbl("Régimen de salud")} value={demo.regimen_salud} onChange={v => setDemo(p => ({ ...p, regimen_salud: v }))}>
+                    <option value="">Selecciona</option>
+                    <option value="subsidiado">Subsidiado</option>
+                    <option value="contributivo">Contributivo</option>
+                    <option value="especial">Especial</option>
+                    <option value="ninguno">Ninguno</option>
+                  </Sel>
+                )}
+                {!esOpcional("sisben_grupo") && (
+                  <Sel label={lbl("Grupo SISBEN")} value={demo.sisben_grupo} onChange={v => setDemo(p => ({ ...p, sisben_grupo: v }))}>
+                    <option value="">Selecciona</option>
+                    <option value="no">No está en SISBEN</option>
+                    <option value="A">Grupo A</option>
+                    <option value="B">Grupo B</option>
+                    <option value="C">Grupo C</option>
+                    <option value="D">Grupo D</option>
+                  </Sel>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <Sel label={lbl("Tenencia vivienda", "tenencia_vivienda")} value={demo.tenencia_vivienda} onChange={v => setDemo(p => ({ ...p, tenencia_vivienda: v }))}>
-                  <option value="">Selecciona</option>
-                  <option value="propia">Propia</option>
-                  <option value="arriendo">Arriendo</option>
-                  <option value="familiar">Familiar</option>
-                </Sel>
-                <Sel label={lbl("Grupo étnico", "grupo_etnico")} value={demo.grupo_etnico} onChange={v => setDemo(p => ({ ...p, grupo_etnico: v }))}>
-                  <option value="">Selecciona</option>
-                  <option value="ninguno">Ninguno</option>
-                  <option value="afro">Afrodescendiente</option>
-                  <option value="indigena">Indígena</option>
-                  <option value="raizal">Raizal</option>
-                  <option value="otro">Otro</option>
-                </Sel>
+                {!esOpcional("tenencia_vivienda") && (
+                  <Sel label={lbl("Tenencia vivienda")} value={demo.tenencia_vivienda} onChange={v => setDemo(p => ({ ...p, tenencia_vivienda: v }))}>
+                    <option value="">Selecciona</option>
+                    <option value="propia">Propia</option>
+                    <option value="arriendo">Arriendo</option>
+                    <option value="familiar">Familiar</option>
+                  </Sel>
+                )}
+                {!esOpcional("grupo_etnico") && (
+                  <Sel label={lbl("Grupo étnico")} value={demo.grupo_etnico} onChange={v => setDemo(p => ({ ...p, grupo_etnico: v }))}>
+                    <option value="">Selecciona</option>
+                    <option value="ninguno">Ninguno</option>
+                    <option value="afro">Afrodescendiente</option>
+                    <option value="indigena">Indígena</option>
+                    <option value="raizal">Raizal</option>
+                    <option value="otro">Otro</option>
+                  </Sel>
+                )}
               </div>
 
-              <Sel label={lbl("Antigüedad en el barrio", "antiguedad_barrio")} value={demo.antiguedad_barrio} onChange={v => setDemo(p => ({ ...p, antiguedad_barrio: v }))}>
-                <option value="">Selecciona</option>
-                <option value="menos_1">Menos de 1 año</option>
-                <option value="1_5">1 a 5 años</option>
-                <option value="5_10">5 a 10 años</option>
-                <option value="mas_10">Más de 10 años</option>
-              </Sel>
+              {!esOpcional("antiguedad_barrio") && (
+                <Sel label={lbl("Antigüedad en el barrio")} value={demo.antiguedad_barrio} onChange={v => setDemo(p => ({ ...p, antiguedad_barrio: v }))}>
+                  <option value="">Selecciona</option>
+                  <option value="menos_1">Menos de 1 año</option>
+                  <option value="1_5">1 a 5 años</option>
+                  <option value="5_10">5 a 10 años</option>
+                  <option value="mas_10">Más de 10 años</option>
+                </Sel>
+              )}
 
               {/* Booleanos */}
               <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-4 space-y-3">
