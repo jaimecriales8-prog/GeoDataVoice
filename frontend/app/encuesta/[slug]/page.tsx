@@ -185,7 +185,7 @@ export default function EncuestaAbiertaPage({ params }: { params: Promise<{ slug
 
   // ── validaciones por paso ─────────────────────────────────────────────────
   function esOpcional(key: string): boolean { return !!survey?.demo_opcionales?.[key]; }
-  function lbl(texto: string, key: string): string { return esOpcional(key) ? texto : `${texto} *`; }
+  function lbl(texto: string, key: string): string { return esOpcional(key) ? `${texto} (opcional)` : `${texto} *`; }
 
   function validarDemo(): string | null {
     const req: [string, string, string][] = [
