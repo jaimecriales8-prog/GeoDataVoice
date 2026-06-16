@@ -223,7 +223,7 @@ export default function RegistroClientePage() {
             </button>
 
             <p className="text-xs text-slate-500 text-center">
-              Al registrarte aceptas que el equipo de GeoDataVoice te contacte para activar tu cuenta.
+              Al registrarte aceptas que el equipo de GeoDataVoice te contacte para activar tu cuenta, así como nuestra política de privacidad y el tratamiento de tus datos personales bajo la Ley 1581 de 2012 (Habeas Data).
             </p>
           </form>
         </div>

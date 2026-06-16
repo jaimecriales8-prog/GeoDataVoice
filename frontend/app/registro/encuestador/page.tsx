@@ -219,6 +219,10 @@ export default function RegistroEncuestadorPage() {
               {loading && <Loader2 className="h-4 w-4 animate-spin" />}
               {loading ? "Enviando..." : "Aplicar como encuestador"}
             </button>
+
+            <p className="text-xs text-slate-500 text-center">
+              Al registrarte aceptas nuestra política de privacidad y el tratamiento de tus datos personales bajo la Ley 1581 de 2012 (Habeas Data).
+            </p>
           </form>
         </div>
 

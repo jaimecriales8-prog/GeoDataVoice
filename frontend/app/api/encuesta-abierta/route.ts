@@ -46,6 +46,8 @@ export async function POST(req: NextRequest) {
       grupo_etnico, antiguedad_barrio, recibe_subsidios, acceso_internet, registrado_votar,
       // Anonimato
       is_anonymous,
+      // Habeas data (solo si !is_anonymous)
+      consent_datos,
       // Respuestas: [{ question_id, value }]
       respuestas,
       // Metadata de dispositivo
@@ -108,6 +110,17 @@ export async function POST(req: NextRequest) {
       });
       if (pErr) return NextResponse.json({ error: pErr.message }, { status: 500 });
       participantId = newId;
+
+      if (!is_anonymous && consent_datos) {
+        await supabase.from("consents").insert({
+          id: crypto.randomUUID(),
+          participant_id: newId,
+          type: "encuesta_abierta",
+          version: "1.0",
+          accepted: true,
+          channel: "open_survey",
+        });
+      }
     }
 
     // Enriquecer device_meta con geo-IP (fire-and-forget, no bloquea si falla)

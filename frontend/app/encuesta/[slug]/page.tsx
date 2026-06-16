@@ -74,6 +74,7 @@ export default function EncuestaAbiertaPage({ params }: { params: Promise<{ slug
   const [ident, setIdent] = useState({
     nombre: "", documento: "", phone: "", paymentWallet: "", paymentNumber: "",
   });
+  const [consentDatos, setConsentDatos] = useState(false);
 
   // Demografía
   const [demo, setDemo] = useState({
@@ -208,6 +209,7 @@ export default function EncuestaAbiertaPage({ params }: { params: Promise<{ slug
       if (!ident.nombre.trim()) return "Falta tu nombre completo";
       if (!/^\d{7,12}$/.test(ident.documento)) return "Número de documento inválido (7-12 dígitos)";
       if (ident.phone && !/^3\d{9}$/.test(ident.phone)) return "Celular colombiano inválido (ej: 3001234567)";
+      if (!consentDatos) return "Debes autorizar el tratamiento de tus datos personales para continuar";
     }
     return null;
   }
@@ -234,6 +236,7 @@ export default function EncuestaAbiertaPage({ params }: { params: Promise<{ slug
       phone: isAnonymous ? null : ident.phone,
       paymentWallet: isAnonymous ? null : ident.paymentWallet,
       paymentNumber: isAnonymous ? null : ident.paymentNumber,
+      consent_datos: isAnonymous ? false : consentDatos,
       ...(survey.abierta_pago && isAnonymous ? { paymentWallet: pago.wallet, paymentNumber: pago.number } : {}),
       ...demo,
       actividades,
@@ -321,6 +324,9 @@ export default function EncuestaAbiertaPage({ params }: { params: Promise<{ slug
                 </div>
               ))}
             </div>
+            <p className="text-[11px] text-slate-500 mb-6 leading-relaxed">
+              Tus datos serán tratados conforme a la Ley 1581 de 2012 (Habeas Data) y se usarán únicamente para fines de análisis territorial.
+            </p>
             <button onClick={next} className="w-full rounded-xl bg-violet-600 hover:bg-violet-500 px-6 py-3.5 text-sm font-semibold text-white transition-colors flex items-center justify-center gap-2">
               Comenzar <ArrowRight className="h-4 w-4" />
             </button>
@@ -381,6 +387,13 @@ export default function EncuestaAbiertaPage({ params }: { params: Promise<{ slug
                     )}
                   </>
                 )}
+                <label className="flex items-start gap-2.5 cursor-pointer pt-1">
+                  <input type="checkbox" checked={consentDatos} onChange={e => setConsentDatos(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 rounded border-white/20 bg-white/5 accent-emerald-500 shrink-0" />
+                  <span className="text-xs text-slate-400 leading-relaxed">
+                    Autorizo el tratamiento de mis datos personales conforme a la Ley 1581 de 2012 (Habeas Data) para fines de análisis territorial{survey.abierta_pago ? " y el pago del incentivo a mi cuenta/billetera" : ""}. *
+                  </span>
+                </label>
               </div>
             )}
 
