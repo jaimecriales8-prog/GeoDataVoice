@@ -33,6 +33,7 @@ export async function POST(req: Request) {
     abierta_pago: original.abierta_pago,
     abierta_anonima: original.abierta_anonima,
     field_identity_required: original.field_identity_required,
+    demo_opcionales: original.demo_opcionales,
     slug: original.slug ? `${original.slug}-ola${wave}` : null,
     sent_at: new Date().toISOString(),
     created_at: new Date().toISOString(),

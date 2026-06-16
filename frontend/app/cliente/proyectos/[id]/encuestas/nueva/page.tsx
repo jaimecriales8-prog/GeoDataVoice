@@ -44,6 +44,23 @@ const PERFILES: { value: PerfilObjetivo; label: string; desc: string; icon: Reac
   { value: "ambos", label: "Ambos perfiles", desc: "Tanto panelistas como encuestadores pueden responderla", icon: Users, color: "border-blue-400 bg-blue-500/10 text-blue-300" },
 ];
 
+const CAMPOS_DEMOGRAFICOS: { key: string; label: string }[] = [
+  { key: "gender", label: "Sexo" },
+  { key: "birth_year", label: "Año de nacimiento" },
+  { key: "departamento", label: "Departamento" },
+  { key: "municipio", label: "Municipio" },
+  { key: "barrio", label: "Barrio" },
+  { key: "estrato", label: "Estrato" },
+  { key: "nivel_estudios", label: "Nivel de estudios" },
+  { key: "estado_civil", label: "Estado civil" },
+  { key: "actividades", label: "Actividad principal" },
+  { key: "regimen_salud", label: "Régimen de salud" },
+  { key: "sisben_grupo", label: "Grupo SISBEN" },
+  { key: "tenencia_vivienda", label: "Tenencia vivienda" },
+  { key: "grupo_etnico", label: "Grupo étnico" },
+  { key: "antiguedad_barrio", label: "Antigüedad en el barrio" },
+];
+
 function uid() { return Math.random().toString(36).slice(2, 9); }
 
 export default function NuevaEncuesta({ params }: { params: Promise<{ id: string }> }) {
@@ -65,6 +82,7 @@ export default function NuevaEncuesta({ params }: { params: Promise<{ id: string
   const [abPago, setAbPago] = useState(false);
   const [abAnonima, setAbAnonima] = useState(true);
   const [slugCopied, setSlugCopied] = useState(false);
+  const [demoOpcionales, setDemoOpcionales] = useState<Record<string, boolean>>({});
 
   function generarSlug(nombre: string) {
     const base = nombre.toLowerCase()
@@ -82,6 +100,10 @@ export default function NuevaEncuesta({ params }: { params: Promise<{ id: string
   const [expandida, setExpandida] = useState<string | null>(preguntas[0].id);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+
+  function toggleDemoOpcional(key: string) {
+    setDemoOpcionales(prev => ({ ...prev, [key]: !prev[key] }));
+  }
 
   // ── Audiencia ────────────────────────────────────────────────
   function toggleAudiencia(key: string, value: string | number | boolean) {
@@ -178,6 +200,7 @@ export default function NuevaEncuesta({ params }: { params: Promise<{ id: string
         abierta_identidad: esAbierta ? abIdentidad : false,
         abierta_pago: esAbierta ? abPago : false,
         abierta_anonima: esAbierta ? abAnonima : true,
+        demo_opcionales: esAbierta ? demoOpcionales : {},
       })
       .select("id")
       .single();
@@ -418,6 +441,23 @@ export default function NuevaEncuesta({ params }: { params: Promise<{ id: string
                 <div className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${abPago ? "translate-x-5" : "translate-x-0.5"}`} />
               </button>
             </label>
+
+            {/* Campos demográficos opcionales */}
+            <div>
+              <p className="text-xs font-semibold text-slate-300 mb-1">Campos demográficos opcionales</p>
+              <p className="text-[11px] text-slate-500 mb-2">Por defecto todos son obligatorios. Activa los que quieras dejar opcionales para el respondente.</p>
+              <div className="flex flex-wrap gap-2">
+                {CAMPOS_DEMOGRAFICOS.map(({ key, label }) => {
+                  const opcional = !!demoOpcionales[key];
+                  return (
+                    <button key={key} type="button" onClick={() => toggleDemoOpcional(key)}
+                      className={`rounded-lg px-3 py-1.5 text-xs border transition-colors ${opcional ? "border-blue-400 bg-blue-500/15 text-blue-200" : "border-white/10 bg-white/[0.02] text-slate-400 hover:bg-white/5"}`}>
+                      {label} {opcional ? "· opcional" : "· obligatorio"}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         )}
       </div>

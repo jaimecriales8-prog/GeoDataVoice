@@ -14,6 +14,7 @@ type Survey = {
   id: string; name: string; description: string | null;
   es_abierta: boolean; abierta_identidad: boolean;
   abierta_pago: boolean; abierta_anonima: boolean;
+  demo_opcionales?: Record<string, boolean> | null;
 };
 type Question = {
   id: string; text: string; type: string; required: boolean;
@@ -183,18 +184,21 @@ export default function EncuestaAbiertaPage({ params }: { params: Promise<{ slug
   function prev() { setError(""); setStep(s => s - 1); }
 
   // ── validaciones por paso ─────────────────────────────────────────────────
+  function esOpcional(key: string): boolean { return !!survey?.demo_opcionales?.[key]; }
+  function lbl(texto: string, key: string): string { return esOpcional(key) ? texto : `${texto} *`; }
+
   function validarDemo(): string | null {
-    const req: [string, string][] = [
-      [demo.gender, "sexo"], [demo.birth_year, "año de nacimiento"],
-      [demo.departamento, "departamento"], [demo.municipio, "municipio"], [demo.barrio, "barrio"],
-      [demo.estrato, "estrato"], [demo.nivel_estudios, "nivel de estudios"],
-      [demo.estado_civil, "estado civil"], [demo.regimen_salud, "régimen de salud"],
-      [demo.sisben_grupo, "grupo SISBEN"], [demo.tenencia_vivienda, "tipo de vivienda"],
-      [demo.grupo_etnico, "grupo étnico"], [demo.antiguedad_barrio, "antigüedad en el barrio"],
+    const req: [string, string, string][] = [
+      [demo.gender, "sexo", "gender"], [demo.birth_year, "año de nacimiento", "birth_year"],
+      [demo.departamento, "departamento", "departamento"], [demo.municipio, "municipio", "municipio"], [demo.barrio, "barrio", "barrio"],
+      [demo.estrato, "estrato", "estrato"], [demo.nivel_estudios, "nivel de estudios", "nivel_estudios"],
+      [demo.estado_civil, "estado civil", "estado_civil"], [demo.regimen_salud, "régimen de salud", "regimen_salud"],
+      [demo.sisben_grupo, "grupo SISBEN", "sisben_grupo"], [demo.tenencia_vivienda, "tipo de vivienda", "tenencia_vivienda"],
+      [demo.grupo_etnico, "grupo étnico", "grupo_etnico"], [demo.antiguedad_barrio, "antigüedad en el barrio", "antiguedad_barrio"],
     ];
-    const falta = req.find(([v]) => !v.trim());
+    const falta = req.find(([v, , key]) => !esOpcional(key) && !v.trim());
     if (falta) return `Falta ${falta[1]}`;
-    if (actividades.length === 0) return "Selecciona al menos una actividad";
+    if (!esOpcional("actividades") && actividades.length === 0) return "Selecciona al menos una actividad";
     if (tieneHijos && !demo.num_hijos) return "Indica cuántos hijos tienes";
     return null;
   }
@@ -397,29 +401,29 @@ export default function EncuestaAbiertaPage({ params }: { params: Promise<{ slug
         {pasoActual === "demografia" && (
           <div>
             <h2 className="text-xl font-bold text-white mb-1">Perfil socioeconómico</h2>
-            <p className="text-slate-400 text-sm mb-6">Estos datos nos permiten entender mejor quién responde y garantizar representatividad. Todos son obligatorios.</p>
+            <p className="text-slate-400 text-sm mb-6">Estos datos nos permiten entender mejor quién responde y garantizar representatividad. Los marcados con * son obligatorios.</p>
 
             <div className="space-y-4 mb-6">
               <div className="grid grid-cols-2 gap-4">
-                <Sel label="Sexo *" value={demo.gender} onChange={v => setDemo(p => ({ ...p, gender: v }))}>
+                <Sel label={lbl("Sexo", "gender")} value={demo.gender} onChange={v => setDemo(p => ({ ...p, gender: v }))}>
                   <option value="">Selecciona</option>
                   <option value="female">Mujer</option>
                   <option value="male">Hombre</option>
                   <option value="other">Otro</option>
                 </Sel>
-                <Field label="Año de nacimiento *">
+                <Field label={lbl("Año de nacimiento", "birth_year")}>
                   <input value={demo.birth_year} onChange={e => setDemo(p => ({ ...p, birth_year: e.target.value }))}
                     placeholder="Ej: 1990" inputMode="numeric" maxLength={4} className={inputCls} />
                 </Field>
               </div>
 
-              <Sel label="Departamento *" value={demo.departamento} onChange={v => setDemo(p => ({ ...p, departamento: v, municipio: "" }))}>
+              <Sel label={lbl("Departamento", "departamento")} value={demo.departamento} onChange={v => setDemo(p => ({ ...p, departamento: v, municipio: "" }))}>
                 <option value="">Selecciona departamento</option>
                 {DEPARTAMENTOS.map(d => <option key={d} value={d}>{d}</option>)}
               </Sel>
 
               <div className="grid grid-cols-2 gap-4">
-                <Field label="Municipio *">
+                <Field label={lbl("Municipio", "municipio")}>
                   <div className="relative">
                     <select value={demo.municipio} onChange={e => setDemo(p => ({ ...p, municipio: e.target.value }))} className={selectCls} disabled={!demo.departamento}>
                       <option value="">{demo.departamento ? "Selecciona municipio" : "Primero elige departamento"}</option>
@@ -428,18 +432,18 @@ export default function EncuestaAbiertaPage({ params }: { params: Promise<{ slug
                     <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
                   </div>
                 </Field>
-                <Field label="Barrio *">
+                <Field label={lbl("Barrio", "barrio")}>
                   <input value={demo.barrio} onChange={e => setDemo(p => ({ ...p, barrio: e.target.value }))}
                     placeholder="Ej: El Prado" className={inputCls} />
                 </Field>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <Sel label="Estrato *" value={demo.estrato} onChange={v => setDemo(p => ({ ...p, estrato: v }))}>
+                <Sel label={lbl("Estrato", "estrato")} value={demo.estrato} onChange={v => setDemo(p => ({ ...p, estrato: v }))}>
                   <option value="">Selecciona</option>
                   {[1,2,3,4,5,6].map(n => <option key={n} value={n}>{n}</option>)}
                 </Sel>
-                <Sel label="Nivel de estudios *" value={demo.nivel_estudios} onChange={v => setDemo(p => ({ ...p, nivel_estudios: v }))}>
+                <Sel label={lbl("Nivel de estudios", "nivel_estudios")} value={demo.nivel_estudios} onChange={v => setDemo(p => ({ ...p, nivel_estudios: v }))}>
                   <option value="">Selecciona</option>
                   <option value="bachiller">Bachiller</option>
                   <option value="tecnico_tecnologo">Técnico / Tecnólogo</option>
@@ -448,7 +452,7 @@ export default function EncuestaAbiertaPage({ params }: { params: Promise<{ slug
                 </Sel>
               </div>
 
-              <Sel label="Estado civil *" value={demo.estado_civil} onChange={v => setDemo(p => ({ ...p, estado_civil: v }))}>
+              <Sel label={lbl("Estado civil", "estado_civil")} value={demo.estado_civil} onChange={v => setDemo(p => ({ ...p, estado_civil: v }))}>
                 <option value="">Selecciona</option>
                 <option value="soltero">Soltero/a</option>
                 <option value="casado">Casado/a</option>
@@ -460,7 +464,7 @@ export default function EncuestaAbiertaPage({ params }: { params: Promise<{ slug
 
               {/* Actividades */}
               <div>
-                <label className="block text-xs font-medium text-slate-400 mb-2">Actividad principal * (puede ser varias)</label>
+                <label className="block text-xs font-medium text-slate-400 mb-2">{lbl("Actividad principal", "actividades")} (puede ser varias)</label>
                 <div className="flex flex-wrap gap-2">
                   {["empleado", "independiente", "desempleado", "estudiante", "ama_de_casa", "pensionado", "empresario", "otro"].map(a => {
                     const sel = actividades.includes(a);
@@ -488,14 +492,14 @@ export default function EncuestaAbiertaPage({ params }: { params: Promise<{ slug
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <Sel label="Régimen de salud *" value={demo.regimen_salud} onChange={v => setDemo(p => ({ ...p, regimen_salud: v }))}>
+                <Sel label={lbl("Régimen de salud", "regimen_salud")} value={demo.regimen_salud} onChange={v => setDemo(p => ({ ...p, regimen_salud: v }))}>
                   <option value="">Selecciona</option>
                   <option value="subsidiado">Subsidiado</option>
                   <option value="contributivo">Contributivo</option>
                   <option value="especial">Especial</option>
                   <option value="ninguno">Ninguno</option>
                 </Sel>
-                <Sel label="Grupo SISBEN *" value={demo.sisben_grupo} onChange={v => setDemo(p => ({ ...p, sisben_grupo: v }))}>
+                <Sel label={lbl("Grupo SISBEN", "sisben_grupo")} value={demo.sisben_grupo} onChange={v => setDemo(p => ({ ...p, sisben_grupo: v }))}>
                   <option value="">Selecciona</option>
                   <option value="no">No está en SISBEN</option>
                   <option value="A">Grupo A</option>
@@ -506,13 +510,13 @@ export default function EncuestaAbiertaPage({ params }: { params: Promise<{ slug
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <Sel label="Tenencia vivienda *" value={demo.tenencia_vivienda} onChange={v => setDemo(p => ({ ...p, tenencia_vivienda: v }))}>
+                <Sel label={lbl("Tenencia vivienda", "tenencia_vivienda")} value={demo.tenencia_vivienda} onChange={v => setDemo(p => ({ ...p, tenencia_vivienda: v }))}>
                   <option value="">Selecciona</option>
                   <option value="propia">Propia</option>
                   <option value="arriendo">Arriendo</option>
                   <option value="familiar">Familiar</option>
                 </Sel>
-                <Sel label="Grupo étnico *" value={demo.grupo_etnico} onChange={v => setDemo(p => ({ ...p, grupo_etnico: v }))}>
+                <Sel label={lbl("Grupo étnico", "grupo_etnico")} value={demo.grupo_etnico} onChange={v => setDemo(p => ({ ...p, grupo_etnico: v }))}>
                   <option value="">Selecciona</option>
                   <option value="ninguno">Ninguno</option>
                   <option value="afro">Afrodescendiente</option>
@@ -522,7 +526,7 @@ export default function EncuestaAbiertaPage({ params }: { params: Promise<{ slug
                 </Sel>
               </div>
 
-              <Sel label="Antigüedad en el barrio *" value={demo.antiguedad_barrio} onChange={v => setDemo(p => ({ ...p, antiguedad_barrio: v }))}>
+              <Sel label={lbl("Antigüedad en el barrio", "antiguedad_barrio")} value={demo.antiguedad_barrio} onChange={v => setDemo(p => ({ ...p, antiguedad_barrio: v }))}>
                 <option value="">Selecciona</option>
                 <option value="menos_1">Menos de 1 año</option>
                 <option value="1_5">1 a 5 años</option>
