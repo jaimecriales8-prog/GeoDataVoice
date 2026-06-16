@@ -15,6 +15,9 @@ type Survey = {
   wave: number;
   closes_at: string | null;
   preguntas: number;
+  es_abierta?: boolean;
+  slug?: string | null;
+  abierta_pago?: boolean;
 };
 
 export default function PanelistaHome() {
@@ -48,7 +51,7 @@ export default function PanelistaHome() {
       // 1. Encuestas activas (para panelistas o ambos perfiles)
       const { data: activas } = await supabase
         .from("surveys")
-        .select("id, name, wave, closes_at, audiencia, perfil_objetivo")
+        .select("id, name, wave, closes_at, audiencia, perfil_objetivo, es_abierta, slug, abierta_pago, abierta_notificar")
         .in("status", ["sent", "ready"])
         .order("created_at", { ascending: false });
 
@@ -61,9 +64,12 @@ export default function PanelistaHome() {
       setRespondidas(respondidasIds.size);
 
       // 3. Filtrar: no respondidas + perfil panelista/ambos + audiencia segmentada
+      // Las abiertas solo aparecen aquí si el creador activó "notificar" (si no, se difunden solo por el link público)
       const pendientes = (activas ?? []).filter(s => {
         if (respondidasIds.has(s.id)) return false;
-        const po = (s as { perfil_objetivo?: string }).perfil_objetivo;
+        const sv = s as { perfil_objetivo?: string; es_abierta?: boolean; abierta_notificar?: boolean; slug?: string | null };
+        if (sv.es_abierta) return !!sv.abierta_notificar && !!sv.slug;
+        const po = sv.perfil_objetivo;
         if (po && po !== "panelista" && po !== "ambos") return false;
         return participanteCoincide((s as { audiencia?: Audiencia }).audiencia, perfilP ?? {});
       });
@@ -182,7 +188,7 @@ export default function PanelistaHome() {
           ) : (
             <div className="space-y-3">
               {surveys.map(survey => (
-                <Link key={survey.id} href={`/campo/panelista/encuesta/${survey.id}`}>
+                <Link key={survey.id} href={survey.es_abierta ? `/encuesta/${survey.slug}` : `/campo/panelista/encuesta/${survey.id}`}>
                   <div className="rounded-2xl bg-white border border-slate-200 p-4 flex items-center gap-4 active:bg-slate-50 transition-colors shadow-sm">
                     <div className="h-12 w-12 rounded-xl bg-blue-100 flex items-center justify-center shrink-0">
                       <ClipboardList className="h-6 w-6 text-blue-600" />
@@ -200,9 +206,11 @@ export default function PanelistaHome() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full">
-                        Pago
-                      </span>
+                      {(!survey.es_abierta || survey.abierta_pago) && (
+                        <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full">
+                          Pago
+                        </span>
+                      )}
                       <ChevronRight className="h-4 w-4 text-slate-400" />
                     </div>
                   </div>

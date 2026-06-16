@@ -17,6 +17,14 @@ type Survey = {
   perfil_objetivo: string;
 };
 
+type EncuestaAbierta = {
+  id: string;
+  name: string;
+  wave: number;
+  closes_at: string | null;
+  slug: string | null;
+};
+
 type DayStats = {
   reclutados: number;
   encuestas: number;
@@ -28,6 +36,7 @@ export default function EncuestadorHome() {
   const [operadorId, setOperadorId] = useState<string | null>(null);
   const [nombre, setNombre] = useState("");
   const [surveys, setSurveys] = useState<Survey[]>([]);
+  const [abiertas, setAbiertas] = useState<EncuestaAbierta[]>([]);
   const [stats, setStats] = useState<DayStats>({ reclutados: 0, encuestas: 0, mes: 0 });
   const [mes, setMes] = useState({ reclutados: 0, encuestas: 0, ganadoReclutamiento: 0, ganadoEncuestas: 0 });
   const [codigo, setCodigo] = useState<string | null>(null);
@@ -67,6 +76,16 @@ export default function EncuestadorHome() {
         .order("created_at", { ascending: false });
 
       setSurveys(sv ?? []);
+
+      // Encuestas abiertas que el creador activó para difundir a panelistas/encuestadores
+      const { data: ab } = await supabase
+        .from("surveys")
+        .select("id, name, wave, closes_at, slug")
+        .eq("es_abierta", true)
+        .eq("abierta_notificar", true)
+        .in("status", ["ready", "sent"])
+        .order("created_at", { ascending: false });
+      setAbiertas(ab ?? []);
 
       // Stats y ganancias via API (service role para bypassear RLS en responses)
       if (op) {
@@ -229,6 +248,45 @@ export default function EncuestadorHome() {
             </div>
           )}
         </section>
+
+        {/* Encuestas abiertas (link público, para compartir o aplicar tú mismo) */}
+        {abiertas.length > 0 && (
+          <section>
+            <div className="flex items-center gap-2 mb-3">
+              <ClipboardList className="h-4 w-4 text-blue-400" />
+              <h2 className="font-bold text-white text-sm">Encuestas abiertas disponibles</h2>
+            </div>
+            <div className="space-y-3">
+              {abiertas.map(a => (
+                <Link key={a.id} href={`/encuesta/${a.slug}`}>
+                  <div className="rounded-2xl bg-slate-800 border border-white/5 p-4 flex items-center gap-4 hover:bg-slate-700 transition-colors active:scale-[0.98]">
+                    <div className="h-11 w-11 rounded-xl bg-blue-500/20 flex items-center justify-center shrink-0">
+                      <ClipboardList className="h-5 w-5 text-blue-400" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-white text-sm leading-tight">{a.name}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-xs text-slate-400">Ola {a.wave} · link público</span>
+                        {a.closes_at && (
+                          <span className="flex items-center gap-1 text-xs text-amber-400">
+                            <Clock className="h-3 w-3" />
+                            Cierra {new Date(a.closes_at).toLocaleDateString("es-CO", { day: "numeric", month: "short" })}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-xs text-blue-400 bg-blue-500/10 px-2 py-1 rounded-full">
+                        Abrir
+                      </span>
+                      <ChevronRight className="h-4 w-4 text-slate-500" />
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Progreso del día */}
         {!loading && (stats.reclutados > 0 || stats.encuestas > 0) && (
