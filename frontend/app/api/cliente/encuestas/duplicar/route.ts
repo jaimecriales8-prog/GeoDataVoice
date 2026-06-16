@@ -34,6 +34,7 @@ export async function POST(req: Request) {
     abierta_anonima: original.abierta_anonima,
     field_identity_required: original.field_identity_required,
     demo_opcionales: original.demo_opcionales,
+    abierta_notificar: original.abierta_notificar,
     slug: original.slug ? `${original.slug}-ola${wave}` : null,
     sent_at: new Date().toISOString(),
     created_at: new Date().toISOString(),
@@ -65,7 +66,7 @@ export async function POST(req: Request) {
     ? `${appUrl}/encuesta/${original.slug}-ola${wave}`
     : `${appUrl}/campo/panelista`;
 
-  if (whatsappDisponible()) {
+  if (whatsappDisponible() && (!original.es_abierta || original.abierta_notificar)) {
     const { data: panelistas } = await supabase
       .from("participants")
       .select("id, phone, user_id")

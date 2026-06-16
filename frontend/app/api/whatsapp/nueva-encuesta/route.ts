@@ -29,9 +29,12 @@ export async function POST(req: NextRequest) {
     const supabase = createServiceClient();
     const { data: survey } = await supabase
       .from("surveys")
-      .select("id, name, perfil_objetivo, audiencia, slug, es_abierta, projects(name)")
+      .select("id, name, perfil_objetivo, audiencia, slug, es_abierta, abierta_notificar, projects(name)")
       .eq("id", surveyId).single();
     if (!survey) return NextResponse.json({ error: "Encuesta no encontrada" }, { status: 404 });
+
+    if (survey.es_abierta && !survey.abierta_notificar)
+      return NextResponse.json({ ok: true, enviados: 0, mensaje: "Notificación desactivada para esta encuesta abierta" });
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://geodatavoice.grialtech.co";
     const link = survey.es_abierta && survey.slug

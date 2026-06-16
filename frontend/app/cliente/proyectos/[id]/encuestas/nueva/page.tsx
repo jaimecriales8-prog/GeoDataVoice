@@ -83,6 +83,7 @@ export default function NuevaEncuesta({ params }: { params: Promise<{ id: string
   const [abAnonima, setAbAnonima] = useState(true);
   const [slugCopied, setSlugCopied] = useState(false);
   const [demoOpcionales, setDemoOpcionales] = useState<Record<string, boolean>>({});
+  const [abNotificar, setAbNotificar] = useState(false);
 
   function generarSlug(nombre: string) {
     const base = nombre.toLowerCase()
@@ -201,6 +202,7 @@ export default function NuevaEncuesta({ params }: { params: Promise<{ id: string
         abierta_pago: esAbierta ? abPago : false,
         abierta_anonima: esAbierta ? abAnonima : true,
         demo_opcionales: esAbierta ? demoOpcionales : {},
+        abierta_notificar: esAbierta ? abNotificar : true,
       })
       .select("id")
       .single();
@@ -227,7 +229,8 @@ export default function NuevaEncuesta({ params }: { params: Promise<{ id: string
     if (qErr) { setError(qErr.message); setSaving(false); return; }
 
     // Si se publica (ready = enviada), notificar a panelistas por email + WhatsApp
-    if (estado === "ready") {
+    // (si es abierta y el creador no activó la notificación, no se avisa: solo se difunde por el link)
+    if (estado === "ready" && (!esAbierta || abNotificar)) {
       const notifBody = JSON.stringify({ surveyId: survey.id });
       await Promise.allSettled([
         fetch("/api/email/nueva-encuesta", { method: "POST", headers: { "Content-Type": "application/json" }, body: notifBody }),
@@ -439,6 +442,21 @@ export default function NuevaEncuesta({ params }: { params: Promise<{ id: string
               <button type="button" onClick={() => setAbPago(v => !v)}
                 className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ml-4 ${abPago ? "bg-amber-600" : "bg-slate-600"}`}>
                 <div className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${abPago ? "translate-x-5" : "translate-x-0.5"}`} />
+              </button>
+            </label>
+
+            {/* Notificar a panelistas/encuestadores */}
+            <label className="flex items-center justify-between cursor-pointer rounded-xl border border-white/5 bg-white/[0.02] p-3">
+              <div className="flex items-center gap-2">
+                <Users className="h-4 w-4 text-blue-400" />
+                <div>
+                  <p className="text-sm text-slate-200">Notificar a panelistas y encuestadores</p>
+                  <p className="text-xs text-slate-500 mt-0.5">Envía WhatsApp/email avisando de esta encuesta. Como es abierta y puede no tener pago, por defecto no se notifica (solo se difunde por el link).</p>
+                </div>
+              </div>
+              <button type="button" onClick={() => setAbNotificar(v => !v)}
+                className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ml-4 ${abNotificar ? "bg-blue-600" : "bg-slate-600"}`}>
+                <div className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${abNotificar ? "translate-x-5" : "translate-x-0.5"}`} />
               </button>
             </label>
 

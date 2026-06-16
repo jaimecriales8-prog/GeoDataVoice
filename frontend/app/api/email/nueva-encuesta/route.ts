@@ -44,12 +44,16 @@ export async function POST(req: NextRequest) {
     // Obtener datos de la encuesta y proyecto
     const { data: survey, error: surveyError } = await supabase
       .from("surveys")
-      .select("id, name, perfil_objetivo, project_id, projects(name)")
+      .select("id, name, perfil_objetivo, project_id, es_abierta, abierta_notificar, projects(name)")
       .eq("id", surveyId)
       .single();
 
     if (surveyError || !survey) {
       return NextResponse.json({ error: "Encuesta no encontrada" }, { status: 404 });
+    }
+
+    if (survey.es_abierta && !survey.abierta_notificar) {
+      return NextResponse.json({ ok: true, enviados: 0, mensaje: "Notificación desactivada para esta encuesta abierta" });
     }
 
     const proyectoRaw = survey.projects as unknown;
