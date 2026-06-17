@@ -19,23 +19,69 @@ import Paginacion from "@/components/paginacion";
 import CaracterizacionPanel from "@/components/caracterizacion-panel";
 import DeviceStatsPanel from "@/components/device-stats-panel";
 
+const GENDER_EXPORT: Record<string, string> = {
+  male: "Hombre", female: "Mujer", non_binary: "No binario", other: "Otro", prefer_not: "Prefiere no decir",
+};
+
+function escapeCsv(v: unknown): string {
+  if (v == null) return "";
+  const s = String(v);
+  if (s.includes(",") || s.includes('"') || s.includes("\n")) return `"${s.replace(/"/g, '""')}"`;
+  return s;
+}
+
 function exportarCSV(nombre: string, res: Resultados) {
   const preguntas = res.preguntas;
-  const headers = ["#", "Nombre", "Estrato", "Género", "Fecha", ...preguntas.map((q, i) => `P${i + 1}: ${q.text}`)];
-  const filas = res.individuales.map((ind, idx) => [
-    String(idx + 1),
-    ind.nombre,
-    ind.estrato ?? "",
-    ind.gender ?? "",
-    ind.fecha ? new Date(ind.fecha).toLocaleDateString("es-CO") : "",
-    ...preguntas.map(q => ind.respuestas[q.id] ?? ""),
-  ]);
-  const escape = (v: string) => `"${v.replace(/"/g, '""')}"`;
-  const csv = [headers, ...filas].map(row => row.map(escape).join(",")).join("\n");
-  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
+  const demografiaCols = [
+    "#", "Nombre", "Sexo", "Año nacimiento", "Estrato", "Municipio",
+    "Nivel estudios", "Estado civil", "Núm. hijos", "Régimen salud", "SISBEN",
+    "Tenencia vivienda", "Grupo étnico", "Actividades", "Antigüedad barrio",
+    "Recibe subsidios", "Acceso internet", "Registrado votar", "Fecha",
+  ];
+  const preguntaCols = preguntas.map((q, i) => `P${i + 1}: ${q.text.slice(0, 60)}`);
+  const nlpCols = ["NLP - Transcripción", "NLP - Sentimiento", "NLP - Emoción", "NLP - Tema", "NLP - Intensidad"];
+  const headers = [...demografiaCols, ...preguntaCols, ...nlpCols];
+
+  const filas = res.individuales.map((ind, idx) => {
+    const demo = [
+      String(idx + 1),
+      ind.nombre,
+      ind.gender ? (GENDER_EXPORT[ind.gender] ?? ind.gender) : "",
+      ind.birth_year ?? "",
+      ind.estrato ?? "",
+      ind.municipio ?? "",
+      ind.nivel_estudios ?? "",
+      ind.estado_civil ?? "",
+      ind.num_hijos ?? "",
+      ind.regimen_salud ?? "",
+      ind.sisben_grupo ?? "",
+      ind.tenencia_vivienda ?? "",
+      ind.grupo_etnico ?? "",
+      ind.actividades ?? "",
+      ind.antiguedad_barrio ?? "",
+      ind.recibe_subsidios != null ? (ind.recibe_subsidios ? "Sí" : "No") : "",
+      ind.acceso_internet != null ? (ind.acceso_internet ? "Sí" : "No") : "",
+      ind.registrado_votar != null ? (ind.registrado_votar ? "Sí" : "No") : "",
+      ind.fecha ? new Date(ind.fecha).toLocaleString("es-CO") : "",
+    ];
+    const respCols = preguntas.map(q => ind.respuestas[q.id] ?? "");
+    const nlpData = [
+      ind.nlp.map(n => n.transcript).join(" | "),
+      ind.nlp.map(n => n.sentiment).join(" | "),
+      ind.nlp.map(n => n.emotion).join(" | "),
+      ind.nlp.map(n => n.topic).join(" | "),
+      ind.nlp.map(n => n.intensity ?? "").join(" | "),
+    ];
+    return [...demo, ...respCols, ...nlpData].map(escapeCsv).join(",");
+  });
+
+  const csv = [headers.map(escapeCsv).join(","), ...filas].join("\n");
+  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
-  a.href = url; a.download = `${nombre.replace(/\s+/g, "_")}_respuestas.csv`; a.click();
+  a.href = url;
+  a.download = `${nombre.replace(/\s+/g, "_")}_respuestas.csv`;
+  a.click();
   URL.revokeObjectURL(url);
 }
 
