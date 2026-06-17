@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Resultados, Distribucion, SENTIMENT_COLOR, SENTIMENT_LABELS } from "@/lib/resultados";
-import { MessageSquareQuote, Users, ClipboardCheck, Mic, Activity, ChevronDown, ChevronUp, List, FileText } from "lucide-react";
+import { MessageSquareQuote, Users, ClipboardCheck, Mic, Activity, ChevronDown, ChevronUp, List, FileText, Download } from "lucide-react";
 import {
   PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip,
 } from "recharts";
@@ -180,6 +180,74 @@ const GENDER_LABELS: Record<string, string> = {
   male: "Hombre", female: "Mujer", non_binary: "No binario", prefer_not: "Prefiere no decir",
 };
 
+const GENDER_EXPORT: Record<string, string> = {
+  male: "Hombre", female: "Mujer", non_binary: "No binario", prefer_not: "Prefiere no decir",
+};
+
+function escapeCsv(v: unknown): string {
+  if (v == null) return "";
+  const s = String(v);
+  if (s.includes(",") || s.includes('"') || s.includes("\n")) return `"${s.replace(/"/g, '""')}"`;
+  return s;
+}
+
+function exportarCSV(r: Resultados) {
+  const preguntas = r.preguntas;
+
+  const demografiaCols = [
+    "Nombre", "Sexo", "Año nacimiento", "Estrato", "Municipio", "Barrio",
+    "Nivel estudios", "Estado civil", "Num. hijos", "Régimen salud", "SISBEN",
+    "Tenencia vivienda", "Grupo étnico", "Actividades", "Antigüedad barrio",
+    "Recibe subsidios", "Acceso internet", "Registrado votar", "Fecha",
+  ];
+  const preguntaCols = preguntas.map((q, i) => `P${i + 1}: ${q.text.slice(0, 60)}`);
+  const nlpCols = ["NLP - Transcripción", "NLP - Sentimiento", "NLP - Emoción", "NLP - Tema", "NLP - Intensidad"];
+
+  const headers = [...demografiaCols, ...preguntaCols, ...nlpCols];
+
+  const rows = r.individuales.map(ind => {
+    const demo = [
+      ind.nombre,
+      ind.gender ? (GENDER_EXPORT[ind.gender] ?? ind.gender) : "",
+      ind.birth_year ?? "",
+      ind.estrato ?? "",
+      ind.municipio ?? "",
+      ind.barrio ?? "",
+      ind.nivel_estudios ?? "",
+      ind.estado_civil ?? "",
+      ind.num_hijos ?? "",
+      ind.regimen_salud ?? "",
+      ind.sisben_grupo ?? "",
+      ind.tenencia_vivienda ?? "",
+      ind.grupo_etnico ?? "",
+      ind.actividades ?? "",
+      ind.antiguedad_barrio ?? "",
+      ind.recibe_subsidios != null ? (ind.recibe_subsidios ? "Sí" : "No") : "",
+      ind.acceso_internet != null ? (ind.acceso_internet ? "Sí" : "No") : "",
+      ind.registrado_votar != null ? (ind.registrado_votar ? "Sí" : "No") : "",
+      ind.fecha ? new Date(ind.fecha).toLocaleString("es-CO") : "",
+    ];
+    const respCols = preguntas.map(q => ind.respuestas[q.id] ?? "");
+    const nlpData = [
+      ind.nlp.map(n => n.transcript).join(" | "),
+      ind.nlp.map(n => n.sentiment).join(" | "),
+      ind.nlp.map(n => n.emotion).join(" | "),
+      ind.nlp.map(n => n.topic).join(" | "),
+      ind.nlp.map(n => n.intensity ?? "").join(" | "),
+    ];
+    return [...demo, ...respCols, ...nlpData].map(escapeCsv).join(",");
+  });
+
+  const csv = [headers.map(escapeCsv).join(","), ...rows].join("\n");
+  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" }); // BOM para Excel
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `respuestas_${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 function ListadoRespuestas({ r }: { r: Resultados }) {
   const [open, setOpen] = useState(false);
   const [limite, setLimite] = useState(25);
@@ -190,17 +258,25 @@ function ListadoRespuestas({ r }: { r: Resultados }) {
 
   return (
     <div className="rounded-2xl border border-white/5 bg-slate-900 overflow-hidden print:hidden">
-      <button
-        onClick={() => setOpen(v => !v)}
-        className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-white/[0.02] transition-colors"
-      >
-        <span className="flex items-center gap-2 text-sm font-semibold text-white">
-          <List className="h-4 w-4 text-violet-400" />
-          Respuestas individuales
-          <span className="rounded-full bg-violet-500/15 text-violet-300 text-[11px] px-2 py-0.5 font-medium">{r.individuales.length}</span>
-        </span>
-        {open ? <ChevronUp className="h-4 w-4 text-slate-500" /> : <ChevronDown className="h-4 w-4 text-slate-500" />}
-      </button>
+      <div className="flex items-center px-5 py-4 gap-3">
+        <button
+          onClick={() => setOpen(v => !v)}
+          className="flex-1 flex items-center gap-2 text-left hover:opacity-80 transition-opacity"
+        >
+          <span className="flex items-center gap-2 text-sm font-semibold text-white">
+            <List className="h-4 w-4 text-violet-400" />
+            Respuestas individuales
+            <span className="rounded-full bg-violet-500/15 text-violet-300 text-[11px] px-2 py-0.5 font-medium">{r.individuales.length}</span>
+          </span>
+          {open ? <ChevronUp className="h-4 w-4 text-slate-500" /> : <ChevronDown className="h-4 w-4 text-slate-500" />}
+        </button>
+        <button
+          onClick={() => exportarCSV(r)}
+          className="flex items-center gap-1.5 rounded-lg bg-violet-500/15 hover:bg-violet-500/25 text-violet-300 px-3 py-1.5 text-xs font-semibold transition-colors shrink-0"
+        >
+          <Download className="h-3.5 w-3.5" /> Exportar CSV
+        </button>
+      </div>
 
       {open && (
         <div className="border-t border-white/5 overflow-x-auto">
@@ -209,14 +285,17 @@ function ListadoRespuestas({ r }: { r: Resultados }) {
               <tr className="border-b border-white/5 text-slate-500">
                 <th className="text-left px-4 py-2.5 font-medium whitespace-nowrap">#</th>
                 <th className="text-left px-4 py-2.5 font-medium whitespace-nowrap">Nombre</th>
-                <th className="text-left px-4 py-2.5 font-medium whitespace-nowrap">Estrato</th>
                 <th className="text-left px-4 py-2.5 font-medium whitespace-nowrap">Género</th>
+                <th className="text-left px-4 py-2.5 font-medium whitespace-nowrap">Año nac.</th>
+                <th className="text-left px-4 py-2.5 font-medium whitespace-nowrap">Estrato</th>
+                <th className="text-left px-4 py-2.5 font-medium whitespace-nowrap">Municipio</th>
                 <th className="text-left px-4 py-2.5 font-medium whitespace-nowrap">Fecha</th>
                 {preguntas.map((q, i) => (
                   <th key={q.id} className="text-left px-4 py-2.5 font-medium whitespace-nowrap max-w-[160px]">
                     <span className="text-violet-400">P{i + 1}</span> {q.text.slice(0, 40)}{q.text.length > 40 ? "…" : ""}
                   </th>
                 ))}
+                <th className="text-left px-4 py-2.5 font-medium whitespace-nowrap text-emerald-600">Transcripción</th>
               </tr>
             </thead>
             <tbody>
@@ -224,8 +303,10 @@ function ListadoRespuestas({ r }: { r: Resultados }) {
                 <tr key={ind.participantId} className="border-b border-white/[0.03] hover:bg-white/[0.02]">
                   <td className="px-4 py-2.5 text-slate-500">{idx + 1}</td>
                   <td className="px-4 py-2.5 text-slate-300 whitespace-nowrap">{ind.nombre}</td>
-                  <td className="px-4 py-2.5 text-slate-400 whitespace-nowrap">{ind.estrato ?? "—"}</td>
                   <td className="px-4 py-2.5 text-slate-400 whitespace-nowrap">{ind.gender ? (GENDER_LABELS[ind.gender] ?? ind.gender) : "—"}</td>
+                  <td className="px-4 py-2.5 text-slate-400 whitespace-nowrap">{ind.birth_year ?? "—"}</td>
+                  <td className="px-4 py-2.5 text-slate-400 whitespace-nowrap">{ind.estrato ?? "—"}</td>
+                  <td className="px-4 py-2.5 text-slate-400 whitespace-nowrap">{ind.municipio ?? "—"}</td>
                   <td className="px-4 py-2.5 text-slate-500 whitespace-nowrap">
                     {ind.fecha ? new Date(ind.fecha).toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric" }) : "—"}
                   </td>
@@ -234,6 +315,11 @@ function ListadoRespuestas({ r }: { r: Resultados }) {
                       {ind.respuestas[q.id] ?? "—"}
                     </td>
                   ))}
+                  <td className="px-4 py-2.5 text-slate-400 max-w-[240px]">
+                    {ind.nlp.length > 0
+                      ? <span className="line-clamp-2 text-xs leading-relaxed">{ind.nlp[0].transcript}</span>
+                      : <span className="text-slate-600">—</span>}
+                  </td>
                 </tr>
               ))}
             </tbody>

@@ -53,13 +53,37 @@ export type Transcripcion = {
 
 export type FiltroDemo = { variable: string; valor: string | number };
 
+export type NLPParticipante = {
+  transcript: string;
+  sentiment: string;
+  emotion: string;
+  topic: string;
+  intensity: number | null;
+};
+
 export type RespuestaIndividual = {
   participantId: string;
   nombre: string;
-  estrato: string | null;
   gender: string | null;
+  birth_year: number | null;
+  estrato: string | null;
+  municipio: string | null;
+  barrio: string | null;
+  nivel_estudios: string | null;
+  estado_civil: string | null;
+  num_hijos: number | null;
+  regimen_salud: string | null;
+  sisben_grupo: string | null;
+  tenencia_vivienda: string | null;
+  grupo_etnico: string | null;
+  actividades: string | null;
+  antiguedad_barrio: string | null;
+  recibe_subsidios: boolean | null;
+  acceso_internet: boolean | null;
+  registrado_votar: boolean | null;
   fecha: string;
   respuestas: Record<string, string>; // question_id → value
+  nlp: NLPParticipante[];            // notas de voz analizadas
 };
 
 export type Resultados = {
@@ -164,7 +188,7 @@ export async function fetchResultados(surveyIds: string[], filtro?: FiltroDemo |
   if (allPartIds.length > 0) {
     const { data: parts } = await supabase
       .from("participants")
-      .select("id, name_encrypted, gender, estrato, nivel_estudios, estado_civil, regimen_salud, sisben_grupo, tenencia_vivienda, grupo_etnico, antiguedad_barrio, actividades")
+      .select("id, name_encrypted, gender, birth_year, estrato, municipio, barrio, nivel_estudios, estado_civil, num_hijos, regimen_salud, sisben_grupo, tenencia_vivienda, grupo_etnico, actividades, antiguedad_barrio, recibe_subsidios, acceso_internet, registrado_votar")
       .in("id", allPartIds);
     (parts ?? []).forEach(p => demoPorParticipante.set(p.id, p as Record<string, unknown>));
   }
@@ -202,20 +226,31 @@ export async function fetchResultados(surveyIds: string[], filtro?: FiltroDemo |
   let intensidadProm: number | null = null;
   let citas: Cita[] = [];
   let transcripciones: Transcripcion[] = [];
+  const nlpPorParticipante = new Map<string, NLPParticipante[]>();
+
+  // audioId → participantId (para vincular NLP a participante)
+  const audioToParticipant = new Map<string, string>();
 
   if (responseIds.length > 0) {
     const { data: audioRows } = await supabase
       .from("audio_responses")
-      .select("id, quality")
+      .select("id, response_id, quality")
       .in("response_id", responseIds);
     audios = (audioRows ?? []).length;
     audiosProcesados = (audioRows ?? []).filter(a => a.quality === "processed").length;
+
+    // construir mapa audio → participant a través de response
+    const respToParticipant = new Map(resp.map(r => [r.id, r.participant_id]));
+    for (const a of audioRows ?? []) {
+      const pid = respToParticipant.get(a.response_id);
+      if (pid) audioToParticipant.set(a.id, pid);
+    }
 
     const audioIds = (audioRows ?? []).map(a => a.id);
     if (audioIds.length > 0) {
       const { data: nlp } = await supabase
         .from("nlp_outputs")
-        .select("sentiment, emotion, intensity, main_topic, narrative, citizen_quote, transcript")
+        .select("audio_id, sentiment, emotion, intensity, main_topic, narrative, citizen_quote, transcript")
         .in("audio_id", audioIds);
       const n = nlp ?? [];
       sentimiento = contar(n.map(x => x.sentiment));
@@ -240,6 +275,21 @@ export async function fetchResultados(surveyIds: string[], filtro?: FiltroDemo |
           topic: TEMA_LABELS[x.main_topic] ?? x.main_topic ?? "Sin categoría",
           intensity: x.intensity ? parseInt(x.intensity) : null,
         }));
+
+      // indexar NLP por participante
+      for (const x of n) {
+        const pid = audioToParticipant.get(x.audio_id);
+        if (!pid || !x.transcript) continue;
+        const cur = nlpPorParticipante.get(pid) ?? [];
+        cur.push({
+          transcript: x.transcript,
+          sentiment: x.sentiment ?? "neutral",
+          emotion: x.emotion ?? "",
+          topic: TEMA_LABELS[x.main_topic] ?? x.main_topic ?? "Sin categoría",
+          intensity: x.intensity ? parseInt(x.intensity) : null,
+        });
+        nlpPorParticipante.set(pid, cur);
+      }
     }
   }
 
@@ -287,14 +337,31 @@ export async function fetchResultados(surveyIds: string[], filtro?: FiltroDemo |
     byPart.set(r.participant_id, cur);
   }
   const individuales: RespuestaIndividual[] = [...byPart.entries()].map(([pid, d]) => {
-    const p = demoPorParticipante.get(pid);
+    const p = demoPorParticipante.get(pid) as Record<string, unknown> | undefined;
+    const n = (v: unknown) => (v != null ? String(v) : null);
     return {
       participantId: pid,
-      nombre: (p as { name_encrypted?: string } | undefined)?.name_encrypted ?? "—",
-      estrato: (p as { estrato?: number | null } | undefined)?.estrato != null ? String((p as { estrato: number }).estrato) : null,
-      gender: (p as { gender?: string | null } | undefined)?.gender ?? null,
+      nombre: (p?.name_encrypted as string | undefined) ?? "—",
+      gender: n(p?.gender),
+      birth_year: p?.birth_year != null ? Number(p.birth_year) : null,
+      estrato: p?.estrato != null ? String(p.estrato) : null,
+      municipio: n(p?.municipio),
+      barrio: n(p?.barrio),
+      nivel_estudios: n(p?.nivel_estudios),
+      estado_civil: n(p?.estado_civil),
+      num_hijos: p?.num_hijos != null ? Number(p.num_hijos) : null,
+      regimen_salud: n(p?.regimen_salud),
+      sisben_grupo: n(p?.sisben_grupo),
+      tenencia_vivienda: n(p?.tenencia_vivienda),
+      grupo_etnico: n(p?.grupo_etnico),
+      actividades: p?.actividades != null ? String(p.actividades) : null,
+      antiguedad_barrio: n(p?.antiguedad_barrio),
+      recibe_subsidios: p?.recibe_subsidios != null ? Boolean(p.recibe_subsidios) : null,
+      acceso_internet: p?.acceso_internet != null ? Boolean(p.acceso_internet) : null,
+      registrado_votar: p?.registrado_votar != null ? Boolean(p.registrado_votar) : null,
       fecha: d.fecha,
       respuestas: d.respuestas,
+      nlp: nlpPorParticipante.get(pid) ?? [],
     };
   }).sort((a, b) => a.fecha.localeCompare(b.fecha));
 
