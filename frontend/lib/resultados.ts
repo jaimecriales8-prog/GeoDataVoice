@@ -68,7 +68,6 @@ export type RespuestaIndividual = {
   birth_year: number | null;
   estrato: string | null;
   municipio: string | null;
-  barrio: string | null;
   nivel_estudios: string | null;
   estado_civil: string | null;
   num_hijos: number | null;
@@ -188,7 +187,7 @@ export async function fetchResultados(surveyIds: string[], filtro?: FiltroDemo |
   if (allPartIds.length > 0) {
     const { data: parts } = await supabase
       .from("participants")
-      .select("id, name_encrypted, gender, birth_year, estrato, municipio, barrio, nivel_estudios, estado_civil, num_hijos, regimen_salud, sisben_grupo, tenencia_vivienda, grupo_etnico, actividades, antiguedad_barrio, recibe_subsidios, acceso_internet, registrado_votar")
+      .select("id, name_encrypted, gender, birth_year, estrato, municipio, nivel_estudios, estado_civil, num_hijos, regimen_salud, sisben_grupo, tenencia_vivienda, grupo_etnico, actividades, antiguedad_barrio, recibe_subsidios, acceso_internet, registrado_votar")
       .in("id", allPartIds);
     (parts ?? []).forEach(p => demoPorParticipante.set(p.id, p as Record<string, unknown>));
   }
@@ -346,7 +345,6 @@ export async function fetchResultados(surveyIds: string[], filtro?: FiltroDemo |
       birth_year: p?.birth_year != null ? Number(p.birth_year) : null,
       estrato: p?.estrato != null ? String(p.estrato) : null,
       municipio: n(p?.municipio),
-      barrio: n(p?.barrio),
       nivel_estudios: n(p?.nivel_estudios),
       estado_civil: n(p?.estado_civil),
       num_hijos: p?.num_hijos != null ? Number(p.num_hijos) : null,

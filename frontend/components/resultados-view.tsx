@@ -195,7 +195,7 @@ function exportarCSV(r: Resultados) {
   const preguntas = r.preguntas;
 
   const demografiaCols = [
-    "Nombre", "Sexo", "Año nacimiento", "Estrato", "Municipio", "Barrio",
+    "Nombre", "Sexo", "Año nacimiento", "Estrato", "Municipio",
     "Nivel estudios", "Estado civil", "Num. hijos", "Régimen salud", "SISBEN",
     "Tenencia vivienda", "Grupo étnico", "Actividades", "Antigüedad barrio",
     "Recibe subsidios", "Acceso internet", "Registrado votar", "Fecha",
@@ -212,7 +212,6 @@ function exportarCSV(r: Resultados) {
       ind.birth_year ?? "",
       ind.estrato ?? "",
       ind.municipio ?? "",
-      ind.barrio ?? "",
       ind.nivel_estudios ?? "",
       ind.estado_civil ?? "",
       ind.num_hijos ?? "",
