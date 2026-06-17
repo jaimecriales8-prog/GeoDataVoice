@@ -43,6 +43,14 @@ export type Cita = {
   topic: string;
 };
 
+export type Transcripcion = {
+  transcript: string;
+  sentiment: string;
+  emotion: string;
+  topic: string;
+  intensity: number | null;
+};
+
 export type FiltroDemo = { variable: string; valor: string | number };
 
 export type RespuestaIndividual = {
@@ -65,14 +73,37 @@ export type Resultados = {
   temas: Distribucion;
   intensidadProm: number | null;
   citas: Cita[];
+  transcripciones: Transcripcion[];
   individuales: RespuestaIndividual[];
   totalSinFiltro: number; // total de respuestas antes de aplicar filtro demográfico
 };
 
-const TEMA_LABELS: Record<string, string> = {
-  seguridad: "Seguridad", salud: "Salud", educación: "Educación", empleo: "Empleo",
-  servicios_públicos: "Servicios públicos", movilidad: "Movilidad", corrupción: "Corrupción",
-  medio_ambiente: "Medio ambiente", economía: "Economía", otro: "Otro",
+export const TEMA_LABELS: Record<string, string> = {
+  // Política y gobierno
+  seguridad: "Seguridad", corrupcion: "Corrupción", corrupción: "Corrupción",
+  gobernanza: "Gobernanza", instituciones: "Instituciones", democracia: "Democracia",
+  politica: "Política", política: "Política", elecciones: "Elecciones",
+  candidato: "Candidato/a", gobierno: "Gobierno", estado: "Estado",
+  // Economía y empleo
+  economia: "Economía", economía: "Economía", empleo: "Empleo",
+  desempleo: "Desempleo", pobreza: "Pobreza", costo_vida: "Costo de vida",
+  inflation: "Inflación", inflacion: "Inflación", impuestos: "Impuestos",
+  // Social
+  salud: "Salud", educacion: "Educación", educación: "Educación",
+  vivienda: "Vivienda", familia: "Familia", juventud: "Juventud",
+  genero: "Género", género: "Género", igualdad: "Igualdad",
+  // Infraestructura y servicios
+  servicios_publicos: "Servicios públicos", servicios_públicos: "Servicios públicos",
+  movilidad: "Movilidad", transporte: "Transporte", infraestructura: "Infraestructura",
+  agua: "Agua", energia: "Energía", energía: "Energía",
+  // Medioambiente
+  medio_ambiente: "Medio ambiente", ambiente: "Medio ambiente",
+  cambio_climatico: "Cambio climático", cambio_climático: "Cambio climático",
+  // Orden público
+  violencia: "Violencia", conflicto: "Conflicto", paz: "Paz",
+  drogas: "Drogas", crimen: "Crimen organizado",
+  // Otros
+  otro: "Otro", other: "Otro", ninguno: "Sin categoría",
 };
 export const SENTIMENT_LABELS: Record<string, string> = {
   positivo: "Positivo", negativo: "Negativo", neutral: "Neutral", mixto: "Mixto",
@@ -99,7 +130,7 @@ function contar(valores: (string | null | undefined)[], labels?: Record<string, 
 export async function fetchResultados(surveyIds: string[], filtro?: FiltroDemo | null, client?: SupabaseClient): Promise<Resultados> {
   const vacio: Resultados = {
     respuestas: 0, participantes: 0, audios: 0, audiosProcesados: 0,
-    preguntas: [], sentimiento: [], emociones: [], temas: [], intensidadProm: null, citas: [], individuales: [], totalSinFiltro: 0,
+    preguntas: [], sentimiento: [], emociones: [], temas: [], intensidadProm: null, citas: [], transcripciones: [], individuales: [], totalSinFiltro: 0,
   };
   if (surveyIds.length === 0) return vacio;
 
@@ -170,6 +201,7 @@ export async function fetchResultados(surveyIds: string[], filtro?: FiltroDemo |
   let sentimiento: Distribucion = [], emociones: Distribucion = [], temas: Distribucion = [];
   let intensidadProm: number | null = null;
   let citas: Cita[] = [];
+  let transcripciones: Transcripcion[] = [];
 
   if (responseIds.length > 0) {
     const { data: audioRows } = await supabase
@@ -183,7 +215,7 @@ export async function fetchResultados(surveyIds: string[], filtro?: FiltroDemo |
     if (audioIds.length > 0) {
       const { data: nlp } = await supabase
         .from("nlp_outputs")
-        .select("sentiment, emotion, intensity, main_topic, narrative, citizen_quote")
+        .select("sentiment, emotion, intensity, main_topic, narrative, citizen_quote, transcript")
         .in("audio_id", audioIds);
       const n = nlp ?? [];
       sentimiento = contar(n.map(x => x.sentiment));
@@ -198,6 +230,15 @@ export async function fetchResultados(surveyIds: string[], filtro?: FiltroDemo |
           quote: x.citizen_quote, narrative: x.narrative ?? "",
           sentiment: x.sentiment ?? "neutral",
           topic: TEMA_LABELS[x.main_topic] ?? x.main_topic ?? "",
+        }));
+      transcripciones = n
+        .filter(x => x.transcript)
+        .map(x => ({
+          transcript: x.transcript,
+          sentiment: x.sentiment ?? "neutral",
+          emotion: x.emotion ?? "",
+          topic: TEMA_LABELS[x.main_topic] ?? x.main_topic ?? "Sin categoría",
+          intensity: x.intensity ? parseInt(x.intensity) : null,
         }));
     }
   }
@@ -268,6 +309,7 @@ export async function fetchResultados(surveyIds: string[], filtro?: FiltroDemo |
     temas,
     intensidadProm,
     citas,
+    transcripciones,
     individuales,
     totalSinFiltro,
   };

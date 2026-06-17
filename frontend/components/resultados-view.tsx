@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Resultados, Distribucion, SENTIMENT_COLOR, SENTIMENT_LABELS } from "@/lib/resultados";
-import { MessageSquareQuote, Users, ClipboardCheck, Mic, Activity, ChevronDown, ChevronUp, List } from "lucide-react";
+import { MessageSquareQuote, Users, ClipboardCheck, Mic, Activity, ChevronDown, ChevronUp, List, FileText } from "lucide-react";
 import {
   PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip,
 } from "recharts";
@@ -94,18 +94,84 @@ function SentimentDonut({ data }: { data: Distribucion }) {
 }
 
 function TopicsBar({ data }: { data: Distribucion }) {
+  const [verTodos, setVerTodos] = useState(false);
   if (data.length === 0) return <p className="text-sm text-slate-500">Sin datos aún.</p>;
-  const chart = data.slice(0, 6);
+  const chart = verTodos ? data : data.slice(0, 6);
   return (
-    <div style={{ height: Math.max(chart.length * 38, 80) }}>
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={chart} layout="vertical" margin={{ left: 0, right: 16, top: 0, bottom: 0 }}>
-          <XAxis type="number" hide />
-          <YAxis type="category" dataKey="label" width={110} tick={{ fill: "#cbd5e1", fontSize: 12 }} axisLine={false} tickLine={false} />
-          <Tooltip cursor={{ fill: "rgba(255,255,255,0.04)" }} contentStyle={{ background: "#0f172a", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, fontSize: 12 }} />
-          <Bar dataKey="count" fill="#8b5cf6" radius={[0, 6, 6, 0]} barSize={18} />
-        </BarChart>
-      </ResponsiveContainer>
+    <div className="space-y-2">
+      <div style={{ height: Math.max(chart.length * 38, 80) }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={chart} layout="vertical" margin={{ left: 0, right: 16, top: 0, bottom: 0 }}>
+            <XAxis type="number" hide />
+            <YAxis type="category" dataKey="label" width={120} tick={{ fill: "#cbd5e1", fontSize: 12 }} axisLine={false} tickLine={false} />
+            <Tooltip cursor={{ fill: "rgba(255,255,255,0.04)" }} contentStyle={{ background: "#0f172a", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, fontSize: 12 }} />
+            <Bar dataKey="count" fill="#8b5cf6" radius={[0, 6, 6, 0]} barSize={18} />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+      {data.length > 6 && (
+        <button onClick={() => setVerTodos(v => !v)} className="text-xs text-violet-400 hover:text-violet-300 transition-colors">
+          {verTodos ? "Ver menos" : `Ver todos (${data.length - 6} más)`}
+        </button>
+      )}
+    </div>
+  );
+}
+
+const SENTIMENT_HEX_TEXT: Record<string, string> = {
+  positivo: "text-emerald-400", negativo: "text-red-400", neutral: "text-slate-400", mixto: "text-amber-400",
+};
+
+function Transcripciones({ data }: { data: Resultados["transcripciones"] }) {
+  const [open, setOpen] = useState(false);
+  const [limite, setLimite] = useState(10);
+  if (data.length === 0) return null;
+
+  return (
+    <div className="rounded-2xl border border-white/5 bg-slate-900 overflow-hidden">
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-white/[0.02] transition-colors"
+      >
+        <span className="flex items-center gap-2 text-sm font-semibold text-white">
+          <FileText className="h-4 w-4 text-violet-400" />
+          Transcripciones de voz
+          <span className="rounded-full bg-violet-500/15 text-violet-300 text-[11px] px-2 py-0.5 font-medium">{data.length}</span>
+        </span>
+        {open ? <ChevronUp className="h-4 w-4 text-slate-500" /> : <ChevronDown className="h-4 w-4 text-slate-500" />}
+      </button>
+
+      {open && (
+        <div className="border-t border-white/5 px-5 py-4 space-y-3">
+          {data.slice(0, limite).map((t, i) => (
+            <div key={i} className="rounded-xl bg-white/[0.03] border border-white/5 p-4">
+              <div className="flex items-center gap-2 mb-2 flex-wrap">
+                <span className={`text-[11px] font-semibold capitalize ${SENTIMENT_HEX_TEXT[t.sentiment] ?? "text-slate-400"}`}>
+                  {SENTIMENT_LABELS[t.sentiment] ?? t.sentiment}
+                </span>
+                {t.emotion && (
+                  <span className="text-[11px] text-slate-500 bg-white/5 rounded-full px-2 py-0.5 capitalize">{t.emotion}</span>
+                )}
+                {t.topic && (
+                  <span className="text-[11px] text-slate-500 bg-white/5 rounded-full px-2 py-0.5">{t.topic}</span>
+                )}
+                {t.intensity != null && (
+                  <span className="text-[11px] text-slate-600">Intensidad: {t.intensity}/5</span>
+                )}
+              </div>
+              <p className="text-sm text-slate-300 leading-relaxed">{t.transcript}</p>
+            </div>
+          ))}
+          {data.length > limite && (
+            <button
+              onClick={() => setLimite(v => v + 10)}
+              className="text-xs text-violet-400 hover:text-violet-300 transition-colors"
+            >
+              Ver más ({data.length - limite} restantes)
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -273,6 +339,9 @@ export default function ResultadosView({ r }: { r: Resultados }) {
           ))}
         </div>
       </div>
+
+      {/* Transcripciones de voz */}
+      {r.transcripciones.length > 0 && <Transcripciones data={r.transcripciones} />}
 
       {/* Listado individual */}
       <ListadoRespuestas r={r} />
