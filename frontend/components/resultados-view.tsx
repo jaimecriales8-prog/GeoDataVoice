@@ -201,7 +201,7 @@ function exportarCSV(r: Resultados) {
     "Recibe subsidios", "Acceso internet", "Registrado votar", "Fecha",
   ];
   const preguntaCols = preguntas.map((q, i) => `P${i + 1}: ${q.text.slice(0, 60)}`);
-  const nlpCols = ["NLP - Transcripción", "NLP - Sentimiento", "NLP - Emoción", "NLP - Tema", "NLP - Intensidad"];
+  const nlpCols = ["NLP - Pregunta", "NLP - Transcripción", "NLP - Sentimiento", "NLP - Emoción", "NLP - Tema", "NLP - Intensidad"];
 
   const headers = [...demografiaCols, ...preguntaCols, ...nlpCols];
 
@@ -228,6 +228,7 @@ function exportarCSV(r: Resultados) {
     ];
     const respCols = preguntas.map(q => ind.respuestas[q.id] ?? "");
     const nlpData = [
+      ind.nlp.map(n => n.question_text).join(" | "),
       ind.nlp.map(n => n.transcript).join(" | "),
       ind.nlp.map(n => n.sentiment).join(" | "),
       ind.nlp.map(n => n.emotion).join(" | "),
@@ -314,9 +315,16 @@ function ListadoRespuestas({ r }: { r: Resultados }) {
                       {ind.respuestas[q.id] ?? "—"}
                     </td>
                   ))}
-                  <td className="px-4 py-2.5 text-slate-400 max-w-[240px]">
+                  <td className="px-4 py-2.5 text-slate-400 max-w-[260px]">
                     {ind.nlp.length > 0
-                      ? <span className="line-clamp-2 text-xs leading-relaxed">{ind.nlp[0].transcript}</span>
+                      ? <div className="space-y-1">
+                          {ind.nlp.map((n, ni) => (
+                            <div key={ni}>
+                              {n.question_text && <p className="text-[10px] text-violet-400 font-medium truncate">{n.question_text}</p>}
+                              <p className="text-xs line-clamp-2 leading-relaxed">{n.transcript}</p>
+                            </div>
+                          ))}
+                        </div>
                       : <span className="text-slate-600">—</span>}
                   </td>
                 </tr>

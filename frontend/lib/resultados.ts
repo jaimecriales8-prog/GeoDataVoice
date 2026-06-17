@@ -54,6 +54,8 @@ export type Transcripcion = {
 export type FiltroDemo = { variable: string; valor: string | number };
 
 export type NLPParticipante = {
+  question_id: string;
+  question_text: string;
   transcript: string;
   sentiment: string;
   emotion: string;
@@ -238,12 +240,17 @@ export async function fetchResultados(surveyIds: string[], filtro?: FiltroDemo |
     audios = (audioRows ?? []).length;
     audiosProcesados = (audioRows ?? []).filter(a => a.quality === "processed").length;
 
-    // construir mapa audio → participant y audio → transcription
+    // construir mapas: audio → participant, audio → transcription, audio → question
     const respToParticipant = new Map(resp.map(r => [r.id, r.participant_id]));
+    const respToQuestion = new Map(resp.map(r => [r.id, r.question_id]));
+    const questionIdToText = new Map((preguntas ?? []).map((q, i) => [q.id, `P${i + 1}: ${q.text}`]));
     const audioTranscription = new Map<string, string>();
+    const audioToQuestion = new Map<string, string>();
     for (const a of audioRows ?? []) {
       const pid = respToParticipant.get(a.response_id);
       if (pid) audioToParticipant.set(a.id, pid);
+      const qid = respToQuestion.get(a.response_id);
+      if (qid) audioToQuestion.set(a.id, qid);
       if (a.transcription) audioTranscription.set(a.id, a.transcription);
     }
 
@@ -291,8 +298,11 @@ export async function fetchResultados(surveyIds: string[], filtro?: FiltroDemo |
       for (const x of n) {
         const pid = audioToParticipant.get(x.audio_id);
         if (!pid) continue;
+        const qid = audioToQuestion.get(x.audio_id) ?? "";
         const cur = nlpPorParticipante.get(pid) ?? [];
         cur.push({
+          question_id: qid,
+          question_text: questionIdToText.get(qid) ?? "",
           transcript: audioTranscription.get(x.audio_id) ?? "",
           sentiment: x.sentiment ?? "neutral",
           emotion: x.emotion ?? "",

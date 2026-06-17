@@ -39,7 +39,7 @@ function exportarCSV(nombre: string, res: Resultados) {
     "Recibe subsidios", "Acceso internet", "Registrado votar", "Fecha",
   ];
   const preguntaCols = preguntas.map((q, i) => `P${i + 1}: ${q.text.slice(0, 60)}`);
-  const nlpCols = ["NLP - Transcripción", "NLP - Sentimiento", "NLP - Emoción", "NLP - Tema", "NLP - Intensidad"];
+  const nlpCols = ["NLP - Pregunta", "NLP - Transcripción", "NLP - Sentimiento", "NLP - Emoción", "NLP - Tema", "NLP - Intensidad"];
   const headers = [...demografiaCols, ...preguntaCols, ...nlpCols];
 
   const filas = res.individuales.map((ind, idx) => {
@@ -66,6 +66,7 @@ function exportarCSV(nombre: string, res: Resultados) {
     ];
     const respCols = preguntas.map(q => ind.respuestas[q.id] ?? "");
     const nlpData = [
+      ind.nlp.map(n => n.question_text).join(" | "),
       ind.nlp.map(n => n.transcript).join(" | "),
       ind.nlp.map(n => n.sentiment).join(" | "),
       ind.nlp.map(n => n.emotion).join(" | "),
