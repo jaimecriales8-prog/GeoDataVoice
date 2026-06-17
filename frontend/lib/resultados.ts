@@ -233,23 +233,25 @@ export async function fetchResultados(surveyIds: string[], filtro?: FiltroDemo |
   if (responseIds.length > 0) {
     const { data: audioRows } = await supabase
       .from("audio_responses")
-      .select("id, response_id, quality")
+      .select("id, response_id, quality, transcription")
       .in("response_id", responseIds);
     audios = (audioRows ?? []).length;
     audiosProcesados = (audioRows ?? []).filter(a => a.quality === "processed").length;
 
-    // construir mapa audio → participant a través de response
+    // construir mapa audio → participant y audio → transcription
     const respToParticipant = new Map(resp.map(r => [r.id, r.participant_id]));
+    const audioTranscription = new Map<string, string>();
     for (const a of audioRows ?? []) {
       const pid = respToParticipant.get(a.response_id);
       if (pid) audioToParticipant.set(a.id, pid);
+      if (a.transcription) audioTranscription.set(a.id, a.transcription);
     }
 
     const audioIds = (audioRows ?? []).map(a => a.id);
     if (audioIds.length > 0) {
       const { data: nlp } = await supabase
         .from("nlp_outputs")
-        .select("audio_id, sentiment, emotion, intensity, main_topic, narrative, citizen_quote, transcript")
+        .select("audio_id, sentiment, emotion, intensity, main_topic, narrative, citizen_quote")
         .in("audio_id", audioIds);
       const n = nlp ?? [];
       sentimiento = contar(n.map(x => x.sentiment));
@@ -266,22 +268,22 @@ export async function fetchResultados(surveyIds: string[], filtro?: FiltroDemo |
           topic: TEMA_LABELS[x.main_topic] ?? x.main_topic ?? "",
         }));
       transcripciones = n
-        .filter(x => x.transcript)
+        .filter(x => audioTranscription.has(x.audio_id))
         .map(x => ({
-          transcript: x.transcript,
+          transcript: audioTranscription.get(x.audio_id)!,
           sentiment: x.sentiment ?? "neutral",
           emotion: x.emotion ?? "",
           topic: TEMA_LABELS[x.main_topic] ?? x.main_topic ?? "Sin categoría",
           intensity: x.intensity ? parseInt(x.intensity) : null,
         }));
 
-      // indexar NLP por participante
+      // indexar NLP + transcripción por participante
       for (const x of n) {
         const pid = audioToParticipant.get(x.audio_id);
-        if (!pid || !x.transcript) continue;
+        if (!pid) continue;
         const cur = nlpPorParticipante.get(pid) ?? [];
         cur.push({
-          transcript: x.transcript,
+          transcript: audioTranscription.get(x.audio_id) ?? "",
           sentiment: x.sentiment ?? "neutral",
           emotion: x.emotion ?? "",
           topic: TEMA_LABELS[x.main_topic] ?? x.main_topic ?? "Sin categoría",
