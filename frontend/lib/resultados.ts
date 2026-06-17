@@ -251,12 +251,22 @@ export async function fetchResultados(surveyIds: string[], filtro?: FiltroDemo |
     if (audioIds.length > 0) {
       const { data: nlp } = await supabase
         .from("nlp_outputs")
-        .select("audio_id, sentiment, emotion, intensity, main_topic, narrative, citizen_quote")
+        .select("audio_id, sentiment, emotion, intensity, main_topic, topics, narrative, citizen_quote")
         .in("audio_id", audioIds);
       const n = nlp ?? [];
       sentimiento = contar(n.map(x => x.sentiment));
       emociones = contar(n.map(x => x.emotion));
-      temas = contar(n.map(x => x.main_topic), TEMA_LABELS);
+      // Usar el array `topics` (granular) en vez de main_topic que suele ser "otro"
+      const topicValues: string[] = [];
+      for (const x of n) {
+        const arr: string[] = Array.isArray(x.topics) ? x.topics : [];
+        if (arr.length > 0) {
+          arr.forEach(t => topicValues.push(t));
+        } else if (x.main_topic && x.main_topic !== "otro" && x.main_topic !== "other") {
+          topicValues.push(x.main_topic);
+        }
+      }
+      temas = contar(topicValues, TEMA_LABELS);
       const ints = n.map(x => parseInt(x.intensity)).filter(v => !isNaN(v));
       intensidadProm = ints.length ? ints.reduce((a, b) => a + b, 0) / ints.length : null;
       citas = n
