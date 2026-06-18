@@ -87,6 +87,16 @@ export type RespuestaIndividual = {
   nlp: NLPParticipante[];            // notas de voz analizadas
 };
 
+export type NLPPregunta = {
+  question_id: string;
+  sentimiento: Distribucion;
+  emociones: Distribucion;
+  temas: Distribucion;
+  intensidadProm: number | null;
+  citas: Cita[];
+  transcripciones: Transcripcion[];
+};
+
 export type Resultados = {
   respuestas: number;
   participantes: number;
@@ -99,8 +109,9 @@ export type Resultados = {
   intensidadProm: number | null;
   citas: Cita[];
   transcripciones: Transcripcion[];
+  nlpPorPregunta: NLPPregunta[];
   individuales: RespuestaIndividual[];
-  totalSinFiltro: number; // total de respuestas antes de aplicar filtro demográfico
+  totalSinFiltro: number;
 };
 
 export const TEMA_LABELS: Record<string, string> = {
@@ -155,7 +166,7 @@ function contar(valores: (string | null | undefined)[], labels?: Record<string, 
 export async function fetchResultados(surveyIds: string[], filtro?: FiltroDemo | null, client?: SupabaseClient): Promise<Resultados> {
   const vacio: Resultados = {
     respuestas: 0, participantes: 0, audios: 0, audiosProcesados: 0,
-    preguntas: [], sentimiento: [], emociones: [], temas: [], intensidadProm: null, citas: [], transcripciones: [], individuales: [], totalSinFiltro: 0,
+    preguntas: [], sentimiento: [], emociones: [], temas: [], intensidadProm: null, citas: [], transcripciones: [], nlpPorPregunta: [], individuales: [], totalSinFiltro: 0,
   };
   if (surveyIds.length === 0) return vacio;
 
@@ -228,6 +239,7 @@ export async function fetchResultados(surveyIds: string[], filtro?: FiltroDemo |
   let citas: Cita[] = [];
   let transcripciones: Transcripcion[] = [];
   const nlpPorParticipante = new Map<string, NLPParticipante[]>();
+  const nlpPorPregunta: NLPPregunta[] = [];
 
   // audioId → participantId (para vincular NLP a participante)
   const audioToParticipant = new Map<string, string>();
@@ -294,11 +306,17 @@ export async function fetchResultados(surveyIds: string[], filtro?: FiltroDemo |
           intensity: x.intensity ? parseInt(x.intensity) : null,
         }));
 
-      // indexar NLP + transcripción por participante
+      // indexar NLP por participante y por pregunta
+      const nlpByQuestion = new Map<string, typeof n>();
       for (const x of n) {
+        const qid = audioToQuestion.get(x.audio_id) ?? "";
+        // por pregunta
+        const qArr = nlpByQuestion.get(qid) ?? [];
+        qArr.push(x);
+        nlpByQuestion.set(qid, qArr);
+        // por participante
         const pid = audioToParticipant.get(x.audio_id);
         if (!pid) continue;
-        const qid = audioToQuestion.get(x.audio_id) ?? "";
         const cur = nlpPorParticipante.get(pid) ?? [];
         cur.push({
           question_id: qid,
@@ -310,6 +328,36 @@ export async function fetchResultados(surveyIds: string[], filtro?: FiltroDemo |
           intensity: x.intensity ? parseInt(x.intensity) : null,
         });
         nlpPorParticipante.set(pid, cur);
+      }
+
+      // construir stats NLP por pregunta
+      for (const [qid, qn] of nlpByQuestion) {
+        const topicVals: string[] = [];
+        for (const x of qn) {
+          const arr: string[] = Array.isArray(x.topics) ? x.topics : [];
+          if (arr.length > 0) arr.forEach(t => topicVals.push(t));
+          else if (x.main_topic && x.main_topic !== "otro" && x.main_topic !== "other") topicVals.push(x.main_topic);
+        }
+        const qInts = qn.map((x: { intensity: string }) => parseInt(x.intensity)).filter((v: number) => !isNaN(v));
+        nlpPorPregunta.push({
+          question_id: qid,
+          sentimiento: contar(qn.map((x: { sentiment: string }) => x.sentiment)),
+          emociones: contar(qn.map((x: { emotion: string }) => x.emotion)),
+          temas: contar(topicVals, TEMA_LABELS),
+          intensidadProm: qInts.length ? qInts.reduce((a: number, b: number) => a + b, 0) / qInts.length : null,
+          citas: qn.filter((x: { citizen_quote: string }) => x.citizen_quote).slice(0, 4).map((x: { citizen_quote: string; narrative: string; sentiment: string; main_topic: string }) => ({
+            quote: x.citizen_quote, narrative: x.narrative ?? "",
+            sentiment: x.sentiment ?? "neutral",
+            topic: TEMA_LABELS[x.main_topic] ?? x.main_topic ?? "",
+          })),
+          transcripciones: qn.filter((x: { audio_id: string }) => audioTranscription.has(x.audio_id)).map((x: { audio_id: string; sentiment: string; emotion: string; main_topic: string; intensity: string }) => ({
+            transcript: audioTranscription.get(x.audio_id)!,
+            sentiment: x.sentiment ?? "neutral",
+            emotion: x.emotion ?? "",
+            topic: TEMA_LABELS[x.main_topic] ?? x.main_topic ?? "Sin categoría",
+            intensity: x.intensity ? parseInt(x.intensity) : null,
+          })),
+        });
       }
     }
   }
@@ -397,6 +445,7 @@ export async function fetchResultados(surveyIds: string[], filtro?: FiltroDemo |
     intensidadProm,
     citas,
     transcripciones,
+    nlpPorPregunta,
     individuales,
     totalSinFiltro,
   };

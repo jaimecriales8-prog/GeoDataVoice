@@ -55,29 +55,32 @@ function Card({ title, icon: Icon, children }: { title: string; icon?: React.Ele
   );
 }
 
-function SentimentDonut({ data }: { data: Distribucion }) {
+function SentimentDonut({ data, compact }: { data: Distribucion; compact?: boolean }) {
   const total = data.reduce((s, d) => s + d.count, 0);
   if (total === 0) return <p className="text-sm text-slate-500">Sin datos aún.</p>;
   const chart = data.map(d => ({
     name: SENTIMENT_LABELS[d.label] ?? d.label, raw: d.label, value: d.count,
   }));
+  const sz = compact ? "h-24 w-24" : "h-40 w-40";
+  const ir = compact ? 28 : 48;
+  const or = compact ? 42 : 70;
   return (
     <div className="flex items-center gap-4">
-      <div className="h-40 w-40 shrink-0 relative">
+      <div className={`${sz} shrink-0 relative`}>
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
-            <Pie data={chart} dataKey="value" nameKey="name" innerRadius={48} outerRadius={70} paddingAngle={2} stroke="none">
+            <Pie data={chart} dataKey="value" nameKey="name" innerRadius={ir} outerRadius={or} paddingAngle={2} stroke="none">
               {chart.map((e) => <Cell key={e.raw} fill={SENTIMENT_HEX[e.raw] ?? "#94a3b8"} />)}
             </Pie>
             <Tooltip contentStyle={{ background: "#0f172a", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, fontSize: 12 }} />
           </PieChart>
         </ResponsiveContainer>
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-          <span className="text-xl font-bold text-white">{total}</span>
-          <span className="text-[10px] text-slate-500">análisis</span>
+          <span className={`${compact ? "text-sm" : "text-xl"} font-bold text-white`}>{total}</span>
+          {!compact && <span className="text-[10px] text-slate-500">análisis</span>}
         </div>
       </div>
-      <div className="flex-1 space-y-2">
+      <div className="flex-1 space-y-1.5">
         {chart.map(e => {
           const pct = Math.round((e.value / total) * 100);
           return (
@@ -428,30 +431,80 @@ export default function ResultadosView({ r }: { r: Resultados }) {
       <div>
         <h2 className="text-sm font-semibold text-white mb-3">Resultados por pregunta</h2>
         <div className="space-y-3">
-          {r.preguntas.map((q, i) => (
-            <div key={q.id} className="rounded-2xl border border-white/5 bg-slate-900 p-5">
-              <p className="text-sm font-medium text-white mb-1">
-                <span className="text-violet-400">{i + 1}.</span> {q.text}
-              </p>
-              <p className="text-xs text-slate-500 mb-4 flex items-center gap-2">
-                {q.total} respuesta{q.total === 1 ? "" : "s"}
-                {q.ponderada && (
-                  <span className="rounded-full bg-amber-500/15 text-amber-300 px-2 py-0.5 text-[10px] font-semibold">⚖ Ponderado por demografía</span>
+          {r.preguntas.map((q, i) => {
+            const nlpQ = r.nlpPorPregunta.find(x => x.question_id === q.id);
+            return (
+              <div key={q.id} className="rounded-2xl border border-white/5 bg-slate-900 p-5">
+                <p className="text-sm font-medium text-white mb-1">
+                  <span className="text-violet-400">{i + 1}.</span> {q.text}
+                </p>
+                <p className="text-xs text-slate-500 mb-4 flex items-center gap-2">
+                  {q.total} respuesta{q.total === 1 ? "" : "s"}
+                  {q.ponderada && (
+                    <span className="rounded-full bg-amber-500/15 text-amber-300 px-2 py-0.5 text-[10px] font-semibold">⚖ Ponderado por demografía</span>
+                  )}
+                </p>
+                {q.distribucion.length > 0 ? (
+                  <Barras data={q.distribucion} colorClass="bg-violet-500" />
+                ) : q.abiertas.length > 0 ? (
+                  <div className="space-y-2">
+                    {q.abiertas.map((t, j) => (
+                      <p key={j} className="text-sm text-slate-300 rounded-lg bg-white/[0.03] px-3 py-2">{t}</p>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-slate-500">Sin respuestas aún.</p>
                 )}
-              </p>
-              {q.distribucion.length > 0 ? (
-                <Barras data={q.distribucion} colorClass="bg-violet-500" />
-              ) : q.abiertas.length > 0 ? (
-                <div className="space-y-2">
-                  {q.abiertas.map((t, j) => (
-                    <p key={j} className="text-sm text-slate-300 rounded-lg bg-white/[0.03] px-3 py-2">{t}</p>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-slate-500">Sin respuestas aún.</p>
-              )}
-            </div>
-          ))}
+
+                {/* Análisis NLP por pregunta */}
+                {nlpQ && (nlpQ.sentimiento.length > 0 || nlpQ.temas.length > 0) && (
+                  <div className="mt-5 pt-4 border-t border-white/5">
+                    <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                      <Mic className="h-3 w-3" /> Análisis de voz
+                      {nlpQ.intensidadProm != null && (
+                        <span className="ml-auto text-slate-400 font-normal normal-case tracking-normal">
+                          Intensidad promedio: <span className="text-white font-semibold">{nlpQ.intensidadProm.toFixed(1)}</span> / 5
+                        </span>
+                      )}
+                    </p>
+                    <div className="grid sm:grid-cols-2 gap-3">
+                      {nlpQ.sentimiento.length > 0 && (
+                        <div className="rounded-xl bg-white/[0.03] border border-white/5 p-3">
+                          <p className="text-[11px] text-slate-500 mb-2 font-medium">Sentimiento</p>
+                          <SentimentDonut data={nlpQ.sentimiento} compact />
+                        </div>
+                      )}
+                      {nlpQ.temas.length > 0 && (
+                        <div className="rounded-xl bg-white/[0.03] border border-white/5 p-3">
+                          <p className="text-[11px] text-slate-500 mb-2 font-medium">Temas</p>
+                          <TopicsBar data={nlpQ.temas} />
+                        </div>
+                      )}
+                      {nlpQ.emociones.length > 0 && (
+                        <div className="rounded-xl bg-white/[0.03] border border-white/5 p-3">
+                          <p className="text-[11px] text-slate-500 mb-2 font-medium">Emociones</p>
+                          <Barras data={nlpQ.emociones} colorClass="bg-blue-500" />
+                        </div>
+                      )}
+                      {nlpQ.citas.length > 0 && (
+                        <div className="rounded-xl bg-white/[0.03] border border-white/5 p-3">
+                          <p className="text-[11px] text-slate-500 mb-2 font-medium">Voces</p>
+                          <div className="space-y-2 max-h-40 overflow-y-auto">
+                            {nlpQ.citas.map((c, ci) => (
+                              <div key={ci} className="flex items-start gap-2">
+                                <span className={`mt-1 h-1.5 w-1.5 rounded-full shrink-0 ${SENTIMENT_COLOR[c.sentiment] ?? "bg-slate-400"}`} />
+                                <p className="text-xs text-slate-300 italic">"{c.quote}"</p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
 
