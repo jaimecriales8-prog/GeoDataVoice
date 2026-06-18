@@ -32,6 +32,11 @@ function escapeCsv(v: unknown): string {
 
 function exportarCSV(nombre: string, res: Resultados) {
   const preguntas = res.preguntas;
+
+  const preguntasConAudio = preguntas.filter(q =>
+    res.individuales.some(ind => ind.nlp.some(n => n.question_id === q.id))
+  );
+
   const demografiaCols = [
     "#", "Nombre", "Sexo", "Año nacimiento", "Estrato", "Municipio",
     "Nivel estudios", "Estado civil", "Núm. hijos", "Régimen salud", "SISBEN",
@@ -39,7 +44,10 @@ function exportarCSV(nombre: string, res: Resultados) {
     "Recibe subsidios", "Acceso internet", "Registrado votar", "Fecha",
   ];
   const preguntaCols = preguntas.map((q, i) => `P${i + 1}: ${q.text.slice(0, 60)}`);
-  const nlpCols = ["NLP - Pregunta", "NLP - Transcripción", "NLP - Sentimiento", "NLP - Emoción", "NLP - Tema", "NLP - Intensidad"];
+  const nlpCols = preguntasConAudio.flatMap(q => {
+    const label = `P${preguntas.indexOf(q) + 1} Audio`;
+    return [`${label} - Transcripción`, `${label} - Sentimiento`, `${label} - Emoción`, `${label} - Tema`, `${label} - Intensidad`];
+  });
   const headers = [...demografiaCols, ...preguntaCols, ...nlpCols];
 
   const filas = res.individuales.map((ind, idx) => {
@@ -65,14 +73,10 @@ function exportarCSV(nombre: string, res: Resultados) {
       ind.fecha ? new Date(ind.fecha).toLocaleString("es-CO") : "",
     ];
     const respCols = preguntas.map(q => ind.respuestas[q.id] ?? "");
-    const nlpData = [
-      ind.nlp.map(n => n.question_text).join(" | "),
-      ind.nlp.map(n => n.transcript).join(" | "),
-      ind.nlp.map(n => n.sentiment).join(" | "),
-      ind.nlp.map(n => n.emotion).join(" | "),
-      ind.nlp.map(n => n.topic).join(" | "),
-      ind.nlp.map(n => n.intensity ?? "").join(" | "),
-    ];
+    const nlpData = preguntasConAudio.flatMap(q => {
+      const n = ind.nlp.find(x => x.question_id === q.id);
+      return [n?.transcript ?? "", n?.sentiment ?? "", n?.emotion ?? "", n?.topic ?? "", n?.intensity ?? ""];
+    });
     return [...demo, ...respCols, ...nlpData].map(escapeCsv).join(",");
   });
 

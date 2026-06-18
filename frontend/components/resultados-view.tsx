@@ -191,17 +191,32 @@ function escapeCsv(v: unknown): string {
   return s;
 }
 
-function exportarCSV(r: Resultados) {
+function buildCsvContent(r: Resultados) {
   const preguntas = r.preguntas;
+
+  // Preguntas que tienen al menos un audio NLP en algún participante
+  const preguntasConAudio = preguntas.filter(q =>
+    r.individuales.some(ind => ind.nlp.some(n => n.question_id === q.id))
+  );
 
   const demografiaCols = [
     "Nombre", "Sexo", "Año nacimiento", "Estrato", "Municipio",
-    "Nivel estudios", "Estado civil", "Num. hijos", "Régimen salud", "SISBEN",
+    "Nivel estudios", "Estado civil", "Núm. hijos", "Régimen salud", "SISBEN",
     "Tenencia vivienda", "Grupo étnico", "Actividades", "Antigüedad barrio",
     "Recibe subsidios", "Acceso internet", "Registrado votar", "Fecha",
   ];
   const preguntaCols = preguntas.map((q, i) => `P${i + 1}: ${q.text.slice(0, 60)}`);
-  const nlpCols = ["NLP - Pregunta", "NLP - Transcripción", "NLP - Sentimiento", "NLP - Emoción", "NLP - Tema", "NLP - Intensidad"];
+  // Una columna por pregunta con audio × 5 dimensiones NLP
+  const nlpCols = preguntasConAudio.flatMap((q, i) => {
+    const label = `P${preguntas.indexOf(q) + 1} Audio`;
+    return [
+      `${label} - Transcripción`,
+      `${label} - Sentimiento`,
+      `${label} - Emoción`,
+      `${label} - Tema`,
+      `${label} - Intensidad`,
+    ];
+  });
 
   const headers = [...demografiaCols, ...preguntaCols, ...nlpCols];
 
@@ -227,19 +242,26 @@ function exportarCSV(r: Resultados) {
       ind.fecha ? new Date(ind.fecha).toLocaleString("es-CO") : "",
     ];
     const respCols = preguntas.map(q => ind.respuestas[q.id] ?? "");
-    const nlpData = [
-      ind.nlp.map(n => n.question_text).join(" | "),
-      ind.nlp.map(n => n.transcript).join(" | "),
-      ind.nlp.map(n => n.sentiment).join(" | "),
-      ind.nlp.map(n => n.emotion).join(" | "),
-      ind.nlp.map(n => n.topic).join(" | "),
-      ind.nlp.map(n => n.intensity ?? "").join(" | "),
-    ];
+    // Una columna por dimensión NLP × pregunta con audio
+    const nlpData = preguntasConAudio.flatMap(q => {
+      const n = ind.nlp.find(x => x.question_id === q.id);
+      return [
+        n?.transcript ?? "",
+        n?.sentiment ?? "",
+        n?.emotion ?? "",
+        n?.topic ?? "",
+        n?.intensity ?? "",
+      ];
+    });
     return [...demo, ...respCols, ...nlpData].map(escapeCsv).join(",");
   });
 
-  const csv = [headers.map(escapeCsv).join(","), ...rows].join("\n");
-  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" }); // BOM para Excel
+  return [headers.map(escapeCsv).join(","), ...rows].join("\n");
+}
+
+function exportarCSV(r: Resultados) {
+  const csv = buildCsvContent(r);
+  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
