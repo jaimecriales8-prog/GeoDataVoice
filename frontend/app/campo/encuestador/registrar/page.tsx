@@ -761,7 +761,7 @@ function RegistrarPanelistaContent() {
             </div>
             {[
               { key: "panel", label: "Autorizo a GeoDataVoice incluirme en su panel territorial validado y contactarme para mediciones de opinión periódicas." },
-              { key: "datos", label: "Autorizo el registro y uso de mis datos para análisis territorial y el pago de incentivos a mi número de celular." },
+              { key: "datos", label: "Autorizo el tratamiento de mis datos personales conforme a la Ley 1581 de 2012 (Habeas Data) para análisis territorial e incentivos económicos a mi celular registrado." },
             ].map(({ key, label }) => (
               <label key={key} className={`flex items-start gap-3 rounded-xl border-2 p-4 cursor-pointer transition-colors ${
                 consents[key as keyof typeof consents] ? "border-emerald-500/50 bg-emerald-500/10" : "border-white/10 bg-white/[0.02]"
