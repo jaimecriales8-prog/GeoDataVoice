@@ -6,7 +6,7 @@ import Providers from "./providers";
 const geist = Geist({ variable: "--font-geist", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "GeoDataVoice — Dashboard",
+  title: "GeoDataVoice",
   description: "Inteligencia territorial validada",
 };
 
