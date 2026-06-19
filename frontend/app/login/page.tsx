@@ -177,6 +177,9 @@ export default function LoginPage() {
           GeoDataVoice © 2026 ·{" "}
           <a href="/" className="hover:text-slate-400 transition-colors">Volver al inicio</a>
         </p>
+        <p className="text-center text-xs text-slate-700 mt-2">
+          Tus datos son tratados bajo la Ley 1581 de 2012 (Habeas Data).
+        </p>
       </div>
     </div>
   );
