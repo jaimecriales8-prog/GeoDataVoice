@@ -14,7 +14,7 @@ import ResultadosView from "@/components/resultados-view";
 import ResultadosProyectoView from "@/components/resultados-proyecto-view";
 import { PonderacionEditor } from "@/components/ponderacion-editor";
 import { FiltroDemografico } from "@/components/filtro-demografico";
-import { ArrowLeft, Loader2, Download, Printer, Send, StopCircle, Pencil, Link2, Check, Users, ShieldCheck, ShieldOff, TrendingUp, MessageCircle } from "lucide-react";
+import { ArrowLeft, Loader2, Download, Printer, Send, StopCircle, Pencil, Link2, Check, Users, ShieldCheck, ShieldOff, TrendingUp, MessageCircle, ImagePlus } from "lucide-react";
 import Paginacion from "@/components/paginacion";
 import CaracterizacionPanel from "@/components/caracterizacion-panel";
 import DeviceStatsPanel from "@/components/device-stats-panel";
@@ -118,6 +118,7 @@ export default function ResultadosEncuesta({ params }: { params: Promise<{ id: s
   const [waMsg, setWaMsg] = useState("");
   const [slug, setSlug] = useState<string | null>(null);
   const [linkCopiado, setLinkCopiado] = useState(false);
+  const [subiendoImg, setSubiendoImg] = useState(false);
   const [tab, setTab] = useState<"resultados" | "respondentes">("resultados");
   const [mostrarEvolucion, setMostrarEvolucion] = useState(false);
   const [resProyecto, setResProyecto] = useState<ResultadosProyecto | null>(null);
@@ -300,6 +301,23 @@ export default function ResultadosEncuesta({ params }: { params: Promise<{ id: s
                 {cambiandoEstado ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
                 Publicar
               </button>
+            )}
+            {slug && (
+              <label className={`inline-flex items-center gap-1.5 rounded-lg border border-white/10 hover:bg-white/5 px-3 py-1.5 text-xs text-slate-400 hover:text-white transition-colors cursor-pointer ${subiendoImg ? "opacity-50 pointer-events-none" : ""}`} title="Subir imagen de bienvenida">
+                <ImagePlus className="h-3.5 w-3.5" />
+                {subiendoImg ? "Subiendo…" : "Imagen"}
+                <input type="file" accept="image/*" className="hidden" onChange={async e => {
+                  const f = e.target.files?.[0];
+                  if (!f) return;
+                  setSubiendoImg(true);
+                  const fd = new FormData();
+                  fd.append("file", f);
+                  fd.append("survey_id", eid);
+                  await fetch("/api/encuesta/upload-imagen", { method: "POST", body: fd });
+                  setSubiendoImg(false);
+                  e.target.value = "";
+                }} />
+              </label>
             )}
             {slug && (status === "ready" || status === "sent") && (
               <div className="flex items-center gap-2 rounded-lg bg-blue-600/10 border border-blue-500/20 px-3 py-1.5">
