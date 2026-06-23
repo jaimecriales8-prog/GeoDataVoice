@@ -394,16 +394,16 @@ export default function EncuestaPage({ params }: { params: Promise<{ id: string 
             <p className="text-sm font-semibold text-blue-800">{answers[current.id]}</p>
           </div>
 
-          <div className="mb-6">
+          <div className="rounded-2xl bg-blue-600 px-5 py-4 mb-6">
             <div className="flex items-center gap-2 mb-2">
-              <Volume2 className="h-4 w-4 text-slate-500" />
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Cuéntanos más (opcional)</span>
+              <Mic className="h-4 w-4 text-blue-200" />
+              <span className="text-xs font-semibold text-blue-200 uppercase tracking-wider">Nota de voz (opcional)</span>
             </div>
-            <h2 className="text-lg font-bold text-slate-900 leading-snug">
+            <h2 className="text-xl font-bold text-white leading-snug">
               {current.audio_prompt || "¿Quieres ampliar tu respuesta con una nota de voz?"}
             </h2>
-            <p className="text-sm text-slate-500 mt-2">
-              Habla con naturalidad. Máximo 2 minutos. Puedes omitir si no quieres grabar.
+            <p className="text-sm text-blue-200 mt-2">
+              Habla con naturalidad. Máximo 2 minutos.
             </p>
           </div>
 
