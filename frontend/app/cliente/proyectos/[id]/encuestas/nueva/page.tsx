@@ -85,6 +85,8 @@ export default function NuevaEncuesta({ params }: { params: Promise<{ id: string
   const [slugCopied, setSlugCopied] = useState(false);
   const [demoOpcionales, setDemoOpcionales] = useState<Record<string, boolean>>({});
   const [abNotificar, setAbNotificar] = useState(false);
+  const [welcomeImage, setWelcomeImage] = useState<File | null>(null);
+  const [welcomeImagePreview, setWelcomeImagePreview] = useState<string | null>(null);
 
   function generarSlug(nombre: string) {
     const base = nombre.toLowerCase()
@@ -210,6 +212,14 @@ export default function NuevaEncuesta({ params }: { params: Promise<{ id: string
       .single();
 
     if (sErr || !survey) { setError(sErr?.message ?? "Error al crear la encuesta"); setSaving(false); return; }
+
+    // Subir imagen de bienvenida si se seleccionó
+    if (welcomeImage && esAbierta) {
+      const fd = new FormData();
+      fd.append("file", welcomeImage);
+      fd.append("survey_id", survey.id);
+      await fetch("/api/encuesta/upload-imagen", { method: "POST", body: fd });
+    }
 
     const preguntasRows = preguntas.map((p, i) => ({
       id: crypto.randomUUID(),
@@ -466,6 +476,33 @@ export default function NuevaEncuesta({ params }: { params: Promise<{ id: string
                 <div className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${abNotificar ? "translate-x-5" : "translate-x-0.5"}`} />
               </button>
             </label>
+
+            {/* Imagen de bienvenida */}
+            <div>
+              <p className="text-xs font-semibold text-slate-300 mb-1">Imagen de bienvenida (opcional)</p>
+              <p className="text-[11px] text-slate-500 mb-2">Se muestra en la pantalla de inicio de la encuesta. JPG, PNG o WebP · máx 5 MB.</p>
+              {welcomeImagePreview ? (
+                <div className="relative w-full max-w-xs">
+                  <img src={welcomeImagePreview} alt="Vista previa" className="w-full rounded-xl object-cover max-h-48" />
+                  <button type="button"
+                    onClick={() => { setWelcomeImage(null); setWelcomeImagePreview(null); }}
+                    className="absolute top-2 right-2 rounded-full bg-black/60 p-1 text-white hover:bg-black/80 transition-colors">
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                  </button>
+                </div>
+              ) : (
+                <label className="flex items-center justify-center gap-2 w-full rounded-xl border-2 border-dashed border-white/15 hover:border-white/30 bg-white/[0.02] hover:bg-white/[0.04] p-6 cursor-pointer transition-colors">
+                  <svg className="h-5 w-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                  <span className="text-sm text-slate-500">Subir imagen</span>
+                  <input type="file" accept="image/*" className="hidden" onChange={e => {
+                    const f = e.target.files?.[0];
+                    if (!f) return;
+                    setWelcomeImage(f);
+                    setWelcomeImagePreview(URL.createObjectURL(f));
+                  }} />
+                </label>
+              )}
+            </div>
 
             {/* Campos demográficos opcionales */}
             <div>

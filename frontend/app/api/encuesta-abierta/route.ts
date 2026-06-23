@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
   const supabase = createServiceClient();
   const { data: survey } = await supabase
     .from("surveys")
-    .select("id, name, description, es_abierta, abierta_identidad, abierta_pago, abierta_anonima, demo_opcionales")
+    .select("id, name, description, welcome_image_url, es_abierta, abierta_identidad, abierta_pago, abierta_anonima, demo_opcionales")
     .eq("slug", slug)
     .eq("es_abierta", true)
     .in("status", ["ready", "sent"])

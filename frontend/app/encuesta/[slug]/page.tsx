@@ -12,6 +12,7 @@ import { useDeviceMeta } from "@/hooks/useDeviceMeta";
 // ── tipos ─────────────────────────────────────────────────────────────────────
 type Survey = {
   id: string; name: string; description: string | null;
+  welcome_image_url?: string | null;
   es_abierta: boolean; abierta_identidad: boolean;
   abierta_pago: boolean; abierta_anonima: boolean;
   demo_opcionales?: Record<string, boolean> | null;
@@ -305,9 +306,17 @@ export default function EncuestaAbiertaPage({ params }: { params: Promise<{ slug
         {/* ── 0: BIENVENIDA ── */}
         {pasoActual === "bienvenida" && (
           <div className="text-center">
-            <div className="h-16 w-16 rounded-2xl bg-violet-500/20 flex items-center justify-center mx-auto mb-5">
-              <Users className="h-8 w-8 text-violet-400" />
-            </div>
+            {survey.welcome_image_url ? (
+              <img
+                src={survey.welcome_image_url}
+                alt={survey.name}
+                className="w-full rounded-2xl object-cover max-h-64 mb-5"
+              />
+            ) : (
+              <div className="h-16 w-16 rounded-2xl bg-violet-500/20 flex items-center justify-center mx-auto mb-5">
+                <Users className="h-8 w-8 text-violet-400" />
+              </div>
+            )}
             <h1 className="text-2xl font-bold text-white mb-3">{survey.name}</h1>
             {survey.description && <p className="text-slate-400 text-sm mb-6 leading-relaxed">{survey.description}</p>}
             <div className="rounded-2xl bg-white/[0.03] border border-white/5 p-4 mb-8 text-left space-y-2">
