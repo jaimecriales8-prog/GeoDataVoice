@@ -310,7 +310,7 @@ export default function EncuestaAbiertaPage({ params }: { params: Promise<{ slug
               <img
                 src={survey.welcome_image_url}
                 alt={survey.name}
-                className="w-full rounded-2xl object-cover max-h-64 mb-5"
+                className="w-full rounded-2xl object-contain mb-5"
               />
             ) : (
               <div className="h-16 w-16 rounded-2xl bg-violet-500/20 flex items-center justify-center mx-auto mb-5">
